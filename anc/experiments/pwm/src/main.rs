@@ -5,7 +5,7 @@ use rpi_pal::pwm::{Channel, Polarity, Pwm};
 const PERIOD_NS: u64 = 1_000_000;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let pwm = Pwm::with_pwmchip(0, Channel::Pwm1 as u8)?;
+    let pwm = Pwm::with_pwmchip(0, Channel::Pwm1 as u8)?; // GPIO13
     pwm.set_period(Duration::from_nanos(PERIOD_NS))?;
     pwm.set_polarity(Polarity::Normal)?;
     pwm.enable()?;
