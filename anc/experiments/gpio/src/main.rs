@@ -67,7 +67,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             log::info!("mlockall() returned 0");
         }
         _ => {
-            log::error!("mlockall() failed, returned {}", res);
+            log::error!("mlockall() failed, returned {}. Make sure to run as root.", res);
         }
     }
 
@@ -81,7 +81,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             log::info!("main: sched_setscheduler call returned 0");
         },
         _ => {
-            log::error!("main: sched_setscheduler failed: Returned {}", sched_res);
+            log::error!("main: sched_setscheduler failed: Returned {}. Make sure to run as root.", sched_res);
         }
     }
 

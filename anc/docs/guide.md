@@ -5,13 +5,13 @@
 Deploy ANC pwm to Pi:
 
 ```
-scp -i ~/gipop_plc /home/ander/Documents/lagadan/repo/torunggari/anc/experiments/pwm/target/aarch64-unknown-linux-gnu/release/anc pi@172.30.40.32:/home/pi/torunggari/anc/
+scp -i ~/gipop_plc /home/ander/Documents/lagadan/repo/palanuk/anc/experiments/pwm/target/aarch64-unknown-linux-gnu/release/pwm_xprmnt pi@172.30.40.32:/home/pi/palanuk/anc/
 ```
 
 Deploy ANC gpio to Pi:
 
 ```
-scp -i ~/gipop_plc /home/ander/Documents/lagadan/repo/torunggari/anc/experiments/gpio/target/aarch64-unknown-linux-gnu/release/gpio pi@172.30.40.32:/home/pi/torunggari/anc/gpio
+scp -i ~/gipop_plc /home/ander/Documents/lagadan/repo/palanuk/anc/experiments/gpio/target/aarch64-unknown-linux-gnu/release/hcsr04_xprmnt pi@172.30.40.32:/home/pi/palanuk/anc/gpio
 ```
 
 Build:
