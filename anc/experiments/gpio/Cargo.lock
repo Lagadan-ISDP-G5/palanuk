@@ -114,17 +114,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "gpio"
-version = "0.1.0"
-dependencies = [
- "core_affinity",
- "env_logger",
- "gpio-cdev",
- "libc",
- "log",
-]
-
-[[package]]
 name = "gpio-cdev"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -133,6 +122,17 @@ dependencies = [
  "bitflags",
  "libc",
  "nix",
+]
+
+[[package]]
+name = "hcsr04_xprmnt"
+version = "0.1.0"
+dependencies = [
+ "core_affinity",
+ "env_logger",
+ "gpio-cdev",
+ "libc",
+ "log",
 ]
 
 [[package]]

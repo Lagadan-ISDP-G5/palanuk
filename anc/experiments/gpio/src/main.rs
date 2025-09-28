@@ -144,6 +144,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 /// Blocks for duration specified by `delay`. `delay` must be at least 10us.
 fn set_trig_high(trig_handle: &LineHandle, delay: Duration) -> Result<(), Error> {
+    assert!(delay >= Duration::from_micros(10));
     trig_handle.set_value(1)?;
     std::thread::sleep(delay);
     Ok(())
