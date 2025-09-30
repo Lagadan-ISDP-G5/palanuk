@@ -21,4 +21,14 @@ cross build --target aarch64-unknown-linux-gnu --release
 
 ```
 
+HC-SR04 driver example:
+
+Build:
+
+```
+cross build --example hcsr04_xmpl --target aarch64-unknown-linux-gnu --release
+```
+
+```
 scp -i ~/gipop_plc /home/ander/Documents/lagadan/repo/palanuk/anc/experiments/hcsr04/target/aarch64-unknown-linux-gnu/release/examples/hcsr04_xmpl pi@172.30.40.32:/home/pi/palanuk/anc/
+```

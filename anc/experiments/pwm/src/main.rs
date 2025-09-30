@@ -1,13 +1,12 @@
-use std::error::Error;
+use std::{any, error::Error};
 use std::time::Duration;
 use rpi_pal::pwm::{Channel, Polarity, Pwm};
-use gpio_cdev::{Chip, LineHandle, LineRequestFlags};
+use gpio_cdev::{Chip, Line, LineHandle, LineRequestFlags};
 use libc::*;
 use env_logger::Env;
 use core_affinity::*;
 
-const PERIOD_MILLISEC: u64 = 50;
-// const DUTY_CYCLE: f64 = 0.5;
+const PERIOD_MILLISEC: u64 = 100;
 const L298N_IN_3: u32 = 26; // GPIO26
 const L298N_IN_4: u32 = 19; // GPIO19
 const L298N_EN_B: Channel = Channel::Pwm1; // GPIO13
@@ -61,26 +60,15 @@ fn main() -> Result<(), Box<dyn Error>> {
     std::thread::sleep(Duration::from_secs_f32(1.0));
 
     for _ in 1..=1 {
-        log::info!("Duty cycle 100%");
-        en_b_hndl.set_duty_cycle(1.0)?;
-        std::thread::sleep(Duration::from_secs_f32(4.0));
 
-        log::info!("Duty cycle 80%");
-        en_b_hndl.set_duty_cycle(0.8)?;
-        std::thread::sleep(Duration::from_secs_f32(4.0));
 
-        log::info!("Duty cycle 75%");
-        en_b_hndl.set_duty_cycle(0.75)?;
-        std::thread::sleep(Duration::from_secs_f32(4.0));
+        // log::info!("Duty cycle 60%");
+        // en_b_hndl.set_duty_cycle(0.6)?;
+        // std::thread::sleep(Duration::from_secs_f32(5.0));
 
-        log::info!("Duty cycle 60%");
-        en_b_hndl.set_duty_cycle(0.6)?;
-        std::thread::sleep(Duration::from_secs_f32(4.0));
-
-        // log::info!("Duty cycle 50%");
-        // en_b_hndl.set_duty_cycle(0.50)?;
-        // std::thread::sleep(Duration::from_secs_f32(4.0));
     }
+
+    idle_to_75(&en_b_hndl)?;
 
     Ok(())
     // When the pwm variable goes out of scope, the PWM channel is automatically disabled.
@@ -92,3 +80,21 @@ fn set_direction_forward(in_3_hndl: &LineHandle, in_4_hndl: &LineHandle) -> Resu
     in_4_hndl.set_value(0)?;
     Ok(())
 }
+
+fn idle_to_75(en_b_hndl: &Pwm) -> Result<(), Box<dyn Error>> {
+    log::info!("Duty cycle 100%");
+    en_b_hndl.set_duty_cycle(1.0)?;
+    std::thread::sleep(Duration::from_secs_f32(5.0));
+
+    log::info!("Duty cycle 80%");
+    en_b_hndl.set_period(Duration::from_millis(50))?;
+    en_b_hndl.set_duty_cycle(0.8)?;
+    std::thread::sleep(Duration::from_secs_f32(7.0));
+
+    log::info!("Duty cycle 75%");
+    en_b_hndl.set_period(Duration::from_millis(80))?;
+    en_b_hndl.set_duty_cycle(0.75)?;
+    std::thread::sleep(Duration::from_secs_f32(6.0));
+    Ok(())
+}
+

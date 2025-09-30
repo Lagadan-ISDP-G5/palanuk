@@ -4,12 +4,14 @@ use std::{thread::sleep, time::*};
 pub enum DistanceUnit {
     Mm(f64),
     Cm(f64),
+    Meter(f64),
 }
 impl DistanceUnit {
     pub fn write_val(&mut self, new_val: f64) {
         match self {
             DistanceUnit::Mm(val) => *val = new_val,
             DistanceUnit::Cm(val) => *val = new_val,
+            DistanceUnit::Meter(val) => *val = new_val,
         }
     }
 
@@ -17,6 +19,7 @@ impl DistanceUnit {
         match self {
             DistanceUnit::Mm(val) => *val,
             DistanceUnit::Cm(val) => *val,
+            DistanceUnit::Meter(val) => *val,
         }
     }
 }
@@ -41,11 +44,12 @@ pub struct HcSr04 {
     echo: Line,
 }
 
-/// Doesn't really seem to work
+/// YMMV
 pub fn range_to_timeout(range: DistanceUnit) -> Result<Duration, String> {
     let res = match range {
+        DistanceUnit::Meter(val) => (val / 2.0) / SPEED_OF_SOUND.to_val(),
         DistanceUnit::Cm(val) => (val / 200.0) / SPEED_OF_SOUND.to_val(),
-        DistanceUnit::Mm(_) => return Err("range must be in cm".to_string())
+        DistanceUnit::Mm(_) => return Err("range must be in m or cm".to_string())
     };
     Ok(Duration::from_secs_f64(res))
 }
@@ -96,6 +100,11 @@ impl HcSr04 {
             }
         }
         Ok(dist.to_val())
+    }
+
+    pub fn dist_meter(&mut self, timeout: Option<Duration>) -> Result<DistanceUnit, Error> {
+        let res = self.dist(timeout)?;
+        Ok(DistanceUnit::Meter(res))
     }
 
     pub fn dist_cm(&mut self, timeout: Option<Duration>) -> Result<DistanceUnit, Error> {
