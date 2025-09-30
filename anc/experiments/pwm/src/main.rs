@@ -1,7 +1,7 @@
-use std::{any, error::Error};
+use std::error::Error;
 use std::time::Duration;
 use rpi_pal::pwm::{Channel, Polarity, Pwm};
-use gpio_cdev::{Chip, Line, LineHandle, LineRequestFlags};
+use gpio_cdev::{Chip, LineHandle, LineRequestFlags};
 use libc::*;
 use env_logger::Env;
 use core_affinity::*;
@@ -40,7 +40,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
     }
 
-    let mut chip = Chip::new("/dev/gpiochip4")?; // For some reason it's /dev/gpiochip4 on the Pi 5
+    let mut chip = Chip::new("/dev/gpiochip4")?;
     let in_3_hndl = chip
         .get_line(L298N_IN_3)?
         .request(LineRequestFlags::OUTPUT, 0, "l298n-in-3")?;
@@ -59,15 +59,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     en_b_hndl.enable()?;
     std::thread::sleep(Duration::from_secs_f32(1.0));
 
-    for _ in 1..=1 {
-
-
-        // log::info!("Duty cycle 60%");
-        // en_b_hndl.set_duty_cycle(0.6)?;
-        // std::thread::sleep(Duration::from_secs_f32(5.0));
-
-    }
-
+    idle_to_75(&en_b_hndl)?;
+    std::thread::sleep(Duration::from_secs_f32(0.2));
+    set_direction_reverse(&in_3_hndl, &in_4_hndl)?;
+    log::info!("Reversing...");
+    std::thread::sleep(Duration::from_secs_f32(0.2));
     idle_to_75(&en_b_hndl)?;
 
     Ok(())
@@ -81,20 +77,25 @@ fn set_direction_forward(in_3_hndl: &LineHandle, in_4_hndl: &LineHandle) -> Resu
     Ok(())
 }
 
+fn set_direction_reverse(in_3_hndl: &LineHandle, in_4_hndl: &LineHandle) -> Result<(), gpio_cdev::Error> {
+    in_3_hndl.set_value(0)?;
+    in_4_hndl.set_value(1)?;
+    Ok(())
+}
+
 fn idle_to_75(en_b_hndl: &Pwm) -> Result<(), Box<dyn Error>> {
     log::info!("Duty cycle 100%");
+    en_b_hndl.set_period(Duration::from_micros(20))?;
     en_b_hndl.set_duty_cycle(1.0)?;
     std::thread::sleep(Duration::from_secs_f32(5.0));
 
-    log::info!("Duty cycle 80%");
-    en_b_hndl.set_period(Duration::from_millis(50))?;
-    en_b_hndl.set_duty_cycle(0.8)?;
-    std::thread::sleep(Duration::from_secs_f32(7.0));
+    log::info!("Duty cycle 70%");
+    en_b_hndl.set_duty_cycle(0.70)?;
+    std::thread::sleep(Duration::from_secs_f32(5.0));
 
-    log::info!("Duty cycle 75%");
-    en_b_hndl.set_period(Duration::from_millis(80))?;
-    en_b_hndl.set_duty_cycle(0.75)?;
-    std::thread::sleep(Duration::from_secs_f32(6.0));
+    log::info!("Duty cycle 60%");
+    en_b_hndl.set_duty_cycle(0.6)?;
+    std::thread::sleep(Duration::from_secs_f32(5.0));
     Ok(())
 }
 

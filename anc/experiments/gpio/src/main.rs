@@ -8,7 +8,6 @@ use hcsr04_gpio_cdev::HcSr04;
 const HC_SR04_ECHO: u32 = 20; // GPIO20
 const HC_SR04_TRIG: u32 = 21; // GPIO21
 
-
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
 
