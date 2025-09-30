@@ -1,0 +1,85 @@
+Benchmarks:
+
+1. Video latency <300ms
+2. parking lot vacancy detection >85% accuracy
+3. oku sign detection >85% accuracy
+4. object detection results <150ms
+
+
+
+PSEUDOCODE:
+
+PROGRAM Image_Transmission_Processing
+
+INITIALIZE Camera_Module3Wide
+INITIALIZE Network_Interfaces (REST_API, WebRTC, SSE)
+INITIALIZE InfluxDB_Client
+CALIBRATE camera with homography (for pixel-to-world mapping)
+
+LOOP UNTIL Parking_Task_Complete:
+
+    ---- INPUT ----
+    CAPTURE frame FROM Camera           ← (Camera I/O)
+
+    ---- WHITE LINE DETECTION ----
+    ROI_lane = bottom 1/3 of frame
+    edges = CANNY_EDGE(ROI_lane)
+    lane_lines = HOUGH_LINES(edges)
+    lane_center = COMPUTE_LINE_CENTER(lane_lines)
+    line_offset = frame_center - lane_center
+    STORE result_line = {offset: line_offset, confidence: c1}
+
+    ---- PARKING LOT DETECTION ----
+    ROI_parking = mid-frame (left & right strips)
+    slot_lines = HOUGH_LINES(ROI_parking)
+    slot_groups = GROUP_PARALLEL_LINES(slot_lines)
+    FOR each group IN slot_groups:
+        entrance_pixel = COMPUTE_SLOT_ENTRANCE(group, lane_lines)
+        (x, y) = APPLY_HOMOGRAPHY(entrance_pixel)      ← pixel → meters
+        angle = COMPUTE_ORIENTATION(group)
+        STORE candidate_slot = {id, x, y, angle}
+
+    ---- OBJECT DETECTION ----
+    ROI_path = full frame or slot region
+    obstacles = DETECT_OBJECTS(ROI_path)               ← CV or ML
+    IF obstacle IN slot_region:
+        candidate_slot.status = "OCCUPIED"
+    ELSE:
+        candidate_slot.status = "VACANT"
+
+    ---- OKU SIGN DETECTION ----
+    FOR each candidate_slot.status == "VACANT":
+        ROI_slot = slot_region
+        oku_detected = OCR_OR_TEMPLATE(ROI_slot, "OKU/wheelchair")
+        IF oku_detected == TRUE:
+            candidate_slot.reserved = TRUE
+            candidate_slot.status = "RESERVED"
+        ELSE:
+            candidate_slot.reserved = FALSE
+
+    ---- COMBINE RESULTS ----
+    detection_result = {
+        timestamp: current_time(),
+        line_offset: result_line.offset,
+        slots: [candidate_slot1, candidate_slot2, ...],
+        obstacles: [obstacle_bbox, ...]
+    }
+
+    ---- OUTPUT ----
+    STREAM annotated frame VIA WebRTC                 ← (Network O/P, Video)
+    POST detection_result TO REST_API "/detections"   ← (Network O/P, JSON)
+    WRITE detection_result METRICS INTO InfluxDB      ← (DB O/P, Time-series)
+    SEND detection_result TO ANC Module               ← (Network O/P, Control Input)
+
+    ---- INPUT ----
+    CHECK navigation_command VIA SSE "/commands"      ← (Network I/P)
+    IF command == "STOP":
+        BREAK LOOP
+
+END LOOP
+
+CLOSE Camera
+TERMINATE Network_Connections
+CLOSE InfluxDB_Client
+
+END PROGRAM
