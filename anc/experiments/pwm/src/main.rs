@@ -6,7 +6,7 @@ use libc::*;
 use env_logger::Env;
 use core_affinity::*;
 
-const PERIOD_MILLISEC: u64 = 100;
+const PERIOD_MILLISEC: u64 = 50;
 // const DUTY_CYCLE: f64 = 0.5;
 const L298N_IN_3: u32 = 26; // GPIO26
 const L298N_IN_4: u32 = 19; // GPIO19
@@ -77,9 +77,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         en_b_hndl.set_duty_cycle(0.6)?;
         std::thread::sleep(Duration::from_secs_f32(4.0));
 
-        log::info!("Duty cycle 50%");
-        en_b_hndl.set_duty_cycle(0.50)?;
-        std::thread::sleep(Duration::from_secs_f32(4.0));
+        // log::info!("Duty cycle 50%");
+        // en_b_hndl.set_duty_cycle(0.50)?;
+        // std::thread::sleep(Duration::from_secs_f32(4.0));
     }
 
     Ok(())

@@ -11,7 +11,7 @@ scp -i ~/gipop_plc /home/ander/Documents/lagadan/repo/palanuk/anc/experiments/pw
 Deploy ANC gpio to Pi:
 
 ```
-scp -i ~/gipop_plc /home/ander/Documents/lagadan/repo/palanuk/anc/experiments/gpio/target/aarch64-unknown-linux-gnu/release/hcsr04_xprmnt pi@172.30.40.32:/home/pi/palanuk/anc/gpio
+scp -i ~/gipop_plc /home/ander/Documents/lagadan/repo/palanuk/anc/experiments/gpio/target/aarch64-unknown-linux-gnu/release/hcsr04_xprmnt pi@172.30.40.32:/home/pi/palanuk/anc/
 ```
 
 Build:
@@ -20,3 +20,5 @@ Build:
 cross build --target aarch64-unknown-linux-gnu --release
 
 ```
+
+scp -i ~/gipop_plc /home/ander/Documents/lagadan/repo/palanuk/anc/experiments/hcsr04/target/aarch64-unknown-linux-gnu/release/examples/hcsr04_xmpl pi@172.30.40.32:/home/pi/palanuk/anc/

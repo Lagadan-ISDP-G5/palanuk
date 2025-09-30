@@ -1,0 +1,11 @@
+[package]
+name = "hcsr04"
+version = "0.1.0"
+edition = "2024"
+
+[[example]]
+name = "hcsr04_xmpl"
+path = "usage_example/example.rs"
+
+[dependencies]
+gpio-cdev = "0.6.0"
