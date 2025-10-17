@@ -32,3 +32,20 @@ cross build --example hcsr04_xmpl --target aarch64-unknown-linux-gnu --release
 ```
 scp -i ~/gipop_plc /home/ander/Documents/lagadan/repo/palanuk/anc/experiments/hcsr04/target/aarch64-unknown-linux-gnu/release/examples/hcsr04_xmpl pi@172.30.40.32:/home/pi/palanuk/anc/
 ```
+
+## IDE stuff:
+
+Some Zed cross-compilation workaround for rust-analyzer using
+host arch to analyze instead of cross comp target:
+
+```json
+  "lsp": {
+    "rust-analyzer": {
+      "initialization_options": {
+        "cargo": {
+          "target": "aarch64-unknown-linux-gnu" // Needed to get rust-analyzer to analyze the code for the intended target instead of host arch
+        }
+      }
+    }
+  }
+```
