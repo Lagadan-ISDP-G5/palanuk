@@ -33,6 +33,12 @@ cross build --example hcsr04_xmpl --target aarch64-unknown-linux-gnu --release
 scp -i ~/gipop_plc /home/ander/Documents/lagadan/repo/palanuk/anc/experiments/hcsr04/target/aarch64-unknown-linux-gnu/release/examples/hcsr04_xmpl pi@172.30.40.32:/home/pi/palanuk/anc/
 ```
 
+## I2C
+
+```
+scp -i ~/gipop_plc /Users/ander/Documents/proj/palanuk/anc/experiments/i2c/target/aarch64-unknown-linux-gnu/release/i2c pi@172.30.40.32:/home/pi/palanuk/anc/
+```
+
 ## IDE stuff:
 
 Some Zed cross-compilation workaround for rust-analyzer using
