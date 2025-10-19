@@ -1,0 +1,9 @@
+[package]
+name = "i2c"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+i2cdev = "0.6.1"
+ina219_rs = "0.5.1"
+linux-embedded-hal = "0.3.2"
