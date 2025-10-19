@@ -1,30 +1,22 @@
-extern crate ina219_rs as ina219;
-extern crate linux_embedded_hal as hal;
+use dumb_ina219::{units::{CurrentUnit, Gettable, ResistanceUnit}, *};
 
-use hal::I2cdev;
-use ina219::physic::{self, ElectricCurrent};
+const TARGET_ADDR: u8 = 0x44;
 
-use ina219::ina219::{INA219, Opts};
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let mut dev = Ina219::new(
+        ResistanceUnit::milliohms(100.0),
+        CurrentUnit::milliamps(1000.0),
+        TARGET_ADDR)?;
+    dev.init()?;
+    let current_reading = dev.load_current()?;
+    let shunt_voltage_reading = dev.shunt_voltage()?;
+    let bus_voltage_reading = dev.bus_voltage()?;
+    let power_reading = dev.power()?;
 
-fn main() {
-    let device = I2cdev::new("/dev/i2c-1").unwrap();
-    let opt = Opts::new(0x44, 100 * physic::MilliOhm, 1 * physic::Ampere);
-    let mut ina = INA219::new(device, opt);
-    ina.init().unwrap();
-    let pm = ina.sense().unwrap();
-    println!("{:?}", pm);
 
-    let i_raw = ina.current_raw().unwrap();
-    println!("Raw current: {:?}", i_raw);
-    let i_lsb = (1000 * physic::MilliAmpere) / ElectricCurrent::from(32768);
-    println!("i_lsb: {}", i_lsb);
-    let i_conv = (i_raw as i64) * i_lsb;
-    println!(
-        "Converted current: {:?}",
-        (ElectricCurrent::from(i_conv) as f64) / (1000_i64.pow(2) as f64)
-    );
-
-    let p_raw = ina.power().unwrap();
-    let p_lsb = 20 * i_lsb;
-    let p_conv = p_raw * p_lsb;
+    println!("Load current: {:?} mA", current_reading.get_val()*1000.0);
+    println!("Shunt voltage: {:?} mV", shunt_voltage_reading.get_val()*1000.0);
+    println!("Bus voltage: {:?} V", bus_voltage_reading.get_val());
+    println!("Power: {:?} mW", power_reading.get_val()*1000.0);
+    Ok(())
 }
