@@ -39,6 +39,19 @@ scp -i ~/gipop_plc /home/ander/Documents/lagadan/repo/palanuk/anc/experiments/hc
 scp -i ~/gipop_plc /Users/ander/Documents/proj/palanuk/anc/experiments/i2c/target/aarch64-unknown-linux-gnu/release/i2c pi@172.30.40.32:/home/pi/palanuk/anc/
 ```
 
+## Panning servo
+
+```
+scp -i ~/gipop_plc /Users/ander/Documents/proj/palanuk/anc/experiments/panning_servo/target/aarch64-unknown-linux-gnu/release/panning_servo pi@172.30.40.32:/home/pi/palanuk/anc/
+```
+
+## PWM output on GPIO12
+
+Apparently you need to use pinctrl first for `rpi-pal` to have any effect:
+```
+pinctrl set 12 a0
+```
+
 ## IDE stuff:
 
 Some Zed cross-compilation workaround for rust-analyzer using
