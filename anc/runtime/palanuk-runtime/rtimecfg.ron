@@ -1,4 +1,7 @@
 (
+    runtime: (
+        rate_target_hz: 4,
+        ),
     tasks: [
         (
             id: "balpos",
