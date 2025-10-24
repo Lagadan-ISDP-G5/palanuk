@@ -659,7 +659,11 @@ dependencies = [
 name = "hal"
 version = "0.1.0"
 dependencies = [
+ "bincode 2.0.1",
+ "cfg_aliases",
+ "cu29",
  "gpio-cdev",
+ "serde",
 ]
 
 [[package]]
