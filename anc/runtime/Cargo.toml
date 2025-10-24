@@ -1,0 +1,19 @@
+[workspace]
+resolver = "3"
+members = ["hal", "palanuk-runtime"]
+
+[workspace.package]
+publish = false
+version = "0.1.0"
+authors = ["Ander Jiloh <ander.jilo@gmail.com>"]
+edition = "2024"
+license = "LGPL-2.1-only"
+keywords = ["autonomous", "copper-rs", "robotics", "real-time"]
+
+[workspace.dependencies]
+cu29 = "0.10.0"
+cu29-runtime = "0.10.0"
+gpio-cdev = "0.6.0"
+
+[build]
+target = "aarch64-unknown-linux-gnu"
