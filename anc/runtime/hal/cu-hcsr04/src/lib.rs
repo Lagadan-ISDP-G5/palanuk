@@ -1,8 +1,8 @@
 use cu29::prelude::*;
 use bincode::{Decode, Encode};
-use serde::{Deserialize, Serialize};
 
 #[cfg(hardware)]
+use serde::{Deserialize, Serialize};
 use {
     gpio_cdev::*,
     std::sync::OnceLock
@@ -16,87 +16,58 @@ fn gpio() -> &'static Chip {
     GPIO.get_or_init(|| Chip::new("/dev/gpiochip4").expect("Failed to open /dev/gpiochip4"))
 }
 
-pub struct RPGpio {
+pub struct HcSr04 {
     #[cfg(hardware)]
-    input_pins: &[Line],
-    output_pins: &[Line],
-
+    echo_pin: LineHandle,
+    #[cfg(hardware)]
+    trig_pin: LineHandle,
 }
 
 #[derive(Debug, Clone, Copy, Encode, Decode, Default, PartialEq, Serialize, Deserialize)]
-pub struct RPGpioPayload {
-    pub on: bool,
+pub struct HcSr04Payload {
+    pub distance: f64,
 }
 
-#[cfg(hardware)]
-impl From<RPGpioPayload> for bool {
-    fn from(msg: RPGpioPayload) -> Self {
-        msg.on
-    }
-}
+impl Freezable for HcSr04 {}
 
-#[cfg(hardware)]
-impl From<RPGpioPayload> for u8 {
-    fn from(msg: RPGpioPayload) -> Self {
-        if msg.on {
-            1
-        } else {
-            0
-        }
-    }
-}
-
-impl Freezable for RPGpio {}
-
-impl CuSinkTask for RPGpio {
-    type Input<'m> = input_msg!(RPGpioPayload);
+impl CuSinkTask for HcSr04 {
+    type Input<'m> = input_msg!(HcSr04Payload);
 
     fn new(config: Option<&ComponentConfig>) -> CuResult<Self>
     where Self:Sized, {
         let ComponentConfig(kv) =
             config.ok_or("No ComponentConfig specified for GPIO in RON")?;
 
-        // let parsed_input_offsets = match kv.get("input_pins") {
-        //     Some(pin_arr) => {
-        //         Ok(Vec::<u32>::from(pin_arr.clone()))
-        //     },
-        //     Some(val) => panic!("{} is not an array.", val),
-        //     None => None
-        // };
+        let trig_pin_offset: u32 = kv
+            .get("trig_pin")
+            .expect("trig_pin for HcSr04 not set in RON config")
+            .clone()
+            .into();
 
-        let input_pins_offsets: Option<Vec<u32>> = match kv.get("input_pins") {
-            Some(val) => val.clone().into(),
-            None => None
-        };
-
-        let input_pins_offsets: u32 = kv.get("input_pins").unwrap().clone().into();
-
-        // let input_pins_offsets: Vec<u32> = kv
-        //     .get("input_pins")
-        //     .and_then(|pin_arr| pin_arr.as_array())
-        //     .ok_or("input_pins in RON need to be a RON list")?
-        //     .iter()
-        //     .filter_map(|pin| pin.as_integer())
-        //     .map(|pin| pin as u32)
-        //     .collect();
-
-        // {
-        //     Some(output_pins) => Some(output_pins.clone().into()),
-        //     None => None
-        // };
-
-        let output_pins_offsets: Option<u32> = match kv.get("output_pins") {
-            Some(output_pins) => Some(output_pins.clone().into()),
-            None => None
-        };
+        let echo_pin_offset: u32 = kv
+            .get("echo_pin")
+            .expect("echo_pin for HcSr04 not set in RON config")
+            .clone()
+            .into();
 
         #[cfg(hardware)]
-        let mut input_pin_handles = gpio()
-            .get_lines(input_pins_offsets)
-            .expect("GPIO line error, pin number invalid")
-            .request(LineRequestFlags::INPUT, 0, consumer);
+        let trig_pin_hndl = gpio()
+        .get_line(trig_pin_offset)
+        .expect("GPIO line error, trig_pin pin offset invalid")
+        .request(LineRequestFlags::OUTPUT, 0, "hcsr04-trigger-pin")
+        .expect("I/O error, check Pi GPIO userspace config");
 
-        Ok(())
+        #[cfg(hardware)]
+        let echo_pin_hndl = gpio()
+        .get_line(echo_pin_offset)
+        .expect("GPIO line error, echo_pin pin offset invalid")
+        .request(LineRequestFlags::INPUT, 0, "hcsr04-echo-pin")
+        .expect("I/O error, check Pi GPIO userspace config");
+
+        Ok(Self {
+            trig_pin: trig_pin_hndl,
+            echo_pin: echo_pin_hndl
+        })
     }
 
     fn process(&mut self, _clock: &RobotClock, msg: &Self::Input<'_>) -> CuResult<()> {
