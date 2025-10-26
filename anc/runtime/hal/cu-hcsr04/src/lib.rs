@@ -4,22 +4,6 @@ use hcsr04_gpio_cdev::*;
 
 #[cfg(hardware)]
 use serde::{Deserialize, Serialize};
-use {
-    gpio_cdev::*,
-    std::sync::{OnceLock, Mutex}
-};
-
-#[cfg(hardware)]
-static GPIO: OnceLock<Mutex<Chip>> = OnceLock::new();
-
-#[cfg(hardware)]
-fn gpio() -> &'static Mutex<Chip> {
-    GPIO.get_or_init(||
-        Mutex::new(
-            Chip::new("/dev/gpiochip4").expect("Failed to open /dev/gpiochip4")
-        )
-    )
-}
 
 pub struct CuHcSr04 {
     driver_instance: HcSr04,
