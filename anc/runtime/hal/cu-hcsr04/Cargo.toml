@@ -4,3 +4,10 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+gpio-cdev = { workspace = true }
+cu29 = { workspace = true }
+bincode = "2.0.1"
+serde = "1.0.228"
+
+[build-dependencies]
+cfg_aliases = "0.2.1"
