@@ -1,26 +1,32 @@
 use cu29::prelude::*;
 use bincode::{Decode, Encode};
+use hcsr04_gpio_cdev::*;
 
 #[cfg(hardware)]
 use serde::{Deserialize, Serialize};
 use {
     gpio_cdev::*,
-    std::sync::OnceLock
+    std::sync::{OnceLock, Mutex}
 };
 
 #[cfg(hardware)]
-static GPIO: OnceLock<Chip> = OnceLock::new();
+static GPIO: OnceLock<Mutex<Chip>> = OnceLock::new();
 
 #[cfg(hardware)]
-fn gpio() -> &'static Chip {
-    GPIO.get_or_init(|| Chip::new("/dev/gpiochip4").expect("Failed to open /dev/gpiochip4"))
+fn gpio() -> &'static Mutex<Chip> {
+    GPIO.get_or_init(||
+        Mutex::new(
+            Chip::new("/dev/gpiochip4").expect("Failed to open /dev/gpiochip4")
+        )
+    )
 }
 
-pub struct HcSr04 {
+pub struct CuHcSr04 {
+    driver_instance: HcSr04,
     #[cfg(hardware)]
-    echo_pin: LineHandle,
+    echo_pin: u32,
     #[cfg(hardware)]
-    trig_pin: LineHandle,
+    trig_pin: u32,
 }
 
 #[derive(Debug, Clone, Copy, Encode, Decode, Default, PartialEq, Serialize, Deserialize)]
@@ -28,10 +34,10 @@ pub struct HcSr04Payload {
     pub distance: f64,
 }
 
-impl Freezable for HcSr04 {}
+impl Freezable for CuHcSr04 {}
 
-impl CuSinkTask for HcSr04 {
-    type Input<'m> = input_msg!(HcSr04Payload);
+impl CuSrcTask for CuHcSr04 {
+    type Output<'m> = output_msg!(HcSr04Payload);
 
     fn new(config: Option<&ComponentConfig>) -> CuResult<Self>
     where Self:Sized, {
@@ -51,27 +57,19 @@ impl CuSinkTask for HcSr04 {
             .into();
 
         #[cfg(hardware)]
-        let trig_pin_hndl = gpio()
-        .get_line(trig_pin_offset)
-        .expect("GPIO line error, trig_pin pin offset invalid")
-        .request(LineRequestFlags::OUTPUT, 0, "hcsr04-trigger-pin")
-        .expect("I/O error, check Pi GPIO userspace config");
-
-        #[cfg(hardware)]
-        let echo_pin_hndl = gpio()
-        .get_line(echo_pin_offset)
-        .expect("GPIO line error, echo_pin pin offset invalid")
-        .request(LineRequestFlags::INPUT, 0, "hcsr04-echo-pin")
-        .expect("I/O error, check Pi GPIO userspace config");
+        let driver_instance = HcSr04::new(trig_pin_offset, echo_pin_offset).expect("GPIO driver error");
 
         Ok(Self {
-            trig_pin: trig_pin_hndl,
-            echo_pin: echo_pin_hndl
+            driver_instance,
+            trig_pin: trig_pin_offset,
+            echo_pin: echo_pin_offset
         })
     }
 
-    fn process(&mut self, _clock: &RobotClock, msg: &Self::Input<'_>) -> CuResult<()> {
-        // ...
+    fn process(&mut self, _clock: &RobotClock, msg: &mut Self::Output<'_>) -> CuResult<()> {
+        #[cfg(hardware)]
+        let dist_cm = self.driver_instance.dist_cm(None).expect("HcSr04 driver error");
+        msg.set_payload(HcSr04Payload { distance: dist_cm.to_val() });
         Ok(())
     }
 }

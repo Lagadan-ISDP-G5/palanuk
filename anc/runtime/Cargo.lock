@@ -341,6 +341,7 @@ dependencies = [
  "cfg_aliases",
  "cu29",
  "gpio-cdev",
+ "hcsr04-gpio-cdev",
  "serde",
 ]
 
@@ -685,6 +686,15 @@ dependencies = [
  "equivalent",
  "foldhash 0.2.0",
  "serde",
+]
+
+[[package]]
+name = "hcsr04-gpio-cdev"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fe13dc48670843ccc2acae03a65475553713bdc9662de4a5e34e27781e498c0c"
+dependencies = [
+ "gpio-cdev",
 ]
 
 [[package]]
