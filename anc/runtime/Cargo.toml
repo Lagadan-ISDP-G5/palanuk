@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["palanuk-runtime", "hal/cu-hcsr04"]
+members = ["palanuk-runtime", "hal/cu-hcsr04", "hal/cu-propulsion"]
 
 [workspace.package]
 publish = false

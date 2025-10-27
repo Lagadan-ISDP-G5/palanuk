@@ -346,6 +346,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "cu-propulsion"
+version = "0.1.0"
+dependencies = [
+ "dumb-sysfs-pwm",
+]
+
+[[package]]
 name = "cu29"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -545,6 +552,10 @@ dependencies = [
  "quote",
  "syn",
 ]
+
+[[package]]
+name = "dumb-sysfs-pwm"
+version = "0.1.0"
 
 [[package]]
 name = "either"
