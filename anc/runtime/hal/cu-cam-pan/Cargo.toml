@@ -1,0 +1,11 @@
+[package]
+name = "cu-cam-pan"
+publish.workspace = true
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+keywords.workspace = true
+
+[dependencies]
+dumb-sysfs-pwm = { path = "/Users/ander/Documents/proj/dumb-sysfs-pwm" }
