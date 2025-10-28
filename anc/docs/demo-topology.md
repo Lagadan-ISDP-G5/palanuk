@@ -1,6 +1,7 @@
 # CDR Demo Topology
 
-A single wiring topology that can demo all peripherals.
+A single wiring topology that can demo all peripherals. Pin numbers in the Pin column refer
+to this indexing here: https://vilros.com/pages/raspberry-pi-5-pinout
 
 ## All assignments
 
