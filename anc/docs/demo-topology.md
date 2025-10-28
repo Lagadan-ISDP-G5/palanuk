@@ -7,7 +7,7 @@ A single wiring topology that can demo all peripherals.
 | GPIO Pin | Function | Assignment | Demo |
 | :----: | :-: | :-------: | :-------: |
 | 20 | DI | HC-SR04 Echo | Distance measurement |
-| 21 | DQ | HC-SR04 Trig | HC-Distance measurement |
+| 21 | DQ | HC-SR04 Trig | Distance measurement |
 | 13 | PWM Output | L298N EN_B | Propulsion |
 | 26 | DQ | L298N IN_3 | Propulsion |
 | 19 | DQ | L298N IN_4 | Propulsion |
