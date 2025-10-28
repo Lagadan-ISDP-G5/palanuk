@@ -16,6 +16,7 @@ A single wiring topology that can demo all peripherals.
 | 01 | 3.3Vref | I2C Vcc Bus, TTL shifter ref | Power Monitoring |
 | 02 | 5Vref | 5Vref | Auxiliary |
 | 39 | GND | Logic and power GND ref | Auxiliary |
+| 12 | PWM output | SG-90 position command | Camera Panning Servo |
 
 
 ## Auxiliary
@@ -56,3 +57,11 @@ A single wiring topology that can demo all peripherals.
 | 02 | I2C SDA | INA219 and Controller SDA |
 | 03 | I2C SCL | INA219 and Controller SCL |
 | 01 | 3.3Vref | I2C Vcc Bus |
+
+## Camera Panning Demo
+
+### Pin assignment
+
+| GPIO Pin | Function | Assignment |
+| :----: | :-: | :-------: |
+| 12 | PWM output | SG-90 position command |
