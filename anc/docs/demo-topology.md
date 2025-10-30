@@ -9,9 +9,12 @@ to this indexing here: https://vilros.com/pages/raspberry-pi-5-pinout
 | :----: | :-: | :-------: | :-------: |
 | 38 | GPIO20, DI | HC-SR04 Echo | Distance measurement |
 | 40 | GPIO21, DQ | HC-SR04 Trig | Distance measurement |
-| 33 | GPIO13, PWM Output | L298N EN_B | Propulsion |
-| 37 | GPIO26, DQ | L298N IN_3 | Propulsion |
-| 35 | GPIO19, DQ | L298N IN_4 | Propulsion |
+| 33 | GPIO13, PWM Output | L298N EN_B -RMTR | Propulsion (Right Motor) |
+| 37 | GPIO26, DQ | L298N IN_3 -RMTR | Propulsion (Right Motor) |
+| 35 | GPIO19, DQ | L298N IN_4 -RMTR | Propulsion (Right Motor) |
+| 12 | GPIO18, PWM Output | L298N EN_A -LMTR | Propulsion (Left Motor) |
+| 16 | GPIO23, DQ | L298N IN_1 -LMTR | Propulsion (Left Motor) |
+| 18 | GPIO24, DQ | L298N IN_2 -LMTR | Propulsion (Left Motor) |
 | 03 | GPIO02, I2C SDA | INA219 and Controller SDA | Power Monitoring |
 | 05 | GPIO03, I2C SCL | INA219 and Controller SCL | Power Monitoring |
 | 01 | 3.3Vref | I2C Vcc Bus, TTL shifter ref | Power Monitoring |
@@ -45,9 +48,12 @@ to this indexing here: https://vilros.com/pages/raspberry-pi-5-pinout
 
 | Pin | Function | Assignment |
 | :----: | :-: | :-------: |
-| 33 | GPIO13, PWM Output | L298N EN_B |
-| 37 | GPIO26, DQ | L298N IN_3 |
-| 35 | GPIO19, DQ | L298N IN_4 |
+| 33 | GPIO13, PWM Output | L298N EN_B -RMTR |
+| 37 | GPIO26, DQ | L298N IN_3 -RMTR |
+| 35 | GPIO19, DQ | L298N IN_4 -RMTR |
+| 12 | GPIO18, PWM Output | L298N EN_A -LMTR |
+| 16 | GPIO23, DQ | L298N IN_1 -LMTR |
+| 18 | GPIO24, DQ | L298N IN_2 -LMTR |
 
 ## Power Monitoring Demo
 
