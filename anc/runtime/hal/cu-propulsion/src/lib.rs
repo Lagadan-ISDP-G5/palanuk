@@ -29,6 +29,7 @@ pub enum WheelDirection {
     Reverse
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Encode, Decode, Serialize, Deserialize)]
 pub struct WheelState {
     enable: bool,
     direction: WheelDirection,
@@ -54,11 +55,15 @@ pub struct Propulsion {
 
 impl Freezable for Propulsion {
     fn freeze<E: bincode::enc::Encoder>(&self, encoder: &mut E) -> Result<(), bincode::error::EncodeError> {
-        Encode::encode(&self., encoder)
+        Encode::encode(&self.left_wheel, encoder)?;
+        Encode::encode(&self.right_wheel, encoder)?;
+        Ok(())
     }
 
-    fn thaw<D: bincode::de::Decoder>(&mut self, _decoder: &mut D) -> Result<(), bincode::error::DecodeError> {
-
+    fn thaw<D: bincode::de::Decoder>(&mut self, decoder: &mut D) -> Result<(), bincode::error::DecodeError> {
+        self.left_wheel = Decode::decode(decoder)?;
+        self.right_wheel = Decode::decode(decoder)?;
+        Ok(())
     }
 }
 
