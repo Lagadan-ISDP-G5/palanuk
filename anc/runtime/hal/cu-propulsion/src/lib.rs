@@ -4,6 +4,7 @@ use cu29::prelude::*;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
+// Not used here, the assignment is final but it should be passed in the RON instead of being hardcoded
 const LMTR_ENABLE_PIN: u32 = 18;
 const LMTR_IN_1: u32 = 23;
 const LMTR_IN_2: u32 = 24;
@@ -42,21 +43,27 @@ impl WheelState {
     }
 }
 
+pub struct PropulsionPinAssignments {
+    l298n_en_a_pin: u32,
+    l298n_en_b_pin: u32,
+    l298n_in_1_pin: u32,
+    l298n_in_2_pin: u32,
+    l298n_in_3_pin: u32,
+    l298n_in_4_pin: u32,
+}
+
+pub struct PropulsionControllerInstances {
+    gpio: Chip,
+    lmtr_en_a: Pwm,
+    rmtr_en_b: Pwm,
+}
+
 pub struct Propulsion {
     left_wheel: WheelState,
     right_wheel: WheelState,
+    pin_controller_instances: PropulsionControllerInstances,
     #[cfg(hardware)]
-    l298n_en_a_pin: u32,
-    #[cfg(hardware)]
-    l298n_en_b_pin: u32,
-    #[cfg(hardware)]
-    l298n_in_1_pin: u32,
-    #[cfg(hardware)]
-    l298n_in_2_pin: u32,
-    #[cfg(hardware)]
-    l298n_in_3_pin: u32,
-    #[cfg(hardware)]
-    l298n_in_4_pin: u32,
+    pin_assignments: PropulsionPinAssignments,
 }
 
 impl Freezable for Propulsion {
@@ -74,7 +81,8 @@ impl Freezable for Propulsion {
 }
 
 impl CuSinkTask for Propulsion {
-    type Input<'m> = input_msg!(PropulsionPayload)
+    type Input<'m> = input_msg!(PropulsionPayload);
+
     fn new(config: Option<&ComponentConfig>) -> Result<Self, CuError>
     where Self: Sized
     {
@@ -117,15 +125,33 @@ impl CuSinkTask for Propulsion {
             .clone()
             .into();
 
-        Ok(Self {
-            left_wheel: WheelState::default(),
-            right_wheel: WheelState::default(),
+        #[cfg(hardware)]
+        let lmtr_en_a_instance = Pwm::new(0, l298n_en_a_pin_offset).unwrap();
+        #[cfg(hardware)]
+        let rmtr_en_b_instance = Pwm::new(0, l298n_en_b_pin_offset).unwrap();
+        #[cfg(hardware)]
+        let mut gpio = Chip::new("/dev/gpiochip4").unwrap();
+
+        let pin_assignments = PropulsionPinAssignments {
             l298n_en_a_pin: l298n_en_a_pin_offset,
             l298n_en_b_pin: l298n_en_b_pin_offset,
             l298n_in_1_pin: l298n_in_1_pin_offset,
             l298n_in_2_pin: l298n_in_2_pin_offset,
             l298n_in_3_pin: l298n_in_3_pin_offset,
             l298n_in_4_pin: l298n_in_4_pin_offset
+        };
+
+        let pin_controller_instances = PropulsionControllerInstances {
+            gpio: gpio,
+            lmtr_en_a: lmtr_en_a_instance,
+            rmtr_en_b: rmtr_en_b_instance,
+        };
+
+        Ok(Self {
+            left_wheel: WheelState::default(),
+            right_wheel: WheelState::default(),
+            pin_controller_instances: pin_controller_instances,
+            pin_assignments: pin_assignments,
         })
     }
 
