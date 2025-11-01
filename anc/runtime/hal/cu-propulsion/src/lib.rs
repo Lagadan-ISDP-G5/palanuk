@@ -36,6 +36,12 @@ pub struct WheelState {
     speed: f64,
 }
 
+impl WheelState {
+    fn default() -> Self {
+        Self { enable: false, direction: WheelDirection::Forward, speed: 0.0 }
+    }
+}
+
 pub struct Propulsion {
     left_wheel: WheelState,
     right_wheel: WheelState,
@@ -75,9 +81,52 @@ impl CuSinkTask for Propulsion {
         let ComponentConfig(kv) =
             config.ok_or("No ComponentConfig specified for GPIO in RON")?;
 
+        let l298n_en_a_pin_offset: u32 = kv
+            .get("l298n_en_a")
+            .expect("l298n_en_a for Propulsion not set in RON config")
+            .clone()
+            .into();
 
+        let l298n_en_b_pin_offset: u32 = kv
+            .get("l298n_en_b")
+            .expect("l298n_en_b for Propulsion not set in RON config")
+            .clone()
+            .into();
 
-        Ok(Self { left_wheel: (), right_wheel: () })
+        let l298n_in_1_pin_offset: u32 = kv
+            .get("l298n_in_1")
+            .expect("l298n_in_1 for Propulsion not set in RON config")
+            .clone()
+            .into();
+
+        let l298n_in_2_pin_offset: u32 = kv
+            .get("l298n_in_2")
+            .expect("l298n_in_2 for Propulsion not set in RON config")
+            .clone()
+            .into();
+
+        let l298n_in_3_pin_offset: u32 = kv
+            .get("l298n_in_3")
+            .expect("l298n_in_3 for Propulsion not set in RON config")
+            .clone()
+            .into();
+
+        let l298n_in_4_pin_offset: u32 = kv
+            .get("l298n_in_4")
+            .expect("l298n_in_4 for Propulsion not set in RON config")
+            .clone()
+            .into();
+
+        Ok(Self {
+            left_wheel: WheelState::default(),
+            right_wheel: WheelState::default(),
+            l298n_en_a_pin: l298n_en_a_pin_offset,
+            l298n_en_b_pin: l298n_en_b_pin_offset,
+            l298n_in_1_pin: l298n_in_1_pin_offset,
+            l298n_in_2_pin: l298n_in_2_pin_offset,
+            l298n_in_3_pin: l298n_in_3_pin_offset,
+            l298n_in_4_pin: l298n_in_4_pin_offset
+        })
     }
 
     fn process(&mut self, _clock: &RobotClock, input: &Self::Input<'_>) -> Result<(), CuError> {
