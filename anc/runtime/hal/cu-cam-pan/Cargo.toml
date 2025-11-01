@@ -8,4 +8,4 @@ license.workspace = true
 keywords.workspace = true
 
 [dependencies]
-dumb-sysfs-pwm = { path = "/Users/ander/Documents/proj/dumb-sysfs-pwm" }
+dumb-sysfs-pwm = { workspace = true }

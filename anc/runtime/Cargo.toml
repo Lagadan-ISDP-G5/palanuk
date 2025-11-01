@@ -13,7 +13,10 @@ keywords = ["autonomous", "copper-rs", "robotics", "real-time"]
 [workspace.dependencies]
 cu29 = "0.10.0"
 cu29-runtime = "0.10.0"
-gpio-cdev = "0.6.0"
+bincode = "2.0.1"
+serde = "1.0.228"
+hcsr04-gpio-cdev = "0.1.2"
+dumb-sysfs-pwm = { path = "/Users/ander/Documents/proj/dumb-sysfs-pwm" }
 
 [build]
 target = "aarch64-unknown-linux-gnu"
