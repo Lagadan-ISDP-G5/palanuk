@@ -363,8 +363,10 @@ name = "cu-propulsion"
 version = "0.1.0"
 dependencies = [
  "bincode 2.0.1",
+ "cfg_aliases",
  "cu29",
  "dumb-sysfs-pwm",
+ "gpio-cdev",
  "serde",
 ]
 

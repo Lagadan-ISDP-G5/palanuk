@@ -1,7 +1,16 @@
 use dumb_sysfs_pwm::{Pwm, PwmChip};
+use gpio_cdev::*;
 use cu29::prelude::*;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
+
+const LMTR_ENABLE_PIN: u32 = 18;
+const LMTR_IN_1: u32 = 23;
+const LMTR_IN_2: u32 = 24;
+
+const RMTR_ENABLE_PIN: u32 = 13;
+const RMTR_IN_3: u32 = 26;
+const RMTR_IN_4: u32 = 19;
 
 #[derive(Debug, Clone, Copy, Default, Encode, Decode, PartialEq, Serialize, Deserialize)]
 pub struct PropulsionPayload {
@@ -20,24 +29,49 @@ pub enum WheelDirection {
     Reverse
 }
 
-pub struct Wheel {
+pub struct WheelState {
     enable: bool,
     direction: WheelDirection,
     speed: f64,
 }
 
 pub struct Propulsion {
-    left_wheel: Wheel,
-    right_wheel: Wheel
+    left_wheel: WheelState,
+    right_wheel: WheelState,
+    #[cfg(hardware)]
+    l298n_en_a_pin: u32,
+    #[cfg(hardware)]
+    l298n_en_b_pin: u32,
+    #[cfg(hardware)]
+    l298n_in_1_pin: u32,
+    #[cfg(hardware)]
+    l298n_in_2_pin: u32,
+    #[cfg(hardware)]
+    l298n_in_3_pin: u32,
+    #[cfg(hardware)]
+    l298n_in_4_pin: u32,
 }
 
-impl Freezable for Propulsion {}
+impl Freezable for Propulsion {
+    fn freeze<E: bincode::enc::Encoder>(&self, encoder: &mut E) -> Result<(), bincode::error::EncodeError> {
+        Encode::encode(&self., encoder)
+    }
+
+    fn thaw<D: bincode::de::Decoder>(&mut self, _decoder: &mut D) -> Result<(), bincode::error::DecodeError> {
+
+    }
+}
 
 impl CuSinkTask for Propulsion {
     type Input<'m> = input_msg!(PropulsionPayload)
-    fn new(_config: Option<&ComponentConfig>) -> Result<Self, CuError>
-        where Self: Sized
+    fn new(config: Option<&ComponentConfig>) -> Result<Self, CuError>
+    where Self: Sized
     {
+        let ComponentConfig(kv) =
+            config.ok_or("No ComponentConfig specified for GPIO in RON")?;
+
+
+
         Ok(Self { left_wheel: (), right_wheel: () })
     }
 

@@ -18,13 +18,15 @@ pub struct HcSr04Payload {
     pub distance: f64,
 }
 
+// Sensor is stateless
 impl Freezable for CuHcSr04 {}
 
 impl CuSrcTask for CuHcSr04 {
     type Output<'m> = output_msg!(HcSr04Payload);
 
     fn new(config: Option<&ComponentConfig>) -> CuResult<Self>
-    where Self:Sized, {
+    where Self:Sized
+    {
         let ComponentConfig(kv) =
             config.ok_or("No ComponentConfig specified for GPIO in RON")?;
 
