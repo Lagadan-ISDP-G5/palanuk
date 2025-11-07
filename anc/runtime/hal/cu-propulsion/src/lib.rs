@@ -13,12 +13,43 @@ const RMTR_ENABLE_PIN: u32 = 13;
 const RMTR_IN_3: u32 = 26;
 const RMTR_IN_4: u32 = 19;
 
+pub struct DirectionPair(u8, u8);
+// Just reassign these if the actual hardware connections happen to be flipped
+const FORWARD: DirectionPair = DirectionPair(1, 0);
+const BACKWARDS: DirectionPair = DirectionPair(0, 1);
+
+/// ReallySlow by default
+#[derive(Debug, PartialEq, Eq, Default)]
+pub enum Speed {
+    #[default]
+    ReallySlow,
+    Slow,
+    NotSlow,
+}
+
+// Might remove this abstraction in the future, it might also be useful
+// For now speed in the payload is just the duty cycle
+const REALLY_SLOW: f32 = 0.2;
+const SLOW: f32 = 0.4;
+const NOT_SLOW: f32 = 0.8;
+
+impl Speed {
+    fn get_duty_cycle(&self, speed: Speed) -> f32 {
+        match speed {
+            Speed::ReallySlow => REALLY_SLOW,
+            Speed::Slow => SLOW,
+            Speed::NotSlow => NOT_SLOW
+        }
+    }
+}
+
+/// left_speed and right_speed are the percentage duty cycles for the Pwm controllers of each wheel.
 #[derive(Debug, Clone, Copy, Default, Encode, Decode, PartialEq, Serialize, Deserialize)]
 pub struct PropulsionPayload {
     left_enable: bool,
     right_enable: bool,
-    left_speed: f64,
-    right_speed: f64,
+    left_speed: f32,
+    right_speed: f32,
     left_direction: WheelDirection,
     right_direction: WheelDirection
 }
@@ -156,6 +187,86 @@ impl CuSinkTask for Propulsion {
     }
 
     fn process(&mut self, _clock: &RobotClock, input: &Self::Input<'_>) -> Result<(), CuError> {
+        let en_a_hdl = &mut self.pin_controller_instances.lmtr_en_a;
+        let en_b_hdl = &mut self.pin_controller_instances.rmtr_en_b;
+
+        let payload = input.payload().unwrap();
+        if payload.left_enable {
+            self.left_wheel.enable = true;
+            match en_a_hdl.get_enabled().unwrap() {
+                true => (),
+                false => en_a_hdl.enable(true).unwrap()
+            }
+        }
+        else {
+            self.left_wheel.enable = false;
+            match en_a_hdl.get_enabled().unwrap() {
+                true => en_a_hdl.enable(false).unwrap(),
+                false => ()
+            }
+        }
+
+        if payload.right_enable {
+            self.right_wheel.enable = true;
+            match en_b_hdl.get_enabled().unwrap() {
+                true => (),
+                false => en_b_hdl.enable(true).unwrap()
+            }
+        }
+        else {
+            self.right_wheel.enable = false;
+            match en_b_hdl.get_enabled().unwrap() {
+                true => en_b_hdl.enable(false).unwrap(),
+                false => ()
+            }
+        }
+
+        en_a_hdl.set_duty_cycle(payload.left_speed).unwrap();
+        en_b_hdl.set_duty_cycle(payload.right_speed).unwrap();
+
+        let dir_hdl =  &mut self.pin_controller_instances.gpio;
+        let in_1_hdl = self.pin_assignments.l298n_in_1_pin;
+        let in_2_hdl = self.pin_assignments.l298n_in_2_pin;
+        let in_3_hdl = self.pin_assignments.l298n_in_3_pin;
+        let in_4_hdl = self.pin_assignments.l298n_in_4_pin;
+
+        let in_1_line = dir_hdl.get_line(in_1_hdl).unwrap();
+        let in_1_line = in_1_line.request(LineRequestFlags::OUTPUT, 0, "in-1-left-motor").unwrap();
+
+        let in_2_line = dir_hdl.get_line(in_2_hdl).unwrap();
+        let in_2_line = in_2_line.request(LineRequestFlags::OUTPUT, 0, "in-2-left-motor").unwrap();
+
+        let in_3_line = dir_hdl.get_line(in_3_hdl).unwrap();
+        let in_3_line = in_3_line.request(LineRequestFlags::OUTPUT, 0, "in-3-right-motor").unwrap();
+
+        let in_4_line = dir_hdl.get_line(in_4_hdl).unwrap();
+        let in_4_line = in_4_line.request(LineRequestFlags::OUTPUT, 0, "in-4-right-motor").unwrap();
+
+        match payload.left_direction {
+            WheelDirection::Forward => {
+                let DirectionPair(in_1_val, in_2_val) = FORWARD;
+                in_1_line.set_value(in_1_val).unwrap();
+                in_2_line.set_value(in_2_val).unwrap();
+            },
+            WheelDirection::Reverse => {
+                let DirectionPair(in_1_val, in_2_val) = BACKWARDS;
+                in_1_line.set_value(in_1_val).unwrap();
+                in_2_line.set_value(in_2_val).unwrap();
+            },
+        }
+
+        match payload.right_direction {
+            WheelDirection::Forward => {
+                let DirectionPair(in_3_val, in_4_val) = FORWARD;
+                in_3_line.set_value(in_3_val).unwrap();
+                in_4_line.set_value(in_4_val).unwrap();
+            },
+            WheelDirection::Reverse => {
+                let DirectionPair(in_3_val, in_4_val) = BACKWARDS;
+                in_3_line.set_value(in_3_val).unwrap();
+                in_4_line.set_value(in_4_val).unwrap();
+            },
+        }
         Ok(())
     }
 }
