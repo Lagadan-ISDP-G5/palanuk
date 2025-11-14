@@ -1,4 +1,4 @@
-use dumb_sysfs_pwm::{Pwm, PwmChip};
+use dumb_sysfs_pwm::Pwm;
 use gpio_cdev::*;
 use cu29::prelude::*;
 use bincode::{Decode, Encode};
@@ -43,7 +43,7 @@ impl Speed {
     }
 }
 
-/// left_speed and right_speed are the percentage duty cycles for the Pwm controllers of each wheel.
+/// `left_speed` and `right_speed` are the percentage duty cycles for the Pwm controllers of each wheel.
 #[derive(Debug, Clone, Copy, Default, Encode, Decode, PartialEq, Serialize, Deserialize)]
 pub struct PropulsionPayload {
     left_enable: bool,
@@ -51,7 +51,8 @@ pub struct PropulsionPayload {
     left_speed: f32,
     right_speed: f32,
     left_direction: WheelDirection,
-    right_direction: WheelDirection
+    right_direction: WheelDirection,
+    active_cfg: PropulsionPinAssignments,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Encode, Decode, Serialize, Deserialize)]
@@ -74,6 +75,7 @@ impl WheelState {
     }
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Encode, Decode, Serialize, Deserialize)]
 pub struct PropulsionPinAssignments {
     l298n_en_a_pin: u32,
     l298n_en_b_pin: u32,
