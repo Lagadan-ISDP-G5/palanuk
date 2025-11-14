@@ -22,7 +22,7 @@ pub enum PositionCommand {
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Encode, Decode, Serialize, Deserialize)]
 pub struct CameraPanningPinAssignments {
-    sg90_pos_cmd: u32,
+    sg90_pos_cmd_pin: u32,
 }
 
 pub struct CameraPanningControllerInstances {
@@ -54,7 +54,30 @@ impl CuSinkTask for CameraPanning {
     fn new(config: Option<&ComponentConfig>) -> Result<Self, CuError>
     where Self: Sized
     {
+        let ComponentConfig(kv) =
+            config.ok_or("No ComponentConfig specified for GPIO in RON")?;
 
+        let sg90_pos_cmd_pin_offset: u32 = kv
+            .get("sg90_pos_cmd_pin")
+            .expect("l298n_en_a for Propulsion not set in RON config")
+            .clone()
+            .into();
+
+        let pin_assignments = CameraPanningPinAssignments {
+            sg90_pos_cmd_pin: sg90_pos_cmd_pin_offset
+        };
+
+        #[cfg(hardware)]
+        let sg90_pos_cmd_instance = Pwm::new(0, sg90_pos_cmd_pin_offset).unwrap();
+        let pin_controller_instances = CameraPanningControllerInstances {
+            sg90_pos_cmd: sg90_pos_cmd_instance
+        };
+
+        Ok(Self {
+            recvd_pos_cmd: PositionCommand::default(),
+            pin_controller_instances: pin_controller_instances,
+            pin_assignments: pin_assignments,
+        })
     }
 
     fn process(&mut self, _clock: &RobotClock, input: &Self::Input<'_>) -> Result<(), CuError> {
