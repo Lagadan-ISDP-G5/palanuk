@@ -43,15 +43,12 @@
 
         (
             id: "jogger",
-            type: "cu_propulsion::Propulsion",
-            config: {
-                "l298n_en_a": 18,
-                "l298n_en_b": 13,
-                "l298n_in_1": 23,
-                "l298n_in_2": 24,
-                "l298n_in_3": 26,
-                "l298n_in_4": 19,
-            },
+            type: "tasks::Jogger"
+        ),
+
+        (
+            id: "panner",
+            type: "tasks::Panner"
         ),
 
      ],

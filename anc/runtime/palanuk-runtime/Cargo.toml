@@ -10,6 +10,7 @@ cu-propulsion = { workspace = true }
 cu-cam-pan = { workspace = true }
 cu-hcsr04 = { workspace = true }
 cu-powermon = { workspace = true }
+iceoryx2 = { workspace = true }
 
 [build-dependencies]
 cfg_aliases = "0.2.1"

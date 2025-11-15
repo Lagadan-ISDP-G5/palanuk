@@ -22,6 +22,8 @@ cu-propulsion = { path = "/Users/ander/Documents/proj/palanuk/anc/runtime/hal/cu
 cu-cam-pan = { path = "/Users/ander/Documents/proj/palanuk/anc/runtime/hal/cu-cam-pan" }
 cu-hcsr04 = { path = "/Users/ander/Documents/proj/palanuk/anc/runtime/hal/cu-hcsr04" }
 cu-powermon = { path = "/Users/ander/Documents/proj/palanuk/anc/runtime/hal/cu-powermon" }
+iceoryx2 = "0.7.0"
+zenoh = "1.6.2"
 
 [build]
 target = "aarch64-unknown-linux-gnu"
