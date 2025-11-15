@@ -1,3 +1,4 @@
+use std::time::Duration;
 use dumb_sysfs_pwm::Pwm;
 use cu29::prelude::*;
 use bincode::{Decode, Encode};
@@ -30,6 +31,7 @@ pub struct CameraPanningControllerInstances {
 }
 
 pub struct CameraPanning {
+    task_running: bool,
     recvd_pos_cmd: PositionCommand,
     pin_controller_instances: CameraPanningControllerInstances,
     #[cfg(hardware)]
@@ -50,7 +52,6 @@ impl Freezable for CameraPanning {
 
 impl CuSinkTask for CameraPanning {
     type Input<'m> = input_msg!(CameraPanningPayload);
-
     fn new(config: Option<&ComponentConfig>) -> Result<Self, CuError>
     where Self: Sized
     {
@@ -74,14 +75,48 @@ impl CuSinkTask for CameraPanning {
         };
 
         Ok(Self {
+            task_running: true,
             recvd_pos_cmd: PositionCommand::default(),
             pin_controller_instances: pin_controller_instances,
             pin_assignments: pin_assignments,
         })
     }
 
-    fn process(&mut self, _clock: &RobotClock, input: &Self::Input<'_>) -> Result<(), CuError> {
+    fn start(&mut self, _clock: &RobotClock) -> CuResult<()> {
+        // Need to use some Arc<> wrapped types
+        std::thread::spawn(move || {
+            while self.task_running {
+                for duty_cycle in (500..=1000).step_by(2) {
+                    self.pin_controller_instances.sg90_pos_cmd.set_duty_cycle(duty_cycle as f32 / 10000.0);
+                    std::thread::sleep(Duration::from_millis(10));
+                }
+            }
+        });
+        Ok(())
+    }
 
+    fn process(&mut self, _clock: &RobotClock, input: &Self::Input<'_>) -> Result<(), CuError> {
+        let sg90_pos_cmd_hdl = &mut self.pin_controller_instances.sg90_pos_cmd;
+
+        if !sg90_pos_cmd_hdl.get_enabled().unwrap() {
+            sg90_pos_cmd_hdl.enable(true).unwrap();
+        }
+
+        let payload = input.payload().unwrap();
+        match payload.pos_cmd {
+            PositionCommand::Front => {
+
+            },
+            PositionCommand::Left => {
+
+
+            },
+            PositionCommand::Right => {
+
+            }
+        }
+
+        Ok(())
     }
 }
 
