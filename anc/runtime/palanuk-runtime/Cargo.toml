@@ -7,6 +7,9 @@ edition = "2024"
 cu29 = { workspace = true }
 cu29-runtime = { workspace = true }
 cu-propulsion = { workspace = true }
+cu-cam-pan = { workspace = true }
+cu-hcsr04 = { workspace = true }
+cu-powermon = { workspace = true }
 
 [build-dependencies]
 cfg_aliases = "0.2.1"

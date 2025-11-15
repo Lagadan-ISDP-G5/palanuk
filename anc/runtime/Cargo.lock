@@ -1163,6 +1163,10 @@ name = "palanuk-runtime"
 version = "0.1.0"
 dependencies = [
  "cfg_aliases",
+ "cu-cam-pan",
+ "cu-hcsr04",
+ "cu-powermon",
+ "cu-propulsion",
  "cu29",
  "cu29-runtime",
 ]
