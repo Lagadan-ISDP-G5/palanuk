@@ -1,7 +1,6 @@
 use std::time::Duration;
-use std::error::Error;
 use std::sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}};
-use std::thread::{self, JoinHandle, spawn};
+use std::thread::{JoinHandle, spawn};
 use dumb_sysfs_pwm::{Pwm, Polarity};
 use cu29::prelude::*;
 use bincode::{Decode, Encode};
@@ -19,7 +18,7 @@ const DUTY_CYCLE_POS_RIGHT: f32 = 0.1; /// 2.0ms out of 20ms
 const IPOLATE_DIV: f32 = 10000.0;
 
 // Not used here, the assignment is final but it should be passed in the RON instead of being hardcoded
-const SG90_POS_CMD: u32 = 12;
+const _SG90_POS_CMD: u32 = 12;
 
 /// this payload has no HW feedback
 #[derive(Debug, Clone, Copy, Default, Encode, Decode, PartialEq, Serialize, Deserialize)]
