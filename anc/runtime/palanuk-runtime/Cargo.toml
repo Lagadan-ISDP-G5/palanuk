@@ -6,3 +6,7 @@ edition = "2024"
 [dependencies]
 cu29 = { workspace = true }
 cu29-runtime = { workspace = true }
+cu-propulsion = { workspace = true }
+
+[build-dependencies]
+cfg_aliases = "0.2.1"

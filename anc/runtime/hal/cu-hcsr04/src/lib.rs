@@ -2,14 +2,14 @@ use cu29::prelude::*;
 use bincode::{Decode, Encode};
 use hcsr04_gpio_cdev::*;
 
-#[cfg(hardware)]
+// #[cfg(hardware)]
 use serde::{Deserialize, Serialize};
 
 pub struct CuHcSr04 {
     driver_instance: HcSr04,
-    #[cfg(hardware)]
+    // #[cfg(hardware)]
     echo_pin: u32,
-    #[cfg(hardware)]
+    // #[cfg(hardware)]
     trig_pin: u32,
 }
 
@@ -42,7 +42,7 @@ impl CuSrcTask for CuHcSr04 {
             .clone()
             .into();
 
-        #[cfg(hardware)]
+        // #[cfg(hardware)]
         let driver_instance = HcSr04::new(trig_pin_offset, echo_pin_offset).expect("GPIO driver error");
 
         Ok(Self {
@@ -53,7 +53,7 @@ impl CuSrcTask for CuHcSr04 {
     }
 
     fn process(&mut self, _clock: &RobotClock, msg: &mut Self::Output<'_>) -> CuResult<()> {
-        #[cfg(hardware)]
+        // #[cfg(hardware)]
         let dist_cm = self.driver_instance.dist_cm(None).expect("HcSr04 driver error");
         msg.set_payload(HcSr04Payload { distance: dist_cm.to_val() });
         Ok(())

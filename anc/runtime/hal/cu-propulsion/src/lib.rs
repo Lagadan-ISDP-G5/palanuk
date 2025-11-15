@@ -95,7 +95,7 @@ pub struct Propulsion {
     left_wheel: WheelState,
     right_wheel: WheelState,
     pin_controller_instances: PropulsionControllerInstances,
-    #[cfg(hardware)]
+    // #[cfg(hardware)]
     pin_assignments: PropulsionPinAssignments,
 }
 
@@ -157,11 +157,11 @@ impl CuSinkTask for Propulsion {
             .clone()
             .into();
 
-        #[cfg(hardware)]
+        // #[cfg(hardware)]
         let lmtr_en_a_instance = Pwm::new(0, l298n_en_a_pin_offset).unwrap();
-        #[cfg(hardware)]
+        // #[cfg(hardware)]
         let rmtr_en_b_instance = Pwm::new(0, l298n_en_b_pin_offset).unwrap();
-        #[cfg(hardware)]
+        // #[cfg(hardware)]
         let mut gpio = Chip::new("/dev/gpiochip4").unwrap();
 
         let pin_assignments = PropulsionPinAssignments {

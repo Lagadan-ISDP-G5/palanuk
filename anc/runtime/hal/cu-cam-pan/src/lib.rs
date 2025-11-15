@@ -49,7 +49,7 @@ pub struct CameraPanning {
     recvd_pos_cmd: Arc<Mutex<PositionCommand>>,
     pin_controller_instances: Arc<CameraPanningControllerInstances>,
     ipolate_thread_hdl: Option<JoinHandle<()>>,
-    #[cfg(hardware)]
+    // #[cfg(hardware)]
     pin_assignments: CameraPanningPinAssignments,
 }
 
@@ -84,7 +84,7 @@ impl CuSinkTask for CameraPanning {
             sg90_pos_cmd_pin: sg90_pos_cmd_pin_offset
         };
 
-        #[cfg(hardware)]
+        // #[cfg(hardware)]
         let sg90_pos_cmd_instance = Pwm::new(0, sg90_pos_cmd_pin_offset).unwrap();
         let pin_controller_instances = CameraPanningControllerInstances {
             sg90_pos_cmd: sg90_pos_cmd_instance

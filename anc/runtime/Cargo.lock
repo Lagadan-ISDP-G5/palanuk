@@ -1162,6 +1162,7 @@ dependencies = [
 name = "palanuk-runtime"
 version = "0.1.0"
 dependencies = [
+ "cfg_aliases",
  "cu29",
  "cu29-runtime",
 ]
