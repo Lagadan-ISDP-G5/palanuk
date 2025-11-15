@@ -1,4 +1,3 @@
-use std::error::Error;
 use std::time::Duration;
 use env_logger::Env;
 use libc::*;

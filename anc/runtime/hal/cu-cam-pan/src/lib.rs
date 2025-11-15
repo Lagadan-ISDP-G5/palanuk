@@ -1,8 +1,22 @@
 use std::time::Duration;
-use dumb_sysfs_pwm::Pwm;
+use std::error::Error;
+use std::sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}};
+use std::thread::{self, JoinHandle, spawn};
+use dumb_sysfs_pwm::{Pwm, Polarity};
 use cu29::prelude::*;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
+
+/// We're assuming that during operation, we won't send commands before the previous sent command has been
+/// fully actuated by the servo. The SG90 is a cheap, crappy servo that easily gets confused by quick
+/// changes in the PWM duty cycle. No point in overengineering the code (it already is) just to handle
+/// HW race conditions arising from cheap HW.
+
+const PERIOD_NS: u32 = 20000000; /// Period in ns for 50Hz
+const DUTY_CYCLE_POS_FRONT: f32 = 0.075; /// 1.5ms out of 20ms
+const DUTY_CYCLE_POS_LEFT: f32 = 0.05; /// 1.0ms out of 20ms
+const DUTY_CYCLE_POS_RIGHT: f32 = 0.1; /// 2.0ms out of 20ms
+const INTPLATE_DIV: f32 = 10000.0;
 
 // Not used here, the assignment is final but it should be passed in the RON instead of being hardcoded
 const SG90_POS_CMD: u32 = 12;
@@ -10,7 +24,8 @@ const SG90_POS_CMD: u32 = 12;
 /// this payload has no HW feedback
 #[derive(Debug, Clone, Copy, Default, Encode, Decode, PartialEq, Serialize, Deserialize)]
 pub struct CameraPanningPayload {
-    pos_cmd: PositionCommand
+    pos_cmd: PositionCommand,
+    active_cfg: CameraPanningPinAssignments
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Encode, Decode, Serialize, Deserialize)]
@@ -31,9 +46,9 @@ pub struct CameraPanningControllerInstances {
 }
 
 pub struct CameraPanning {
-    task_running: bool,
-    recvd_pos_cmd: PositionCommand,
-    pin_controller_instances: CameraPanningControllerInstances,
+    task_running: Arc<AtomicBool>,
+    recvd_pos_cmd: Arc<Mutex<PositionCommand>>,
+    pin_controller_instances: Arc<CameraPanningControllerInstances>,
     #[cfg(hardware)]
     pin_assignments: CameraPanningPinAssignments,
 }
@@ -41,6 +56,7 @@ pub struct CameraPanning {
 impl Freezable for CameraPanning {
     fn freeze<E: bincode::enc::Encoder>(&self, encoder: &mut E) -> Result<(), bincode::error::EncodeError> {
         Encode::encode(&self.recvd_pos_cmd, encoder)?;
+        Encode::encode(&self.pin_assignments, encoder)?;
         Ok(())
     }
 
@@ -75,19 +91,61 @@ impl CuSinkTask for CameraPanning {
         };
 
         Ok(Self {
-            task_running: true,
-            recvd_pos_cmd: PositionCommand::default(),
-            pin_controller_instances: pin_controller_instances,
+            task_running: Arc::new(AtomicBool::new(true)),
+            recvd_pos_cmd: Arc::new(Mutex::new(PositionCommand::default())),
+            pin_controller_instances: Arc::new(pin_controller_instances),
             pin_assignments: pin_assignments,
         })
     }
 
     fn start(&mut self, _clock: &RobotClock) -> CuResult<()> {
-        // Need to use some Arc<> wrapped types
-        std::thread::spawn(move || {
-            while self.task_running {
-                for duty_cycle in (500..=1000).step_by(2) {
-                    self.pin_controller_instances.sg90_pos_cmd.set_duty_cycle(duty_cycle as f32 / 10000.0);
+        let task_running = Arc::clone(&self.task_running);
+        let pos_cmd = Arc::clone(&self.recvd_pos_cmd);
+        let controller = Arc::clone(&self.pin_controller_instances);
+        let mut pos_cmd_copy: PositionCommand = PositionCommand::Front;
+
+        spawn(move || {
+            // make sure PWM params are initialized
+            _ = controller.sg90_pos_cmd.set_period_ns(PERIOD_NS);
+            _ = controller.sg90_pos_cmd.set_polarity(Polarity::Normal);
+
+            // check if controller is enabled yet
+            if !controller.sg90_pos_cmd.get_enabled().unwrap() {
+                controller.sg90_pos_cmd.enable(true).unwrap();
+                // should probably add a reset routine here, with a helper function to make sure the servo
+                // resets to the front position
+            }
+
+            while task_running.load(Ordering::Relaxed) {
+                let rd_guard = match pos_cmd.try_lock() {
+                    Ok(val) => Some(val),
+                    Err(_) => None
+                };
+
+                match rd_guard {
+                    Some(cmd) => {
+                        pos_cmd_copy = (*cmd).clone();
+                    },
+                    _ => {} // Do nothing if process() method in main thread happens to write to pos_cmd
+                }
+
+                // FIXME: remove wasteful casts
+                let target_duty_cycle = match pos_cmd_copy {
+                    PositionCommand::Front => {
+                        (DUTY_CYCLE_POS_FRONT * INTPLATE_DIV) as u32
+                    },
+                    PositionCommand::Left => {
+                        (DUTY_CYCLE_POS_LEFT * INTPLATE_DIV) as u32
+                    },
+                    PositionCommand::Right => {
+                        (DUTY_CYCLE_POS_RIGHT * INTPLATE_DIV) as u32
+                    }
+                };
+
+                // should probably make this task stateful, i.e., remembers what position it's in so
+                // that our for loop starts from the target_duty_cycle it was prior
+                for duty_cycle in (0..=target_duty_cycle).step_by(2) {
+                    _ = controller.sg90_pos_cmd.set_duty_cycle(duty_cycle as f32 / INTPLATE_DIV);
                     std::thread::sleep(Duration::from_millis(10));
                 }
             }
@@ -96,26 +154,25 @@ impl CuSinkTask for CameraPanning {
     }
 
     fn process(&mut self, _clock: &RobotClock, input: &Self::Input<'_>) -> Result<(), CuError> {
-        let sg90_pos_cmd_hdl = &mut self.pin_controller_instances.sg90_pos_cmd;
-
-        if !sg90_pos_cmd_hdl.get_enabled().unwrap() {
-            sg90_pos_cmd_hdl.enable(true).unwrap();
-        }
-
+        let pos_cmd = Arc::clone(&mut self.recvd_pos_cmd);
         let payload = input.payload().unwrap();
-        match payload.pos_cmd {
-            PositionCommand::Front => {
 
+        let rw_guard = match pos_cmd.try_lock() {
+            Ok(val) => Some(val),
+            Err(_) => None,
+        };
+
+        match rw_guard {
+            Some(mut pos_cmd) => {
+                *pos_cmd = payload.pos_cmd
             },
-            PositionCommand::Left => {
-
-
-            },
-            PositionCommand::Right => {
-
-            }
+            None => ()
         }
+        Ok(())
+    }
 
+    fn stop(&mut self, _clock: &RobotClock) -> CuResult<()> {
+        self.task_running.store(false, Ordering::Relaxed);
         Ok(())
     }
 }
