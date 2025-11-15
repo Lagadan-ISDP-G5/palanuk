@@ -16,7 +16,7 @@ const PERIOD_NS: u32 = 20000000; /// Period in ns for 50Hz
 const DUTY_CYCLE_POS_FRONT: f32 = 0.075; /// 1.5ms out of 20ms
 const DUTY_CYCLE_POS_LEFT: f32 = 0.05; /// 1.0ms out of 20ms
 const DUTY_CYCLE_POS_RIGHT: f32 = 0.1; /// 2.0ms out of 20ms
-const INTPLATE_DIV: f32 = 10000.0;
+const IPOLATE_DIV: f32 = 10000.0;
 
 // Not used here, the assignment is final but it should be passed in the RON instead of being hardcoded
 const SG90_POS_CMD: u32 = 12;
@@ -49,6 +49,7 @@ pub struct CameraPanning {
     task_running: Arc<AtomicBool>,
     recvd_pos_cmd: Arc<Mutex<PositionCommand>>,
     pin_controller_instances: Arc<CameraPanningControllerInstances>,
+    ipolate_thread_hdl: Option<JoinHandle<()>>,
     #[cfg(hardware)]
     pin_assignments: CameraPanningPinAssignments,
 }
@@ -93,6 +94,7 @@ impl CuSinkTask for CameraPanning {
         Ok(Self {
             task_running: Arc::new(AtomicBool::new(true)),
             recvd_pos_cmd: Arc::new(Mutex::new(PositionCommand::default())),
+            ipolate_thread_hdl: None,
             pin_controller_instances: Arc::new(pin_controller_instances),
             pin_assignments: pin_assignments,
         })
@@ -104,7 +106,7 @@ impl CuSinkTask for CameraPanning {
         let controller = Arc::clone(&self.pin_controller_instances);
         let mut pos_cmd_copy: PositionCommand = PositionCommand::Front;
 
-        spawn(move || {
+        let ipolate_thread_hdl = spawn(move || {
             // make sure PWM params are initialized
             _ = controller.sg90_pos_cmd.set_period_ns(PERIOD_NS);
             _ = controller.sg90_pos_cmd.set_polarity(Polarity::Normal);
@@ -132,36 +134,35 @@ impl CuSinkTask for CameraPanning {
                 // FIXME: remove wasteful casts
                 let target_duty_cycle = match pos_cmd_copy {
                     PositionCommand::Front => {
-                        (DUTY_CYCLE_POS_FRONT * INTPLATE_DIV) as u32
+                        (DUTY_CYCLE_POS_FRONT * IPOLATE_DIV) as u32
                     },
                     PositionCommand::Left => {
-                        (DUTY_CYCLE_POS_LEFT * INTPLATE_DIV) as u32
+                        (DUTY_CYCLE_POS_LEFT * IPOLATE_DIV) as u32
                     },
                     PositionCommand::Right => {
-                        (DUTY_CYCLE_POS_RIGHT * INTPLATE_DIV) as u32
+                        (DUTY_CYCLE_POS_RIGHT * IPOLATE_DIV) as u32
                     }
                 };
-
                 // should probably make this task stateful, i.e., remembers what position it's in so
                 // that our for loop starts from the target_duty_cycle it was prior
                 for duty_cycle in (0..=target_duty_cycle).step_by(2) {
-                    _ = controller.sg90_pos_cmd.set_duty_cycle(duty_cycle as f32 / INTPLATE_DIV);
+                    _ = controller.sg90_pos_cmd.set_duty_cycle(duty_cycle as f32 / IPOLATE_DIV);
                     std::thread::sleep(Duration::from_millis(10));
                 }
             }
         });
+
+        self.ipolate_thread_hdl = Some(ipolate_thread_hdl);
         Ok(())
     }
 
     fn process(&mut self, _clock: &RobotClock, input: &Self::Input<'_>) -> Result<(), CuError> {
         let pos_cmd = Arc::clone(&mut self.recvd_pos_cmd);
         let payload = input.payload().unwrap();
-
         let rw_guard = match pos_cmd.try_lock() {
             Ok(val) => Some(val),
             Err(_) => None,
         };
-
         match rw_guard {
             Some(mut pos_cmd) => {
                 *pos_cmd = payload.pos_cmd
@@ -173,6 +174,13 @@ impl CuSinkTask for CameraPanning {
 
     fn stop(&mut self, _clock: &RobotClock) -> CuResult<()> {
         self.task_running.store(false, Ordering::Relaxed);
+        let hdl = self.ipolate_thread_hdl.take();
+        match hdl {
+            Some(hdl) => {
+                hdl.join().expect("CameraPanning PWM duty cycle interpolation thread panicked upon stop command issued")
+            },
+            None => ()
+        }
         Ok(())
     }
 }
