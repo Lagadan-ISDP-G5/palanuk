@@ -13,6 +13,7 @@ keywords = ["autonomous", "copper-rs", "robotics", "real-time"]
 [workspace.dependencies]
 cu29 = "0.10.0"
 cu29-runtime = "0.10.0"
+cu29-helpers = "0.10.0"
 bincode = "2.0.1"
 serde = "1.0.228"
 hcsr04-gpio-cdev = "0.1.2"
@@ -22,10 +23,8 @@ cu-propulsion = { path = "/Users/ander/Documents/proj/palanuk/anc/runtime/hal/cu
 cu-cam-pan = { path = "/Users/ander/Documents/proj/palanuk/anc/runtime/hal/cu-cam-pan" }
 cu-hcsr04 = { path = "/Users/ander/Documents/proj/palanuk/anc/runtime/hal/cu-hcsr04" }
 cu-powermon = { path = "/Users/ander/Documents/proj/palanuk/anc/runtime/hal/cu-powermon" }
-iceoryx2 = "0.7.0"
-zenoh = "1.6.2"
 cu-consolemon = "0.10.0"
-
+# iceoryx2 = "0.7.0"
 
 [build]
 target = "aarch64-unknown-linux-gnu"

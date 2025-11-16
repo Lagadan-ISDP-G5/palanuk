@@ -43,12 +43,12 @@
 
         (
             id: "jogger",
-            type: "tasks::Jogger"
+            type: "Jogger"
         ),
 
 //        (
 //            id: "panner",
-//            type: "tasks::Panner"
+//            type: "Panner"
 //        ),
 
      ],

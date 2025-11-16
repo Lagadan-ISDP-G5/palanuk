@@ -6,9 +6,10 @@ edition = "2024"
 [dependencies]
 cu29 = { workspace = true }
 cu29-runtime = { workspace = true }
+cu29-helpers = { workspace = true }
 cu-consolemon = { workspace = true }
 cu-propulsion = { workspace = true }
 cu-cam-pan = { workspace = true }
 cu-hcsr04 = { workspace = true }
 cu-powermon = { workspace = true }
-iceoryx2 = { workspace = true }
+# iceoryx2 = { workspace = true }
