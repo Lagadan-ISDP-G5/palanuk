@@ -2187,6 +2187,7 @@ dependencies = [
  "cu29",
  "cu29-helpers",
  "cu29-runtime",
+ "serde",
 ]
 
 [[package]]

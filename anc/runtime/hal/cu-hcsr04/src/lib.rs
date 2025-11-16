@@ -54,8 +54,14 @@ impl CuSrcTask for CuHcSr04 {
 
     fn process(&mut self, _clock: &RobotClock, msg: &mut Self::Output<'_>) -> CuResult<()> {
         // #[cfg(hardware)]
-        let dist_cm = self.driver_instance.dist_cm(None).expect("HcSr04 driver error");
-        msg.set_payload(HcSr04Payload { distance: dist_cm.to_val() });
+        let dist_cm = self.driver_instance.dist_cm(None).ok();
+
+        let dist_msg = match dist_cm {
+            Some(val) => val.to_val(),
+            None => 50.0
+        };
+
+        msg.set_payload(HcSr04Payload { distance: dist_msg });
         Ok(())
     }
 }

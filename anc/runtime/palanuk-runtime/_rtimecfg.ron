@@ -1,8 +1,7 @@
 (
     runtime: (
-        rate_target_hz: 4,
-    ),
-
+        rate_target_hz: 4, // 250ms cycle time
+        ),
     tasks: [
         (
             id: "distance-sensor",
@@ -13,28 +12,28 @@
             },
         ),
 
-//        (
-//            id: "power-monitoring",
-//            type: "cu_powermon::CuIna219",
-//            config: {
-//                "target_addr": 68,
-//            },
-//        ),
+        (
+            id: "power-monitoring",
+            type: "cu_powermon::CuIna219",
+            config: {
+                "target_addr": 68, // I2C address 0d68 = 0x44
+            },
+        ),
 
-//        (
-//            id: "camera-panning",
-//            type: "cu_cam_pan::CameraPanning",
-//            config: {
-//                "sg90_pos_cmd_pin": 12
-//            },
-//        ),
+        (
+            id: "camera-panning",
+            type: "cu_cam_pan::CameraPanning",
+            config: {
+                "sg90_pos_cmd_pin": 12
+            }
+        ),
 
         (
             id: "propulsion",
             type: "cu_propulsion::Propulsion",
             config: {
-                "l298n_en_a": 2, // PWM_CHAN2 = GPIO18
-                "l298n_en_b": 1, // PWM_CHAN1 = GPIO13
+                "l298n_en_a": 18,
+                "l298n_en_b": 13,
                 "l298n_in_1": 23,
                 "l298n_in_2": 24,
                 "l298n_in_3": 26,
@@ -47,10 +46,15 @@
             type: "Jogger"
         ),
 
+//        (
+//            id: "panner",
+//            type: "Panner"
+//        ),
+
      ],
     cnx: [
         (src: "distance-sensor", dst: "jogger", msg: "cu_hcsr04::HcSr04Payload"),
-        (src: "jogger",dst: "propulsion", msg: "cu_propulsion::PropulsionPayload"),
+        (src: "jogger",  dst: "propulsion",   msg: "cu_propulsion::PropulsionPayload"),
 //        (src: "panner", dst: "camera-panning", msg:"cu_cam_pan::CameraPanningPayload"),
     ],
     monitor: (

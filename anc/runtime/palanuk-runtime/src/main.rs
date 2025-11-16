@@ -1,17 +1,18 @@
-use cu29::{clock, prelude::*};
+use cu29::prelude::*;
 use cu29_helpers::basic_copper_setup;
 use std::fs;
 use std::path::{Path, PathBuf};
+use cu_propulsion::{PropulsionPayload, WheelDirection};
+use cu_cam_pan::CameraPanningPayload;
+use cu_hcsr04::HcSr04Payload;
+use cu_powermon::*;
+// use iceoryx2::prelude::*;
 
-#[copper_runtime(config = "rtimecfg.ron")]
+#[copper_runtime(config = "rtimecfg.ron", sim_mode = false)]
 struct Palanuk {}
 
-use cu29::prelude::*;
-use iceoryx2::prelude::*;
-use cu_propulsion::{PropulsionPayload, WheelDirection};
-use cu_cam_pan::{CameraPanningPayload};
-use cu_hcsr04::{HcSr04Payload};
-use cu_powermon::*;
+#[allow(clippy::identity_op)]
+const SLAB_SIZE: Option<usize> = Some(1 * 1024 * 1024 * 1024);
 
 pub struct Jogger {}
 // pub struct Panner {}
@@ -29,15 +30,15 @@ impl CuTask for Jogger {
         Ok(Self {})
     }
 
-    fn start(&mut self, _clock: &RobotClock) -> CuResult<()> {
-        // use this method to init iox2 sub
-        
-    }
+    // fn start(&mut self, _clock: &RobotClock) -> CuResult<()> {
+    //     // use this method to init iox2 sub
+    //     Ok(())
+    // }
 
     fn process(&mut self, _clock: &RobotClock, input: &Self::Input<'_>, output: &mut Self::Output<'_>,)
     -> CuResult<()>
     {
-        let hcsr04_msg = *input;
+        let hcsr04_msg = input;
         let mut dist: f64 = 0.0;
 
         match hcsr04_msg.payload() {
@@ -53,6 +54,16 @@ impl CuTask for Jogger {
                 right_direction: WheelDirection::Forward,
                 left_speed: 0.0,
                 right_speed: 0.0
+            });
+        }
+        else {
+            output.set_payload(PropulsionPayload {
+                left_enable: true,
+                right_enable: true,
+                left_direction: WheelDirection::Forward,
+                right_direction: WheelDirection::Forward,
+                left_speed: 0.8,
+                right_speed: 0.8
             });
         }
         Ok(())
@@ -86,7 +97,13 @@ fn main() {
         }
     }
 
-    let copper_ctx = basic_copper_setup(&PathBuf::from(logger_path), true).expect("Failed to setup logger.");
+    let copper_ctx = basic_copper_setup(
+        &PathBuf::from(logger_path),
+        SLAB_SIZE,
+        false,
+        None
+    )
+    .expect("Failed to setup logger.");
     debug!("Logger created at {}.", path = logger_path);
     debug!("Creating application... ");
 
@@ -94,9 +111,9 @@ fn main() {
 
     let mut application = Palanuk::new(
         clock.clone(),
-        copper_ctx.clone()
+        copper_ctx.unified_logger.clone(),
+        None
     ).expect("Failed to create runtime.");
-
 
     debug!("Running... starting clock: {}.", clock.now());
     application.run().expect("Failed to run application.");

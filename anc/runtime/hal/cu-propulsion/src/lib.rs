@@ -123,13 +123,13 @@ impl CuSinkTask for Propulsion {
 
         let l298n_en_a_pin_offset: u32 = kv
             .get("l298n_en_a")
-            .expect("l298n_en_a for Propulsion not set in RON config")
+            .expect("l298n_en_a for Propulsion not set in RON config. Make sure you're specifying the PWM channel offset instead of its GPIO number.")
             .clone()
             .into();
 
         let l298n_en_b_pin_offset: u32 = kv
             .get("l298n_en_b")
-            .expect("l298n_en_b for Propulsion not set in RON config")
+            .expect("l298n_en_b for Propulsion not set in RON config. Make sure you're specifying the PWM channel offset instead of its GPIO number.")
             .clone()
             .into();
 
@@ -162,7 +162,7 @@ impl CuSinkTask for Propulsion {
         // #[cfg(hardware)]
         let rmtr_en_b_instance = Pwm::new(0, l298n_en_b_pin_offset).unwrap();
         // #[cfg(hardware)]
-        let mut gpio = Chip::new("/dev/gpiochip4").unwrap();
+        let gpio = Chip::new("/dev/gpiochip4").unwrap();
 
         let pin_assignments = PropulsionPinAssignments {
             l298n_en_a_pin: l298n_en_a_pin_offset,
@@ -185,6 +185,13 @@ impl CuSinkTask for Propulsion {
             pin_controller_instances: pin_controller_instances,
             pin_assignments: pin_assignments,
         })
+    }
+
+    fn start(&mut self, _clock: &RobotClock) -> CuResult<()> {
+        let instance = &mut self.pin_controller_instances;
+        _ = instance.lmtr_en_a.export();
+        _ = instance.lmtr_en_a.export();
+        Ok(())
     }
 
     fn process(&mut self, _clock: &RobotClock, input: &Self::Input<'_>) -> Result<(), CuError> {
@@ -268,6 +275,13 @@ impl CuSinkTask for Propulsion {
                 in_4_line.set_value(in_4_val).unwrap();
             },
         }
+        Ok(())
+    }
+
+    fn stop(&mut self, _clock: &RobotClock) -> CuResult<()> {
+        let instance = &mut self.pin_controller_instances;
+        _ = instance.lmtr_en_a.unexport();
+        _ = instance.lmtr_en_a.unexport();
         Ok(())
     }
 }

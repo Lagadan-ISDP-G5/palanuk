@@ -5,13 +5,13 @@ members = ["palanuk-runtime", "hal/cu-hcsr04", "hal/cu-propulsion", "hal/cu-cam-
 [workspace.package]
 publish = false
 version = "0.1.0"
-authors = ["Ander Jiloh <ander.jilo@gmail.com>"]
+authors = ["Ander Jiloh <ander.jiloh@gmail.com>"]
 edition = "2024"
 license = "LGPL-2.1-only"
 keywords = ["autonomous", "copper-rs", "robotics", "real-time"]
 
 [workspace.dependencies]
-cu29 = "0.10.0"
+cu29 = { version = "0.10.0", features = ["macro_debug"] }
 cu29-runtime = "0.10.0"
 cu29-helpers = "0.10.0"
 bincode = "2.0.1"

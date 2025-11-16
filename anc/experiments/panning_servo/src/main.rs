@@ -1,4 +1,5 @@
 use std::time::Duration;
+use std::error::Error;
 use env_logger::Env;
 use libc::*;
 use rpi_pal::pwm::{Channel, Polarity, Pwm};
@@ -42,20 +43,27 @@ fn main() -> Result<(), Box<dyn Error>> {
     ctrl_pwm_hndl.set_polarity(Polarity::Normal)?;
     ctrl_pwm_hndl.enable()?;
 
-    loop {
-        for duty in (500..=1000).step_by(2) {
-            ctrl_pwm_hndl.set_duty_cycle(duty as f64 / 10000.0)?;
-            std::thread::sleep(Duration::from_millis(10));
+        // for duty in (500..=1000).step_by(2) {
+        //     ctrl_pwm_hndl.set_duty_cycle(duty as f64 / 10000.0)?;
+        //     std::thread::sleep(Duration::from_millis(10));
+        // }
+        for duty in (50..=75).step_by(1) {
+            ctrl_pwm_hndl.set_duty_cycle(duty as f64 / 1000.0)?;
+            std::thread::sleep(Duration::from_millis(20));
         }
         // std::thread::sleep(Duration::from_millis(1200));
 
-        for duty in (500..=1000).rev().step_by(2) {
-            ctrl_pwm_hndl.set_duty_cycle(duty as f64 / 10000.0)?;
-            std::thread::sleep(Duration::from_millis(10));
+        // for duty in (500..=1000).rev().step_by(2) {
+        //     ctrl_pwm_hndl.set_duty_cycle(duty as f64 / 10000.0)?;
+        //     std::thread::sleep(Duration::from_millis(10));
+        // }
+        for duty in (50..=75).rev().step_by(1) {
+            ctrl_pwm_hndl.set_duty_cycle(duty as f64 / 1000.0)?;
+            std::thread::sleep(Duration::from_millis(20));
         }
 
         std::thread::sleep(Duration::from_millis(300));
-    }
+
 
     // interpolate from 0 deg to 180 deg
     // 50 -> 0 deg
