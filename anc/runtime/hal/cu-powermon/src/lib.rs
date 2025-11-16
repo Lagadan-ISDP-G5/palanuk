@@ -1,4 +1,4 @@
-use dumb_ina219::{units::{CurrentUnit, Gettable, ResistanceUnit}, *};
+use dumb_ina219::{units::{CurrentUnit, Gettable, PowerUnit, ResistanceUnit, VoltageUnit}, *};
 use cu29::prelude::*;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
@@ -45,11 +45,25 @@ impl CuSrcTask for CuIna219 {
     fn process(&mut self, _clock: &RobotClock, msg: &mut Self::Output<'_>) -> CuResult<()> {
         let dev = &mut self.driver_instance;
 
-        // cheeky
-        let power_reading = dev.power().map_err(|_| -> () {}).unwrap();
-        let current_reading = dev.load_current().map_err(|_| -> () {}).unwrap();
-        let shunt_voltage_reading = dev.shunt_voltage().map_err(|_| -> () {}).unwrap();
-        let bus_voltage_reading = dev.bus_voltage().map_err(|_| -> () {}).unwrap();
+        let power_reading = match dev.power().ok() {
+            Some(val) => val,
+            None => PowerUnit::milliwatts(0.0)
+        };
+
+        let current_reading = match dev.load_current().ok() {
+            Some(val) => val,
+            None => CurrentUnit::milliamps(0.0)
+        };
+
+        let shunt_voltage_reading = match dev.shunt_voltage().ok() {
+            Some(val) => val,
+            None => VoltageUnit::millivolts(0.0)
+        };
+
+        let bus_voltage_reading = match dev.bus_voltage().ok() {
+            Some(val) => val,
+            None => VoltageUnit::millivolts(0.0)
+        };
 
         msg.set_payload(
             Ina219Payload {
