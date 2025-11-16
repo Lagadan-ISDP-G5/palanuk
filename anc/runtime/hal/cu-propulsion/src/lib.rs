@@ -46,13 +46,13 @@ impl Speed {
 /// `left_speed` and `right_speed` are the percentage duty cycles for the Pwm controllers of each wheel.
 #[derive(Debug, Clone, Copy, Default, Encode, Decode, PartialEq, Serialize, Deserialize)]
 pub struct PropulsionPayload {
-    left_enable: bool,
-    right_enable: bool,
-    left_speed: f32,
-    right_speed: f32,
-    left_direction: WheelDirection,
-    right_direction: WheelDirection,
-    active_cfg: PropulsionPinAssignments,
+    pub left_enable: bool,
+    pub right_enable: bool,
+    pub left_speed: f32,
+    pub right_speed: f32,
+    pub left_direction: WheelDirection,
+    pub right_direction: WheelDirection,
+    // active_cfg: PropulsionPinAssignments,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Encode, Decode, Serialize, Deserialize)]

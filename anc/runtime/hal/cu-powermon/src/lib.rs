@@ -1,3 +1,5 @@
+use std::panic;
+
 use dumb_ina219::{units::{CurrentUnit, Gettable, PowerUnit, ResistanceUnit, VoltageUnit}, *};
 use cu29::prelude::*;
 use bincode::{Decode, Encode};
@@ -37,9 +39,14 @@ impl CuSrcTask for CuIna219 {
         let driver_instance = Ina219::new(
             ResistanceUnit::milliohms(100.0),
             CurrentUnit::milliamps(1000.0),
-            target_addr).expect("INA219 driver instantiation error");
+            target_addr).ok();
 
-        Ok(Self { driver_instance, target_addr })
+        match driver_instance {
+            None => panic!("INA219 driver instantiation error"),
+            Some(driver_instance) => {
+                return Ok(Self { driver_instance, target_addr })
+            }
+        }
     }
 
     fn process(&mut self, _clock: &RobotClock, msg: &mut Self::Output<'_>) -> CuResult<()> {

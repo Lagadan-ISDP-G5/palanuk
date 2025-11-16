@@ -24,6 +24,8 @@ cu-hcsr04 = { path = "/Users/ander/Documents/proj/palanuk/anc/runtime/hal/cu-hcs
 cu-powermon = { path = "/Users/ander/Documents/proj/palanuk/anc/runtime/hal/cu-powermon" }
 iceoryx2 = "0.7.0"
 zenoh = "1.6.2"
+cu-consolemon = "0.10.0"
+
 
 [build]
 target = "aarch64-unknown-linux-gnu"

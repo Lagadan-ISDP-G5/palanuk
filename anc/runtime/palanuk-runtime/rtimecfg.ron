@@ -46,18 +46,19 @@
             type: "tasks::Jogger"
         ),
 
-        (
-            id: "panner",
-            type: "tasks::Panner"
-        ),
+//        (
+//            id: "panner",
+//            type: "tasks::Panner"
+//        ),
 
      ],
     cnx: [
         (src: "distance-sensor", dst: "jogger", msg: "cu_hcsr04::HcSr04Payload"),
         (src: "jogger",  dst: "propulsion",   msg: "cu_propulsion::PropulsionPayload"),
-        (src: "panner", dst: "camera-panning", msg:"cu_cam_pan::CameraPanningPayload"),
+//        (src: "panner", dst: "camera-panning", msg:"cu_cam_pan::CameraPanningPayload"),
     ],
     monitor: (
           type: "cu_consolemon::CuConsoleMon",
-    )
+    ),
+    logging: ( file: "palanuk.copper", level: "debug" ),
 )
