@@ -122,7 +122,7 @@ fn main() {
     let (tx, rx) = channel();
 
     ctrlc::set_handler(move || {
-        running.clone().store(false, Ordering::Relaxed);
+        running.clone().store(false, Ordering::SeqCst);
     })
     .expect("Error setting Ctrl-C handler");
 
