@@ -2,10 +2,13 @@ use cu29::prelude::*;
 use cu29_helpers::basic_copper_setup;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use cu_propulsion::{PropulsionPayload, WheelDirection};
 use cu_cam_pan::CameraPanningPayload;
 use cu_hcsr04::HcSr04Payload;
 use cu_powermon::*;
+use ctrlc::*;
+use std::sync::mpsc::channel;
 // use iceoryx2::prelude::*;
 
 #[copper_runtime(config = "rtimecfg.ron", sim_mode = false)]
@@ -115,7 +118,18 @@ fn main() {
         None
     ).expect("Failed to create runtime.");
 
+    let running = AtomicBool::new(true);
+    let (tx, rx) = channel();
+
+    ctrlc::set_handler(move || {
+        running.clone().store(false, Ordering::Relaxed);
+    })
+    .expect("Error setting Ctrl-C handler");
+
     debug!("Running... starting clock: {}.", clock.now());
-    application.run().expect("Failed to run application.");
+    while running.load(Ordering::Relaxed) {
+        _ = application.run_one_iteration();
+    }
+    // application.run().expect("Failed to run application."); // blocks indefinitely
     debug!("End of app: final clock: {}.", clock.now());
 }

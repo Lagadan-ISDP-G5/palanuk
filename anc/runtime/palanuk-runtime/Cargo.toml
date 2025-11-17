@@ -13,4 +13,5 @@ cu-cam-pan = { workspace = true }
 cu-hcsr04 = { workspace = true }
 cu-powermon = { workspace = true }
 serde = { workspace = true }
+ctrlc = { workspace = true }
 # iceoryx2 = { workspace = true }

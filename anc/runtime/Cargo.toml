@@ -24,6 +24,7 @@ cu-cam-pan = { path = "/Users/ander/Documents/proj/palanuk/anc/runtime/hal/cu-ca
 cu-hcsr04 = { path = "/Users/ander/Documents/proj/palanuk/anc/runtime/hal/cu-hcsr04" }
 cu-powermon = { path = "/Users/ander/Documents/proj/palanuk/anc/runtime/hal/cu-powermon" }
 cu-consolemon = "0.10.0"
+ctrlc = "3.5.1"
 # iceoryx2 = "0.7.0"
 
 [build]
