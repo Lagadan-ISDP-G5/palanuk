@@ -3,7 +3,7 @@
 ### Build
 
 ```bash
-cross build --target aarch64-unknown-linux-gnu --release
+cargo zigbuild --target aarch64-unknown-linux-gnu --release
 ```
 
 ```bash

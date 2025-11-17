@@ -86,9 +86,17 @@ pub struct PropulsionPinAssignments {
 }
 
 pub struct PropulsionControllerInstances {
-    gpio: Chip,
+    gpio_inst: Chip,
+    direction_pins: DirectionPinHdls,
     lmtr_en_a: Pwm,
     rmtr_en_b: Pwm,
+}
+
+struct DirectionPinHdls {
+    in_1_pin: LineHandle,
+    in_2_pin: LineHandle,
+    in_3_pin: LineHandle,
+    in_4_pin: LineHandle,
 }
 
 pub struct Propulsion {
@@ -162,7 +170,7 @@ impl CuSinkTask for Propulsion {
         // #[cfg(hardware)]
         let rmtr_en_b_instance = Pwm::new(0, l298n_en_b_pin_offset).unwrap();
         // #[cfg(hardware)]
-        let gpio = Chip::new("/dev/gpiochip4").unwrap();
+        let mut gpio = Chip::new("/dev/gpiochip4").unwrap();
 
         let pin_assignments = PropulsionPinAssignments {
             l298n_en_a_pin: l298n_en_a_pin_offset,
@@ -173,8 +181,27 @@ impl CuSinkTask for Propulsion {
             l298n_in_4_pin: l298n_in_4_pin_offset
         };
 
+        let in_1_line = gpio.get_line(l298n_in_1_pin_offset).unwrap();
+        let in_1_line = in_1_line.request(LineRequestFlags::OUTPUT, 0, "in-1-left-motor").unwrap();
+
+        let in_2_line = gpio.get_line(l298n_in_2_pin_offset).unwrap();
+        let in_2_line = in_2_line.request(LineRequestFlags::OUTPUT, 0, "in-2-left-motor").unwrap();
+
+        let in_3_line = gpio.get_line(l298n_in_3_pin_offset).unwrap();
+        let in_3_line = in_3_line.request(LineRequestFlags::OUTPUT, 0, "in-3-right-motor").unwrap();
+
+        let in_4_line = gpio.get_line(l298n_in_4_pin_offset).unwrap();
+        let in_4_line = in_4_line.request(LineRequestFlags::OUTPUT, 0, "in-4-right-motor").unwrap();
+
+
         let pin_controller_instances = PropulsionControllerInstances {
-            gpio: gpio,
+            gpio_inst: gpio,
+            direction_pins: DirectionPinHdls {
+                                in_1_pin: in_1_line,
+                                in_2_pin: in_2_line,
+                                in_3_pin: in_3_line,
+                                in_4_pin: in_4_line
+                            },
             lmtr_en_a: lmtr_en_a_instance,
             rmtr_en_b: rmtr_en_b_instance,
         };
@@ -188,9 +215,15 @@ impl CuSinkTask for Propulsion {
     }
 
     fn start(&mut self, _clock: &RobotClock) -> CuResult<()> {
-        let instance = &mut self.pin_controller_instances;
-        _ = instance.lmtr_en_a.export();
-        _ = instance.lmtr_en_a.export();
+        let en_a_hdl = &mut self.pin_controller_instances.lmtr_en_a;
+        let en_b_hdl = &mut self.pin_controller_instances.rmtr_en_b;
+
+        _ = en_a_hdl.export();
+        _ = en_b_hdl.export();
+
+        _ = en_a_hdl.set_period_ns(20_000);
+        _ = en_b_hdl.set_period_ns(20_000);
+
         Ok(())
     }
 
@@ -232,23 +265,12 @@ impl CuSinkTask for Propulsion {
         en_a_hdl.set_duty_cycle(payload.left_speed).unwrap();
         en_b_hdl.set_duty_cycle(payload.right_speed).unwrap();
 
-        let dir_hdl =  &mut self.pin_controller_instances.gpio;
-        let in_1_hdl = self.pin_assignments.l298n_in_1_pin;
-        let in_2_hdl = self.pin_assignments.l298n_in_2_pin;
-        let in_3_hdl = self.pin_assignments.l298n_in_3_pin;
-        let in_4_hdl = self.pin_assignments.l298n_in_4_pin;
+        let dir_hdl = &mut self.pin_controller_instances.direction_pins;
 
-        let in_1_line = dir_hdl.get_line(in_1_hdl).unwrap();
-        let in_1_line = in_1_line.request(LineRequestFlags::OUTPUT, 0, "in-1-left-motor").unwrap();
-
-        let in_2_line = dir_hdl.get_line(in_2_hdl).unwrap();
-        let in_2_line = in_2_line.request(LineRequestFlags::OUTPUT, 0, "in-2-left-motor").unwrap();
-
-        let in_3_line = dir_hdl.get_line(in_3_hdl).unwrap();
-        let in_3_line = in_3_line.request(LineRequestFlags::OUTPUT, 0, "in-3-right-motor").unwrap();
-
-        let in_4_line = dir_hdl.get_line(in_4_hdl).unwrap();
-        let in_4_line = in_4_line.request(LineRequestFlags::OUTPUT, 0, "in-4-right-motor").unwrap();
+        let in_1_line = &dir_hdl.in_1_pin;
+        let in_2_line = &dir_hdl.in_2_pin;
+        let in_3_line = &dir_hdl.in_3_pin;
+        let in_4_line = &dir_hdl.in_4_pin;
 
         match payload.left_direction {
             WheelDirection::Forward => {
@@ -281,7 +303,7 @@ impl CuSinkTask for Propulsion {
     fn stop(&mut self, _clock: &RobotClock) -> CuResult<()> {
         let instance = &mut self.pin_controller_instances;
         _ = instance.lmtr_en_a.unexport();
-        _ = instance.lmtr_en_a.unexport();
+        _ = instance.rmtr_en_b.unexport();
         Ok(())
     }
 }

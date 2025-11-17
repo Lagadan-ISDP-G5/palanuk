@@ -13,6 +13,7 @@ keywords = ["autonomous", "copper-rs", "robotics", "real-time"]
 [workspace.dependencies]
 cu29 = { version = "0.10.0", features = ["macro_debug"] }
 cu29-runtime = "0.10.0"
+cu29-export = { version = "0.10.0" }
 cu29-helpers = "0.10.0"
 bincode = "2.0.1"
 serde = "1.0.228"

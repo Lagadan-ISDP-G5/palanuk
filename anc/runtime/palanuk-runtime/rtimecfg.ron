@@ -50,7 +50,7 @@
      ],
     cnx: [
         (src: "distance-sensor", dst: "jogger", msg: "cu_hcsr04::HcSr04Payload"),
-        (src: "jogger",dst: "propulsion", msg: "cu_propulsion::PropulsionPayload"),
+        (src: "jogger", dst: "propulsion", msg: "cu_propulsion::PropulsionPayload"),
        // (src: "panner", dst: "camera-panning", msg:"cu_cam_pan::CameraPanningPayload"),
     ],
     monitor: (

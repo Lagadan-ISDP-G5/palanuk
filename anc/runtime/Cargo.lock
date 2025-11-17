@@ -723,6 +723,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "cu29-export"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ca0019301ea81d52ff68316e44d378ef395989edd2f67e8b26f184b59ca09923"
+dependencies = [
+ "bincode 2.0.1",
+ "clap",
+ "cu29",
+ "cu29-intern-strs",
+ "num-format",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "cu29-helpers"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2043,6 +2058,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "51d515d32fb182ee37cda2ccdcb92950d6a3c2893aa280e540671c2cd0f3b1d9"
 
 [[package]]
+name = "num-format"
+version = "0.4.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a652d9771a63711fd3c3deb670acfbe5c30a4072e664d7a3bf5a9e1056ac72c3"
+dependencies = [
+ "arrayvec",
+ "itoa",
+]
+
+[[package]]
 name = "num-traits"
 version = "0.2.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2216,6 +2241,7 @@ dependencies = [
  "cu-powermon",
  "cu-propulsion",
  "cu29",
+ "cu29-export",
  "cu29-helpers",
  "cu29-runtime",
  "serde",

@@ -2,7 +2,7 @@ use cu29::prelude::*;
 use cu29_helpers::basic_copper_setup;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
 use cu_propulsion::{PropulsionPayload, WheelDirection};
 use cu_cam_pan::CameraPanningPayload;
 use cu_hcsr04::HcSr04Payload;
@@ -118,18 +118,20 @@ fn main() {
         None
     ).expect("Failed to create runtime.");
 
-    let running = AtomicBool::new(true);
-    let (tx, rx) = channel();
+    // let running = Arc::new(AtomicBool::new(true));
+    // let running_clone = Arc::clone(&running);
+    // let (tx, rx) = channel::<AtomicBool>();
 
-    ctrlc::set_handler(move || {
-        running.clone().store(false, Ordering::SeqCst);
-    })
-    .expect("Error setting Ctrl-C handler");
+    // ctrlc::set_handler(move || {
+    //     running_clone.store(false, Ordering::SeqCst);
+    // })
+    // .expect("Error setting Ctrl-C handler");
 
-    debug!("Running... starting clock: {}.", clock.now());
-    while running.load(Ordering::Relaxed) {
-        _ = application.run_one_iteration();
-    }
-    // application.run().expect("Failed to run application."); // blocks indefinitely
+    // debug!("Running... starting clock: {}.", clock.now());
+    // while running.load(Ordering::Relaxed) {
+    //     _ = application.run_one_iteration();
+    // }
+
+    application.run().expect("Failed to run application."); // blocks indefinitely
     debug!("End of app: final clock: {}.", clock.now());
 }

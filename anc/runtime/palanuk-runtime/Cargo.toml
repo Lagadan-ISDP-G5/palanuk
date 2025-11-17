@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 cu29 = { workspace = true }
+cu29-export = { workspace = true }
 cu29-runtime = { workspace = true }
 cu29-helpers = { workspace = true }
 cu-consolemon = { workspace = true }
@@ -15,3 +16,11 @@ cu-powermon = { workspace = true }
 serde = { workspace = true }
 ctrlc = { workspace = true }
 # iceoryx2 = { workspace = true }
+
+[[bin]]
+name = "palanuk-runtime"
+path = "src/main.rs"
+
+[[bin]]
+name = "palanuk-logreader"
+path = "src/logreader.rs"

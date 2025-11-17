@@ -58,7 +58,7 @@ impl CuSrcTask for CuHcSr04 {
 
         let dist_msg = match dist_cm {
             Some(val) => val.to_val(),
-            None => 50.0
+            None => 69420.0
         };
 
         msg.set_payload(HcSr04Payload { distance: dist_msg });
