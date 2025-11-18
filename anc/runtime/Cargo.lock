@@ -514,6 +514,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "core_affinity"
+version = "0.8.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a034b3a7b624016c6e13f5df875747cc25f884156aad2abd12b6c46797971342"
+dependencies = [
+ "libc",
+ "num_cpus",
+ "winapi",
+]
+
+[[package]]
 name = "cortex-m"
 version = "0.7.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2234,6 +2245,7 @@ dependencies = [
 name = "palanuk-runtime"
 version = "0.1.0"
 dependencies = [
+ "core_affinity",
  "ctrlc",
  "cu-cam-pan",
  "cu-consolemon",
@@ -2244,6 +2256,7 @@ dependencies = [
  "cu29-export",
  "cu29-helpers",
  "cu29-runtime",
+ "libc",
  "serde",
 ]
 

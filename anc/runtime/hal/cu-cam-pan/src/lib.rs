@@ -161,7 +161,6 @@ impl CuSinkTask for CameraPanning {
                     sleep(Duration::from_millis(20));
                 }
 
-                sleep(Duration::from_millis(300));
             }
 
             // Cleanup

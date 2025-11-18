@@ -9,6 +9,8 @@ use cu_hcsr04::HcSr04Payload;
 use cu_powermon::*;
 use ctrlc::*;
 use std::sync::mpsc::channel;
+use core_affinity::*;
+use libc::*;
 // use iceoryx2::prelude::*;
 
 #[copper_runtime(config = "rtimecfg.ron", sim_mode = false)]
@@ -122,6 +124,32 @@ impl CuTask for Panner {
 
 
 fn main() {
+    let res = unsafe {
+        mlockall(libc::MCL_CURRENT | libc::MCL_FUTURE)
+    };
+    match res {
+        0 => {
+            info!("mlockall() returned 0");
+        }
+        _ => {
+            error!("mlockall() failed, returned {}. Make sure to run as root.", res);
+        }
+    }
+
+    let _ = core_affinity::set_for_current(CoreId {id: 2}); // Cores 2-3 isolated
+    let thread_param = sched_param {sched_priority: 90};
+    let sched_res = unsafe {
+        sched_setscheduler(0, SCHED_FIFO, &thread_param)
+    };
+    match sched_res {
+        0 => {
+            info!("main: sched_setscheduler call returned 0");
+        },
+        _ => {
+            error!("main: sched_setscheduler failed: Returned {}. Make sure to run as root.", sched_res);
+        }
+    }
+
     let logger_path = "logs/palanuk.copper";
     if let Some(parent) = Path::new(logger_path).parent() {
         if !parent.exists() {

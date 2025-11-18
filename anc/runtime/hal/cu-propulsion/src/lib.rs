@@ -244,11 +244,12 @@ impl CuSinkTask for Propulsion {
         }
         else {
             self.left_wheel.enable = false;
-            match en_a_hdl.get_enabled().unwrap() {
-                true => {
+            match en_a_hdl.get_enabled() {
+                Ok(true) => {
                     en_a_hdl.enable(false).unwrap();
                 },
-                false => ()
+                Ok(false) => (),
+                Err(_) => ()
             }
         }
 
@@ -261,11 +262,12 @@ impl CuSinkTask for Propulsion {
         }
         else {
             self.right_wheel.enable = false;
-            match en_b_hdl.get_enabled().unwrap() {
-                true => {
+            match en_b_hdl.get_enabled() {
+                Ok(true) => {
                     en_b_hdl.enable(false).unwrap();
                 },
-                false => ()
+                Ok(false) => (),
+                Err(_) => ()
             }
         }
 

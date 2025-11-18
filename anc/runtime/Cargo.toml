@@ -26,6 +26,8 @@ cu-hcsr04 = { path = "/Users/ander/Documents/proj/palanuk/anc/runtime/hal/cu-hcs
 cu-powermon = { path = "/Users/ander/Documents/proj/palanuk/anc/runtime/hal/cu-powermon" }
 cu-consolemon = "0.10.0"
 ctrlc = "3.5.1"
+libc = "0.2.176"
+core_affinity = "0.8.3"
 # iceoryx2 = "0.7.0"
 
 [build]
