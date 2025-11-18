@@ -4,7 +4,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
 use cu_propulsion::{PropulsionPayload, WheelDirection};
-use cu_cam_pan::CameraPanningPayload;
+use cu_cam_pan::{CameraPanningPayload, PositionCommand};
 use cu_hcsr04::HcSr04Payload;
 use cu_powermon::*;
 use ctrlc::*;
@@ -18,10 +18,10 @@ struct Palanuk {}
 const SLAB_SIZE: Option<usize> = Some(1 * 1024 * 1024 * 1024);
 
 pub struct Jogger {}
-// pub struct Panner {}
+pub struct Panner {}
 
 impl Freezable for Jogger {}
-// impl Freezable for Panner {}
+impl Freezable for Panner {}
 
 impl CuTask for Jogger {
     type Input<'m> = input_msg!('m, HcSr04Payload);
@@ -77,23 +77,48 @@ impl CuTask for Jogger {
     }
 }
 
-// impl CuSrcTask for Panner {
-//     type Output<'m> = output_msg!(CameraPanningPayload);
+impl CuTask for Panner {
+    type Input<'m> = input_msg!('m, HcSr04Payload);
+    type Output<'m> = output_msg!(CameraPanningPayload);
 
-//     fn new(_config: Option<&ComponentConfig>) -> CuResult<Self>
-//     where Self: Sized
-//     {
-//         Ok(Self {})
-//     }
+    fn new(_config: Option<&ComponentConfig>) -> CuResult<Self>
+    where Self: Sized
+    {
+        Ok(Self {})
+    }
 
-//     fn start(&mut self, _clock: &RobotClock) -> CuResult<()> {
-//         // use this method to init iox2 sub
-//     }
+    // fn start(&mut self, _clock: &RobotClock) -> CuResult<()> {
+    //     // use this method to init iox2 sub
+    // }
 
-//     fn process(&mut self, clock: &RobotClock, new_msg: &mut Self::Output<'_>) -> CuResult<()> {
+    fn process(&mut self, _clock: &RobotClock, input: &Self::Input<'_>, output: &mut Self::Output<'_>,)
+    -> CuResult<()>
+    {
+        let hcsr04_msg = input;
+        let mut dist: f64 = 0.0;
 
-//     }
-// }
+        match hcsr04_msg.payload() {
+            Some(payload) => dist = payload.distance,
+            _ => {}
+        }
+
+        if dist < 10.0 {
+            output.set_payload(CameraPanningPayload {
+                pos_cmd: PositionCommand::Left
+            });
+
+            output.metadata.set_status(format!("Camera Panning Left."));
+        }
+        else {
+            output.set_payload(CameraPanningPayload {
+                pos_cmd: PositionCommand::Front
+            });
+
+            output.metadata.set_status(format!("Camera Panning Front"));
+        }
+        Ok(())
+    }
+}
 
 
 fn main() {

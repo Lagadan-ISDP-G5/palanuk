@@ -1,6 +1,6 @@
 use std::time::Duration;
 use std::sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}};
-use std::thread::{JoinHandle, spawn};
+use std::thread::{JoinHandle, spawn, sleep};
 use dumb_sysfs_pwm::{Pwm, Polarity};
 use cu29::prelude::*;
 use bincode::{Decode, Encode};
@@ -13,9 +13,9 @@ use serde::{Deserialize, Serialize};
 
 const PERIOD_NS: u32 = 20000000; /// Period in ns for 50Hz
 const DUTY_CYCLE_POS_FRONT: f32 = 0.075; /// 1.5ms out of 20ms
-const DUTY_CYCLE_POS_LEFT: f32 = 0.05; /// 1.0ms out of 20ms
-const DUTY_CYCLE_POS_RIGHT: f32 = 0.1; /// 2.0ms out of 20ms
-const IPOLATE_DIV: f32 = 10000.0;
+const DUTY_CYCLE_POS_LEFT: f32 = 0.1; /// 1.0ms out of 20ms
+const DUTY_CYCLE_POS_RIGHT: f32 = 0.05; /// 2.0ms out of 20ms
+const IPOLATE_DIV: f32 = 1000.0;
 
 // Not used here, the assignment is final but it should be passed in the RON instead of being hardcoded
 const _SG90_POS_CMD: u32 = 12;
@@ -23,8 +23,8 @@ const _SG90_POS_CMD: u32 = 12;
 /// this payload has no HW feedback
 #[derive(Debug, Clone, Copy, Default, Encode, Decode, PartialEq, Serialize, Deserialize)]
 pub struct CameraPanningPayload {
-    pos_cmd: PositionCommand,
-    active_cfg: CameraPanningPinAssignments
+    pub pos_cmd: PositionCommand,
+    // active_cfg: CameraPanningPinAssignments
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Encode, Decode, Serialize, Deserialize)]
@@ -49,7 +49,6 @@ pub struct CameraPanning {
     recvd_pos_cmd: Arc<Mutex<PositionCommand>>,
     pin_controller_instances: Arc<CameraPanningControllerInstances>,
     ipolate_thread_hdl: Option<JoinHandle<()>>,
-    // #[cfg(hardware)]
     pin_assignments: CameraPanningPinAssignments,
 }
 
@@ -107,6 +106,7 @@ impl CuSinkTask for CameraPanning {
 
         let ipolate_thread_hdl = spawn(move || {
             // make sure PWM params are initialized
+            _ = controller.sg90_pos_cmd.export(); // export first
             _ = controller.sg90_pos_cmd.set_period_ns(PERIOD_NS);
             _ = controller.sg90_pos_cmd.set_polarity(Polarity::Normal);
 
@@ -116,6 +116,9 @@ impl CuSinkTask for CameraPanning {
                 // should probably add a reset routine here, with a helper function to make sure the servo
                 // resets to the front position
             }
+
+            // Initialize at middle position
+            _ = controller.sg90_pos_cmd.set_duty_cycle(0.075);
 
             while task_running.load(Ordering::Relaxed) {
                 let rd_guard = match pos_cmd.try_lock() {
@@ -144,11 +147,31 @@ impl CuSinkTask for CameraPanning {
                 };
                 // should probably make this task stateful, i.e., remembers what position it's in so
                 // that our for loop starts from the target_duty_cycle it was prior
-                for duty_cycle in (0..=target_duty_cycle).step_by(2) {
+                let start = (DUTY_CYCLE_POS_FRONT * IPOLATE_DIV) as u32;
+
+                for duty_cycle in (start..=target_duty_cycle).step_by(1) {
                     _ = controller.sg90_pos_cmd.set_duty_cycle(duty_cycle as f32 / IPOLATE_DIV);
-                    std::thread::sleep(Duration::from_millis(10));
+                    sleep(Duration::from_millis(20));
                 }
+
+                sleep(Duration::from_millis(1750));
+
+                for duty_cycle in (start..=target_duty_cycle).rev().step_by(1) {
+                    _ = controller.sg90_pos_cmd.set_duty_cycle(duty_cycle as f32 / IPOLATE_DIV);
+                    sleep(Duration::from_millis(20));
+                }
+
+                sleep(Duration::from_millis(300));
             }
+
+            // Cleanup
+            // Return back to middle position
+            _ = controller.sg90_pos_cmd.set_duty_cycle(0.075);
+            sleep(Duration::from_millis(1750));
+
+            _ = controller.sg90_pos_cmd.enable(false);
+            _ = controller.sg90_pos_cmd.set_duty_cycle(0.0);
+            _ = controller.sg90_pos_cmd.unexport();
         });
 
         self.ipolate_thread_hdl = Some(ipolate_thread_hdl);
