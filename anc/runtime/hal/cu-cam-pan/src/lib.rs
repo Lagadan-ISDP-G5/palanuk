@@ -119,6 +119,7 @@ impl CuSinkTask for CameraPanning {
 
             // Initialize at middle position
             _ = controller.sg90_pos_cmd.set_duty_cycle(0.075);
+            sleep(Duration::from_millis(1750));
 
             while task_running.load(Ordering::Relaxed) {
                 let rd_guard = match pos_cmd.try_lock() {
@@ -149,22 +150,29 @@ impl CuSinkTask for CameraPanning {
                 // that our for loop starts from the target_duty_cycle it was prior
                 let start = (DUTY_CYCLE_POS_FRONT * IPOLATE_DIV) as u32;
 
-                for duty_cycle in (start..=target_duty_cycle).step_by(1) {
-                    _ = controller.sg90_pos_cmd.set_duty_cycle(duty_cycle as f32 / IPOLATE_DIV);
-                    sleep(Duration::from_millis(20));
+                if target_duty_cycle == start {
+                    _ = controller.sg90_pos_cmd.set_duty_cycle(DUTY_CYCLE_POS_FRONT);
+                    sleep(Duration::from_millis(1750));
                 }
+                else {
+                    for duty_cycle in (start..=target_duty_cycle).step_by(1) {
+                        _ = controller.sg90_pos_cmd.set_duty_cycle(duty_cycle as f32 / IPOLATE_DIV);
+                        sleep(Duration::from_millis(10));
+                    }
 
-                sleep(Duration::from_millis(1750));
+                    sleep(Duration::from_millis(1750));
 
-                for duty_cycle in (start..=target_duty_cycle).rev().step_by(1) {
-                    _ = controller.sg90_pos_cmd.set_duty_cycle(duty_cycle as f32 / IPOLATE_DIV);
-                    sleep(Duration::from_millis(20));
+                    for duty_cycle in (start..=target_duty_cycle).rev().step_by(1) {
+                        _ = controller.sg90_pos_cmd.set_duty_cycle(duty_cycle as f32 / IPOLATE_DIV);
+                        sleep(Duration::from_millis(10));
+                    }
                 }
 
             }
 
             // Cleanup
             // Return back to middle position
+            sleep(Duration::from_millis(1750));
             _ = controller.sg90_pos_cmd.set_duty_cycle(0.075);
             sleep(Duration::from_millis(1750));
 
