@@ -11,6 +11,7 @@
                 "trig_pin": 21,
                 "echo_pin": 20,
             },
+            logging: (enabled: true)
         ),
 
        // (
@@ -40,11 +41,13 @@
                 "l298n_in_3": 26,
                 "l298n_in_4": 19,
             },
+            logging: (enabled: true)
         ),
 
         (
             id: "jogger",
-            type: "Jogger"
+            type: "Jogger",
+            logging: (enabled: true)
         ),
 
      ],

@@ -17,6 +17,7 @@ pub struct DirectionPair(u8, u8);
 // Just reassign these if the actual hardware connections happen to be flipped
 const FORWARD: DirectionPair = DirectionPair(1, 0);
 const BACKWARDS: DirectionPair = DirectionPair(0, 1);
+const STOP: DirectionPair = DirectionPair(0, 0);
 
 /// ReallySlow by default
 #[derive(Debug, PartialEq, Eq, Default)]
@@ -59,7 +60,8 @@ pub struct PropulsionPayload {
 pub enum WheelDirection {
     #[default]
     Forward,
-    Reverse
+    Reverse,
+    Stop
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Encode, Decode, Serialize, Deserialize)]
@@ -71,7 +73,7 @@ pub struct WheelState {
 
 impl WheelState {
     fn default() -> Self {
-        Self { enable: false, direction: WheelDirection::Forward, speed: 0.0 }
+        Self { enable: false, direction: WheelDirection::Stop, speed: 0.0 }
     }
 }
 
@@ -116,6 +118,7 @@ impl Freezable for Propulsion {
 
     fn thaw<D: bincode::de::Decoder>(&mut self, decoder: &mut D) -> Result<(), bincode::error::DecodeError> {
         self.left_wheel = Decode::decode(decoder)?;
+        self.right_wheel = Decode::decode(decoder)?;
         Ok(())
     }
 }
@@ -165,11 +168,9 @@ impl CuSinkTask for Propulsion {
             .clone()
             .into();
 
-        // #[cfg(hardware)]
+
         let lmtr_en_a_instance = Pwm::new(0, l298n_en_a_pin_offset).unwrap();
-        // #[cfg(hardware)]
         let rmtr_en_b_instance = Pwm::new(0, l298n_en_b_pin_offset).unwrap();
-        // #[cfg(hardware)]
         let mut gpio = Chip::new("/dev/gpiochip4").unwrap();
 
         let pin_assignments = PropulsionPinAssignments {
@@ -224,6 +225,8 @@ impl CuSinkTask for Propulsion {
         _ = en_a_hdl.set_period_ns(20_000);
         _ = en_b_hdl.set_period_ns(20_000);
 
+        _ = en_a_hdl.set_duty_cycle(0.0);
+        _ = en_b_hdl.set_duty_cycle(0.0);
         Ok(())
     }
 
@@ -242,7 +245,9 @@ impl CuSinkTask for Propulsion {
         else {
             self.left_wheel.enable = false;
             match en_a_hdl.get_enabled().unwrap() {
-                true => en_a_hdl.enable(false).unwrap(),
+                true => {
+                    en_a_hdl.enable(false).unwrap();
+                },
                 false => ()
             }
         }
@@ -257,7 +262,9 @@ impl CuSinkTask for Propulsion {
         else {
             self.right_wheel.enable = false;
             match en_b_hdl.get_enabled().unwrap() {
-                true => en_b_hdl.enable(false).unwrap(),
+                true => {
+                    en_b_hdl.enable(false).unwrap();
+                },
                 false => ()
             }
         }
@@ -283,27 +290,54 @@ impl CuSinkTask for Propulsion {
                 in_1_line.set_value(in_1_val).unwrap();
                 in_2_line.set_value(in_2_val).unwrap();
             },
+            WheelDirection::Stop => {
+                let DirectionPair(in_1_val, in_2_val) = STOP;
+                in_1_line.set_value(in_1_val).unwrap();
+                in_2_line.set_value(in_2_val).unwrap();
+            }
         }
 
+        // Right wheel seems to be flipped
         match payload.right_direction {
             WheelDirection::Forward => {
                 let DirectionPair(in_3_val, in_4_val) = FORWARD;
-                in_3_line.set_value(in_3_val).unwrap();
-                in_4_line.set_value(in_4_val).unwrap();
+                in_3_line.set_value(in_4_val).unwrap();
+                in_4_line.set_value(in_3_val).unwrap();
             },
             WheelDirection::Reverse => {
                 let DirectionPair(in_3_val, in_4_val) = BACKWARDS;
-                in_3_line.set_value(in_3_val).unwrap();
-                in_4_line.set_value(in_4_val).unwrap();
+                in_3_line.set_value(in_4_val).unwrap();
+                in_4_line.set_value(in_3_val).unwrap();
             },
+            WheelDirection::Stop => {
+                let DirectionPair(in_3_val, in_4_val) = STOP;
+                in_3_line.set_value(in_4_val).unwrap();
+                in_4_line.set_value(in_3_val).unwrap();
+            }
         }
         Ok(())
     }
 
     fn stop(&mut self, _clock: &RobotClock) -> CuResult<()> {
-        let instance = &mut self.pin_controller_instances;
-        _ = instance.lmtr_en_a.unexport();
-        _ = instance.rmtr_en_b.unexport();
+        let dir_hdl = &mut self.pin_controller_instances.direction_pins;
+        let in_1_line = &dir_hdl.in_1_pin;
+        let in_2_line = &dir_hdl.in_2_pin;
+        let in_3_line = &dir_hdl.in_3_pin;
+        let in_4_line = &dir_hdl.in_4_pin;
+
+        let en_a_hdl = &mut self.pin_controller_instances.lmtr_en_a;
+        let en_b_hdl = &mut self.pin_controller_instances.rmtr_en_b;
+
+        in_1_line.set_value(0).unwrap();
+        in_2_line.set_value(0).unwrap();
+        in_3_line.set_value(0).unwrap();
+        in_4_line.set_value(0).unwrap();
+
+        _ = en_a_hdl.set_duty_cycle(0.0);
+        _ = en_b_hdl.set_duty_cycle(0.0);
+
+        _ = en_a_hdl.unexport();
+        _ = en_b_hdl.unexport();
         Ok(())
     }
 }

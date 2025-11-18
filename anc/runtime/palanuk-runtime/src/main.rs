@@ -53,11 +53,13 @@ impl CuTask for Jogger {
             output.set_payload(PropulsionPayload {
                 left_enable: false,
                 right_enable: false,
-                left_direction: WheelDirection::Forward,
-                right_direction: WheelDirection::Forward,
+                left_direction: WheelDirection::Stop,
+                right_direction: WheelDirection::Stop,
                 left_speed: 0.0,
                 right_speed: 0.0
             });
+
+            output.metadata.set_status(format!("Stopped. Obstacle detected."));
         }
         else {
             output.set_payload(PropulsionPayload {
@@ -68,6 +70,8 @@ impl CuTask for Jogger {
                 left_speed: 0.8,
                 right_speed: 0.8
             });
+
+            output.metadata.set_status(format!("Moving..."));
         }
         Ok(())
     }
