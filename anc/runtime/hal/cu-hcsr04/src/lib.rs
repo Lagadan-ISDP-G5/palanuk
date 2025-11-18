@@ -62,6 +62,7 @@ impl CuSrcTask for CuHcSr04 {
         };
 
         msg.set_payload(HcSr04Payload { distance: dist_msg });
+        msg.metadata.set_status(format!("{dist_msg:.2} cm"));
         Ok(())
     }
 }
