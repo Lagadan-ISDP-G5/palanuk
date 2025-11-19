@@ -1,4 +1,3 @@
-use std::time::{Duration, Instant};
 use std::sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}};
 use std::thread::{JoinHandle, spawn};
 use libc::*;
@@ -17,23 +16,10 @@ const DUTY_CYCLE_POS_LEFT: f32 = 0.1; /// 1.0ms out of 20ms
 const DUTY_CYCLE_POS_RIGHT: f32 = 0.05; /// 2.0ms out of 20ms
 const IPOLATE_DIV: f32 = 1000.0;
 
-// Not used here, the assignment is final but it should be passed in the RON instead of being hardcoded
-const _SG90_POS_CMD: u32 = 12;
-
-/// Leaving this here, might be useful. Turns out copper already has a helper function like this
-// #[inline(always)]
-// fn busy_wait_until(deadline: Instant) {
-//     while Instant::now() < deadline {
-//         // prevent overly aggressive optimization
-//         std::hint::spin_loop();
-//     }
-// }
-
 /// this payload has no HW feedback
 #[derive(Debug, Clone, Copy, Default, Encode, Decode, PartialEq, Serialize, Deserialize)]
 pub struct CameraPanningPayload {
     pub pos_cmd: PositionCommand,
-    // active_cfg: CameraPanningPinAssignments
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Encode, Decode, Serialize, Deserialize)]
