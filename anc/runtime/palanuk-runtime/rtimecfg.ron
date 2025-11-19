@@ -14,13 +14,13 @@
             logging: (enabled: true)
         ),
 
-       // (
-       //     id: "power-monitoring",
-       //     type: "cu_powermon::CuIna219",
-       //     config: {
-       //         "target_addr": 68,
-       //     },
-       // ),
+       (
+           id: "power-monitoring",
+           type: "cu_powermon::CuIna219",
+           config: {
+               "target_addr": 68, // 0d68 = 0x44
+           },
+       ),
 
        (
            id: "camera-panning",
@@ -56,12 +56,19 @@
             logging: (enabled: true)
         ),
 
+        (
+            id: "dummy",
+            type: "Dummy",
+            logging: (enabled: true)
+        ),
+
      ],
     cnx: [
         (src: "distance-sensor", dst: "jogger", msg: "cu_hcsr04::HcSr04Payload"),
         (src: "distance-sensor", dst: "panner", msg: "cu_hcsr04::HcSr04Payload"),
         (src: "jogger", dst: "propulsion", msg: "cu_propulsion::PropulsionPayload"),
-        (src: "panner", dst: "camera-panning", msg:"cu_cam_pan::CameraPanningPayload"),
+        (src: "panner", dst: "camera-panning", msg: "cu_cam_pan::CameraPanningPayload"),
+        (src: "power-monitoring", dst: "dummy", msg: "cu_powermon::Ina219Payload"),
     ],
     monitor: (
           type: "cu_consolemon::CuConsoleMon",

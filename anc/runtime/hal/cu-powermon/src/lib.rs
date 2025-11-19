@@ -41,10 +41,14 @@ impl CuSrcTask for CuIna219 {
             CurrentUnit::milliamps(1000.0),
             target_addr).ok();
 
+        // Do not forget to call init() !
         match driver_instance {
             None => panic!("INA219 driver instantiation error"),
-            Some(driver_instance) => {
-                return Ok(Self { driver_instance, target_addr })
+            Some(mut driver_instance) => {
+                match driver_instance.init().ok() {
+                    Some(_) => return Ok(Self { driver_instance, target_addr }),
+                    None => panic!("INA219 init error (instantiation successful)")
+                }
             }
         }
     }
@@ -81,6 +85,8 @@ impl CuSrcTask for CuIna219 {
                 target_addr     : self.target_addr
             }
         );
+        let power_preview = power_reading.get_val()*1000.0;
+        msg.metadata.set_status(format!("{power_preview:.2} mW"));
         Ok(())
     }
 }

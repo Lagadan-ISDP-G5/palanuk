@@ -6,7 +6,7 @@ use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
 use cu_propulsion::{PropulsionPayload, WheelDirection};
 use cu_cam_pan::{CameraPanningPayload, PositionCommand};
 use cu_hcsr04::HcSr04Payload;
-use cu_powermon::*;
+use cu_powermon::{CuIna219, Ina219Payload};
 use ctrlc::*;
 use std::sync::mpsc::channel;
 use core_affinity::*;
@@ -21,9 +21,32 @@ const SLAB_SIZE: Option<usize> = Some(1 * 1024 * 1024 * 1024);
 
 pub struct Jogger {}
 pub struct Panner {}
+pub struct Dummy {}
 
 impl Freezable for Jogger {}
 impl Freezable for Panner {}
+impl Freezable for Dummy {}
+
+impl CuSinkTask for Dummy {
+    type Input<'m> = input_msg!('m, Ina219Payload);
+
+    fn new(_config: Option<&ComponentConfig>) -> CuResult<Self>
+    where Self: Sized
+    {
+        Ok(Self {})
+    }
+
+    fn process(
+            &mut self,
+            _clock: &RobotClock,
+            input: &Self::Input<'_>,
+        ) -> CuResult<()> {
+        let dummy = input.payload();
+
+        Ok(())
+    }
+
+}
 
 impl CuTask for Jogger {
     type Input<'m> = input_msg!('m, HcSr04Payload);
