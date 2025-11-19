@@ -1,6 +1,6 @@
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use std::sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}};
-use std::thread::{JoinHandle, spawn, sleep};
+use std::thread::{JoinHandle, spawn};
 use libc::*;
 use dumb_sysfs_pwm::{Pwm, Polarity};
 use cu29::prelude::*;
@@ -11,7 +11,6 @@ use serde::{Deserialize, Serialize};
 /// fully actuated by the servo. The SG90 is a cheap, crappy servo that easily gets confused by quick
 /// changes in the PWM duty cycle. No point in overengineering the code (it already is) just to handle
 /// HW race conditions arising from cheap HW.
-
 const PERIOD_NS: u32 = 20000000; /// Period in ns for 50Hz
 const DUTY_CYCLE_POS_FRONT: f32 = 0.075; /// 1.5ms out of 20ms
 const DUTY_CYCLE_POS_LEFT: f32 = 0.1; /// 1.0ms out of 20ms
@@ -20,6 +19,15 @@ const IPOLATE_DIV: f32 = 1000.0;
 
 // Not used here, the assignment is final but it should be passed in the RON instead of being hardcoded
 const _SG90_POS_CMD: u32 = 12;
+
+/// Leaving this here, might be useful. Turns out copper already has a helper function like this
+// #[inline(always)]
+// fn busy_wait_until(deadline: Instant) {
+//     while Instant::now() < deadline {
+//         // prevent overly aggressive optimization
+//         std::hint::spin_loop();
+//     }
+// }
 
 /// this payload has no HW feedback
 #[derive(Debug, Clone, Copy, Default, Encode, Decode, PartialEq, Serialize, Deserialize)]
@@ -133,7 +141,7 @@ impl CuSinkTask for CameraPanning {
 
             // Initialize at middle position
             _ = controller.sg90_pos_cmd.set_duty_cycle(0.075);
-            sleep(Duration::from_millis(1750));
+            busy_wait_for(CuDuration::from_millis(1750));
 
             while task_running.load(Ordering::Relaxed) {
                 let rd_guard = match pos_cmd.try_lock() {
@@ -166,28 +174,27 @@ impl CuSinkTask for CameraPanning {
 
                 if target_duty_cycle == start {
                     _ = controller.sg90_pos_cmd.set_duty_cycle(DUTY_CYCLE_POS_FRONT);
-                    sleep(Duration::from_millis(1750));
+                    busy_wait_for(CuDuration::from_millis(1750));
                 }
                 else {
                     for duty_cycle in (start..=target_duty_cycle).step_by(1) {
                         _ = controller.sg90_pos_cmd.set_duty_cycle(duty_cycle as f32 / IPOLATE_DIV);
-                        sleep(Duration::from_millis(10));
+                        busy_wait_for(CuDuration::from_millis(10));
                     }
 
-                    sleep(Duration::from_millis(1750));
+                    busy_wait_for(CuDuration::from_millis(1750));
 
                     for duty_cycle in (start..=target_duty_cycle).rev().step_by(1) {
                         _ = controller.sg90_pos_cmd.set_duty_cycle(duty_cycle as f32 / IPOLATE_DIV);
-                        sleep(Duration::from_millis(10));
+                        busy_wait_for(CuDuration::from_millis(10));
                     }
                 }
             }
 
             // Cleanup
             // Return back to middle position
-            sleep(Duration::from_millis(1750));
             _ = controller.sg90_pos_cmd.set_duty_cycle(0.075);
-            sleep(Duration::from_millis(1750));
+            busy_wait_for(CuDuration::from_millis(1750));
 
             _ = controller.sg90_pos_cmd.enable(false);
             _ = controller.sg90_pos_cmd.set_duty_cycle(0.0);
