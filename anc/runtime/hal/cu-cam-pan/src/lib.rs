@@ -1,6 +1,7 @@
 use std::time::Duration;
 use std::sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}};
 use std::thread::{JoinHandle, spawn, sleep};
+use libc::*;
 use dumb_sysfs_pwm::{Pwm, Polarity};
 use cu29::prelude::*;
 use bincode::{Decode, Encode};
@@ -48,7 +49,7 @@ pub struct CameraPanning {
     task_running: Arc<AtomicBool>,
     recvd_pos_cmd: Arc<Mutex<PositionCommand>>,
     pin_controller_instances: Arc<CameraPanningControllerInstances>,
-    ipolate_thread_hdl: Option<JoinHandle<()>>,
+    ipolate_thread_hdl: Option<JoinHandle<Result<(), cu29::CuError>>>,
     pin_assignments: CameraPanningPinAssignments,
 }
 
@@ -104,7 +105,20 @@ impl CuSinkTask for CameraPanning {
         let controller = Arc::clone(&self.pin_controller_instances);
         let mut pos_cmd_copy: PositionCommand = PositionCommand::Front;
 
-        let ipolate_thread_hdl = spawn(move || {
+        let ipolate_thread_hdl = spawn(move || -> CuResult<()> {
+            let thread_param = sched_param {sched_priority: 87};
+            let sched_res = unsafe {
+                sched_setscheduler(0, SCHED_RR, &thread_param)
+            };
+            match sched_res {
+                0 => {
+                    info!("cu-cam-pan ipolate thread: sched_setscheduler call returned 0");
+                },
+                _ => { // Refer here: https://man7.org/linux/man-pages/man2/sched_setscheduler.2.html
+                    return Err(CuError::from("cu-cam-pan ipolate thread: sched_setscheduler call returned -1. sched_setscheduler failed."));
+                }
+            }
+
             // make sure PWM params are initialized
             _ = controller.sg90_pos_cmd.export(); // export first
             _ = controller.sg90_pos_cmd.set_period_ns(PERIOD_NS);
@@ -167,7 +181,6 @@ impl CuSinkTask for CameraPanning {
                         sleep(Duration::from_millis(10));
                     }
                 }
-
             }
 
             // Cleanup
@@ -179,6 +192,7 @@ impl CuSinkTask for CameraPanning {
             _ = controller.sg90_pos_cmd.enable(false);
             _ = controller.sg90_pos_cmd.set_duty_cycle(0.0);
             _ = controller.sg90_pos_cmd.unexport();
+            Ok(())
         });
 
         self.ipolate_thread_hdl = Some(ipolate_thread_hdl);
@@ -206,7 +220,11 @@ impl CuSinkTask for CameraPanning {
         let hdl = self.ipolate_thread_hdl.take();
         match hdl {
             Some(hdl) => {
-                hdl.join().expect("CameraPanning PWM duty cycle interpolation thread panicked upon stop command issued")
+                let ret = hdl.join().expect("CameraPanning PWM duty cycle interpolation thread panicked upon stop command issued");
+                match ret {
+                    Ok(_) => (),
+                    Err(_) => return Err(CuError::from("Failed to stop cu-cam-pan"))
+                }
             },
             None => ()
         }

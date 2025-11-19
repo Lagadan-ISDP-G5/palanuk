@@ -621,6 +621,7 @@ dependencies = [
  "cfg_aliases",
  "cu29",
  "dumb-sysfs-pwm",
+ "libc",
  "serde",
 ]
 
