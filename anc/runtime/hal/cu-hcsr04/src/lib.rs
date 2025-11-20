@@ -4,6 +4,7 @@ use hcsr04_gpio_cdev::*;
 
 // #[cfg(hardware)]
 use serde::{Deserialize, Serialize};
+pub const IGNORE_VAL: f64 = 69420.0;
 
 pub struct CuHcSr04 {
     driver_instance: HcSr04,
@@ -58,7 +59,7 @@ impl CuSrcTask for CuHcSr04 {
 
         let dist_msg = match dist_cm {
             Some(val) => val.to_val(),
-            None => 69420.0
+            None => IGNORE_VAL
         };
 
         msg.set_payload(HcSr04Payload { distance: dist_msg });

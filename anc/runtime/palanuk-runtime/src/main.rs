@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
 use cu_propulsion::{PropulsionPayload, WheelDirection};
 use cu_cam_pan::{CameraPanningPayload, PositionCommand};
-use cu_hcsr04::HcSr04Payload;
+use cu_hcsr04::{HcSr04Payload, IGNORE_VAL};
 use cu_powermon::{CuIna219, Ina219Payload};
 use ctrlc::*;
 use std::sync::mpsc::channel;
@@ -41,7 +41,7 @@ impl CuSinkTask for Dummy {
             _clock: &RobotClock,
             input: &Self::Input<'_>,
         ) -> CuResult<()> {
-        let dummy = input.payload();
+        let _dummy = input.payload();
 
         Ok(())
     }
@@ -74,7 +74,7 @@ impl CuTask for Jogger {
             _ => {}
         }
 
-        if dist < 10.0 {
+        if dist < 10.0 || dist == IGNORE_VAL {
             output.set_payload(PropulsionPayload {
                 left_enable: false,
                 right_enable: false,
@@ -93,7 +93,7 @@ impl CuTask for Jogger {
                 left_direction: WheelDirection::Forward,
                 right_direction: WheelDirection::Forward,
                 left_speed: 1.0,
-                right_speed: 0.01
+                right_speed: 1.0// 0.01
             });
 
             output.metadata.set_status(format!("Moving..."));
@@ -127,7 +127,11 @@ impl CuTask for Panner {
             _ => {}
         }
 
-        if dist < 10.0 {
+        // if dist == IGNORE_VAL {
+        //     output.clear_payload();
+        // }
+
+        if dist < 10.0 || dist == IGNORE_VAL {
             output.set_payload(CameraPanningPayload {
                 pos_cmd: PositionCommand::Left
             });

@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}};
+use std::sync::{Arc, atomic::{AtomicBool, AtomicU8, Ordering}};
 use std::thread::{JoinHandle, spawn};
 use libc::*;
 use dumb_sysfs_pwm::{Pwm, Polarity};
@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 /// fully actuated by the servo. The SG90 is a cheap, crappy servo that easily gets confused by quick
 /// changes in the PWM duty cycle. No point in overengineering the code (it already is) just to handle
 /// HW race conditions arising from cheap HW.
+
 const PERIOD_NS: u32 = 20000000; /// Period in ns for 50Hz
 const DUTY_CYCLE_POS_FRONT: f32 = 0.075; /// 1.5ms out of 20ms
 const DUTY_CYCLE_POS_LEFT: f32 = 0.1; /// 1.0ms out of 20ms
@@ -30,9 +31,25 @@ pub enum PositionCommand {
     Right
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Encode, Decode, Serialize, Deserialize)]
-pub struct CameraPanningPinAssignments {
-    sg90_pos_cmd_pin: u32,
+impl PositionCommand {
+    #[inline(always)]
+    fn to_u8(self) -> u8 {
+        match self {
+            PositionCommand::Front => 0,
+            PositionCommand::Left  => 1,
+            PositionCommand::Right => 2,
+        }
+    }
+
+    #[inline(always)]
+    fn from_u8(x: u8) -> PositionCommand {
+        match x {
+            0 => PositionCommand::Front,
+            1 => PositionCommand::Left,
+            2 => PositionCommand::Right,
+            _ => PositionCommand::Front,  // fallback / sanitize
+        }
+    }
 }
 
 pub struct CameraPanningControllerInstances {
@@ -41,24 +58,12 @@ pub struct CameraPanningControllerInstances {
 
 pub struct CameraPanning {
     task_running: Arc<AtomicBool>,
-    recvd_pos_cmd: Arc<Mutex<PositionCommand>>,
+    recvd_pos_cmd: Arc<AtomicU8>,
     pin_controller_instances: Arc<CameraPanningControllerInstances>,
     ipolate_thread_hdl: Option<JoinHandle<Result<(), cu29::CuError>>>,
-    pin_assignments: CameraPanningPinAssignments,
 }
 
-impl Freezable for CameraPanning {
-    fn freeze<E: bincode::enc::Encoder>(&self, encoder: &mut E) -> Result<(), bincode::error::EncodeError> {
-        Encode::encode(&self.recvd_pos_cmd, encoder)?;
-        Encode::encode(&self.pin_assignments, encoder)?;
-        Ok(())
-    }
-
-    fn thaw<D: bincode::de::Decoder>(&mut self, decoder: &mut D) -> Result<(), bincode::error::DecodeError> {
-        self.recvd_pos_cmd = Decode::decode(decoder)?;
-        Ok(())
-    }
-}
+impl Freezable for CameraPanning {}
 
 impl CuSinkTask for CameraPanning {
     type Input<'m> = input_msg!(CameraPanningPayload);
@@ -74,10 +79,6 @@ impl CuSinkTask for CameraPanning {
             .clone()
             .into();
 
-        let pin_assignments = CameraPanningPinAssignments {
-            sg90_pos_cmd_pin: sg90_pos_cmd_pin_offset
-        };
-
         // #[cfg(hardware)]
         let sg90_pos_cmd_instance = Pwm::new(0, sg90_pos_cmd_pin_offset).unwrap();
         let pin_controller_instances = CameraPanningControllerInstances {
@@ -86,10 +87,9 @@ impl CuSinkTask for CameraPanning {
 
         Ok(Self {
             task_running: Arc::new(AtomicBool::new(true)),
-            recvd_pos_cmd: Arc::new(Mutex::new(PositionCommand::default())),
+            recvd_pos_cmd: Arc::new(AtomicU8::new(PositionCommand::to_u8(PositionCommand::default()))),
             ipolate_thread_hdl: None,
             pin_controller_instances: Arc::new(pin_controller_instances),
-            pin_assignments: pin_assignments,
         })
     }
 
@@ -97,10 +97,9 @@ impl CuSinkTask for CameraPanning {
         let task_running = Arc::clone(&self.task_running);
         let pos_cmd = Arc::clone(&self.recvd_pos_cmd);
         let controller = Arc::clone(&self.pin_controller_instances);
-        let mut pos_cmd_copy: PositionCommand = PositionCommand::Front;
 
         let ipolate_thread_hdl = spawn(move || -> CuResult<()> {
-            let thread_param = sched_param {sched_priority: 87};
+            let thread_param = sched_param {sched_priority: 70};
             let sched_res = unsafe {
                 sched_setscheduler(0, SCHED_RR, &thread_param)
             };
@@ -130,18 +129,7 @@ impl CuSinkTask for CameraPanning {
             busy_wait_for(CuDuration::from_millis(1750));
 
             while task_running.load(Ordering::Relaxed) {
-                let rd_guard = match pos_cmd.try_lock() {
-                    Ok(val) => Some(val),
-                    Err(_) => None
-                };
-
-                match rd_guard {
-                    Some(cmd) => {
-                        pos_cmd_copy = (*cmd).clone();
-                    },
-                    _ => {} // Do nothing if process() method in main thread happens to write to pos_cmd
-                }
-
+                let pos_cmd_copy = PositionCommand::from_u8(pos_cmd.load(Ordering::Acquire));
                 // FIXME: remove wasteful casts
                 let target_duty_cycle = match pos_cmd_copy {
                     PositionCommand::Front => {
@@ -194,16 +182,12 @@ impl CuSinkTask for CameraPanning {
 
     fn process(&mut self, _clock: &RobotClock, input: &Self::Input<'_>) -> Result<(), CuError> {
         let pos_cmd = Arc::clone(&mut self.recvd_pos_cmd);
-        let payload = input.payload().unwrap();
-        let rw_guard = match pos_cmd.try_lock() {
-            Ok(val) => Some(val),
-            Err(_) => None,
-        };
-        match rw_guard {
-            Some(mut pos_cmd) => {
-                *pos_cmd = payload.pos_cmd
+        let payload = input.payload();
+        match payload {
+            Some(nonempty_payload) => {
+                pos_cmd.store(nonempty_payload.pos_cmd.to_u8(), Ordering::Release);
             },
-            None => ()
+            None => () // no-op
         }
         Ok(())
     }

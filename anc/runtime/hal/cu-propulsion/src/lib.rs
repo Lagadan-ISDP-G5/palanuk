@@ -232,91 +232,158 @@ impl CuSinkTask for Propulsion {
 
     fn process(&mut self, _clock: &RobotClock, input: &Self::Input<'_>) -> Result<(), CuError> {
         let en_a_hdl = &mut self.pin_controller_instances.lmtr_en_a;
+        let en_a_is_enabled = en_a_hdl.get_enabled();
+
         let en_b_hdl = &mut self.pin_controller_instances.rmtr_en_b;
+        let en_b_is_enabled = en_b_hdl.get_enabled();
 
-        let payload = input.payload().unwrap();
-        if payload.left_enable {
-            self.left_wheel.enable = true;
-            match en_a_hdl.get_enabled().unwrap() {
-                true => (),
-                false => en_a_hdl.enable(true).unwrap()
+        let payload = input.payload();
+
+        if let Some(payload) = payload {
+            if payload.left_enable {
+                self.left_wheel.enable = true;
+                match en_a_is_enabled {
+                    Ok(val) => {
+                        match val {
+                            true => (),
+                            false => {
+                                match en_a_hdl.enable(true) {
+                                    Ok(_) => (),
+                                    Err(_) => return Err(CuError::from(format!("Failed to set enable")))
+                                }
+                            }
+                        }
+                    },
+                    Err(_) => return Err(CuError::from(format!("Failed to get enabled status feedback")))
+                }
             }
-        }
-        else {
-            self.left_wheel.enable = false;
-            match en_a_hdl.get_enabled() {
-                Ok(true) => {
-                    en_a_hdl.enable(false).unwrap();
+            else {
+                self.left_wheel.enable = false;
+                match en_a_is_enabled {
+                    Ok(val) => {
+                        match val {
+                            true => {
+                                match en_a_hdl.enable(false) {
+                                    Ok(_) => (),
+                                    Err(_) => return Err(CuError::from(format!("Failed to set enable")))
+                                }
+                            },
+                            false => ()
+                        }
+                    },
+                    Err(_) => return Err(CuError::from(format!("Failed to get enabled status feedback")))
+                }
+            }
+
+            if payload.right_enable {
+                self.right_wheel.enable = true;
+                match en_b_is_enabled {
+                    Ok(val) => {
+                        match val {
+                            true => (),
+                            false => {
+                                match en_b_hdl.enable(true) {
+                                    Ok(_) => (),
+                                    Err(_) => return Err(CuError::from(format!("Failed to set enable")))
+                                }
+                            }
+                        }
+                    },
+                    Err(_) => return Err(CuError::from(format!("Failed to get enabled status feedback")))
+                }
+            }
+            else {
+                self.right_wheel.enable = false;
+                match en_b_is_enabled {
+                    Ok(val) => {
+                        match val {
+                            true => {
+                                match en_b_hdl.enable(false) {
+                                    Ok(_) => (),
+                                    Err(_) => return Err(CuError::from(format!("Failed to set enable")))
+                                }
+                            }
+                            false => ()
+                        }
+                    },
+                    Err(_) => return Err(CuError::from(format!("Failed to get enabled status feedback")))
+                }
+            }
+
+            match en_a_hdl.set_duty_cycle(payload.left_speed) {
+                Ok(_) => (),
+                Err(_) => return Err(CuError::from(format!("Failed to set duty cycle")))
+            };
+
+            match en_b_hdl.set_duty_cycle(payload.right_speed) {
+                Ok(_) => (),
+                Err(_) => return Err(CuError::from(format!("Failed to set duty cycle")))
+            };
+
+            let dir_hdl = &mut self.pin_controller_instances.direction_pins;
+
+            let in_1_line = &dir_hdl.in_1_pin;
+            let in_2_line = &dir_hdl.in_2_pin;
+            let in_3_line = &dir_hdl.in_3_pin;
+            let in_4_line = &dir_hdl.in_4_pin;
+
+            match payload.left_direction {
+                WheelDirection::Forward => {
+                    let DirectionPair(in_1_val, in_2_val) = FORWARD;
+                    let (ret1, ret2) = (in_1_line.set_value(in_1_val), in_2_line.set_value(in_2_val));
+                    if let Ok(_) = ret1 && let Ok(_) = ret2 {}
+                    else {
+                        return Err(CuError::from(format!("Failed to set direction")))
+                    }
                 },
-                Ok(false) => (),
-                Err(_) => ()
-            }
-        }
-
-        if payload.right_enable {
-            self.right_wheel.enable = true;
-            match en_b_hdl.get_enabled().unwrap() {
-                true => (),
-                false => en_b_hdl.enable(true).unwrap()
-            }
-        }
-        else {
-            self.right_wheel.enable = false;
-            match en_b_hdl.get_enabled() {
-                Ok(true) => {
-                    en_b_hdl.enable(false).unwrap();
+                WheelDirection::Reverse => {
+                    let DirectionPair(in_1_val, in_2_val) = BACKWARDS;
+                    let (ret1, ret2) = (in_1_line.set_value(in_1_val), in_2_line.set_value(in_2_val));
+                    if let Ok(_) = ret1 && let Ok(_) = ret2 {}
+                    else {
+                        return Err(CuError::from(format!("Failed to set direction")))
+                    }
                 },
-                Ok(false) => (),
-                Err(_) => ()
+                WheelDirection::Stop => {
+                    let DirectionPair(in_1_val, in_2_val) = STOP;
+                    let (ret1, ret2) = (in_1_line.set_value(in_1_val), in_2_line.set_value(in_2_val));
+                    if let Ok(_) = ret1 && let Ok(_) = ret2 {}
+                    else {
+                        return Err(CuError::from(format!("Failed to set direction")))
+                    }
+                }
             }
+
+            // Right wheel seems to be flipped
+            match payload.right_direction {
+                WheelDirection::Forward => {
+                    let DirectionPair(in_3_val, in_4_val) = FORWARD;
+                    let (ret1, ret2) = (in_3_line.set_value(in_4_val), in_4_line.set_value(in_3_val));
+                    if let Ok(_) = ret1 && let Ok(_) = ret2 {}
+                    else {
+                        return Err(CuError::from(format!("Failed to set direction")))
+                    }
+                },
+                WheelDirection::Reverse => {
+                    let DirectionPair(in_3_val, in_4_val) = BACKWARDS;
+                    let (ret1, ret2) = (in_3_line.set_value(in_4_val), in_4_line.set_value(in_3_val));
+                    if let Ok(_) = ret1 && let Ok(_) = ret2 {}
+                    else {
+                        return Err(CuError::from(format!("Failed to set direction")))
+                    }
+                },
+                WheelDirection::Stop => {
+                    let DirectionPair(in_3_val, in_4_val) = STOP;
+                    let (ret1, ret2) = (in_3_line.set_value(in_4_val), in_4_line.set_value(in_3_val));
+                    if let Ok(_) = ret1 && let Ok(_) = ret2 {}
+                    else {
+                        return Err(CuError::from(format!("Failed to set direction")))
+                    }
+                }
+            }
+
         }
 
-        en_a_hdl.set_duty_cycle(payload.left_speed).unwrap();
-        en_b_hdl.set_duty_cycle(payload.right_speed).unwrap();
-
-        let dir_hdl = &mut self.pin_controller_instances.direction_pins;
-
-        let in_1_line = &dir_hdl.in_1_pin;
-        let in_2_line = &dir_hdl.in_2_pin;
-        let in_3_line = &dir_hdl.in_3_pin;
-        let in_4_line = &dir_hdl.in_4_pin;
-
-        match payload.left_direction {
-            WheelDirection::Forward => {
-                let DirectionPair(in_1_val, in_2_val) = FORWARD;
-                in_1_line.set_value(in_1_val).unwrap();
-                in_2_line.set_value(in_2_val).unwrap();
-            },
-            WheelDirection::Reverse => {
-                let DirectionPair(in_1_val, in_2_val) = BACKWARDS;
-                in_1_line.set_value(in_1_val).unwrap();
-                in_2_line.set_value(in_2_val).unwrap();
-            },
-            WheelDirection::Stop => {
-                let DirectionPair(in_1_val, in_2_val) = STOP;
-                in_1_line.set_value(in_1_val).unwrap();
-                in_2_line.set_value(in_2_val).unwrap();
-            }
-        }
-
-        // Right wheel seems to be flipped
-        match payload.right_direction {
-            WheelDirection::Forward => {
-                let DirectionPair(in_3_val, in_4_val) = FORWARD;
-                in_3_line.set_value(in_4_val).unwrap();
-                in_4_line.set_value(in_3_val).unwrap();
-            },
-            WheelDirection::Reverse => {
-                let DirectionPair(in_3_val, in_4_val) = BACKWARDS;
-                in_3_line.set_value(in_4_val).unwrap();
-                in_4_line.set_value(in_3_val).unwrap();
-            },
-            WheelDirection::Stop => {
-                let DirectionPair(in_3_val, in_4_val) = STOP;
-                in_3_line.set_value(in_4_val).unwrap();
-                in_4_line.set_value(in_3_val).unwrap();
-            }
-        }
         Ok(())
     }
 

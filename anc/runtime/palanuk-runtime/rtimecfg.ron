@@ -28,6 +28,7 @@
            config: {
                "sg90_pos_cmd_pin": 0 // PWM_CHAN0 = GPIO12
            },
+           logging: (enabled: false)
        ),
 
         (

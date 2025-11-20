@@ -47,7 +47,7 @@ impl CuSrcTask for CuIna219 {
             Some(mut driver_instance) => {
                 match driver_instance.init().ok() {
                     Some(_) => return Ok(Self { driver_instance, target_addr }),
-                    None => panic!("INA219 init error (instantiation successful)")
+                    None => panic!("INA219 init error (instantiation successful). Check I2C wiring.")
                 }
             }
         }
@@ -76,17 +76,21 @@ impl CuSrcTask for CuIna219 {
             None => VoltageUnit::millivolts(0.0)
         };
 
+        let power = power_reading.get_val()*1000.0;
+        let current = current_reading.get_val()*1000.0;
+        let shunt_voltage = shunt_voltage_reading.get_val()*1000.0;
+        let bus_voltage = bus_voltage_reading.get_val();
+
         msg.set_payload(
             Ina219Payload {
-                power           : power_reading.get_val(),
-                load_current    : current_reading.get_val(),
-                shunt_voltage   : shunt_voltage_reading.get_val(),
-                bus_voltage     : bus_voltage_reading.get_val(),
+                power           : power,
+                load_current    : current,
+                shunt_voltage   : shunt_voltage,
+                bus_voltage     : bus_voltage,
                 target_addr     : self.target_addr
             }
         );
-        let power_preview = power_reading.get_val()*1000.0;
-        msg.metadata.set_status(format!("{power_preview:.2} mW"));
+        msg.metadata.set_status(format!("{power:.2}mW {current:.2}mA {bus_voltage:.2}V"));
         Ok(())
     }
 }
