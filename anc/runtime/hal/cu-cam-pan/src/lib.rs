@@ -1,5 +1,6 @@
 use std::sync::{Arc, atomic::{AtomicBool, AtomicU8, Ordering}};
 use std::thread::{JoinHandle, spawn};
+use std::time::{Duration, Instant};
 use libc::*;
 use dumb_sysfs_pwm::{Pwm, Polarity};
 use cu29::prelude::*;
@@ -16,6 +17,22 @@ const DUTY_CYCLE_POS_FRONT: f32 = 0.075; /// 1.5ms out of 20ms
 const DUTY_CYCLE_POS_LEFT: f32 = 0.1; /// 1.0ms out of 20ms
 const DUTY_CYCLE_POS_RIGHT: f32 = 0.05; /// 2.0ms out of 20ms
 const IPOLATE_DIV: f32 = 1000.0;
+
+// Just to test
+#[inline(always)]
+pub fn plnk_busy_wait_for(duration: Duration) {
+    let sum = Instant::now().checked_add(duration);
+    match sum {
+        Some(sum) => plnk_busy_wait_until(sum),
+        None => ()
+    }
+}
+#[inline(always)]
+pub fn plnk_busy_wait_until(time: Instant) {
+    while Instant::now() < time {
+        core::hint::spin_loop();
+    }
+}
 
 /// this payload has no HW feedback
 #[derive(Debug, Clone, Copy, Default, Encode, Decode, PartialEq, Serialize, Deserialize)]
@@ -126,7 +143,7 @@ impl CuSinkTask for CameraPanning {
 
             // Initialize at middle position
             _ = controller.sg90_pos_cmd.set_duty_cycle(0.075);
-            busy_wait_for(CuDuration::from_millis(1750));
+            plnk_busy_wait_for(Duration::from_millis(1750));
 
             while task_running.load(Ordering::Relaxed) {
                 let pos_cmd_copy = PositionCommand::from_u8(pos_cmd.load(Ordering::Acquire));
@@ -148,19 +165,19 @@ impl CuSinkTask for CameraPanning {
 
                 if target_duty_cycle == start {
                     _ = controller.sg90_pos_cmd.set_duty_cycle(DUTY_CYCLE_POS_FRONT);
-                    busy_wait_for(CuDuration::from_millis(1750));
+                    plnk_busy_wait_for(Duration::from_millis(1750));
                 }
                 else {
                     for duty_cycle in (start..=target_duty_cycle).step_by(1) {
                         _ = controller.sg90_pos_cmd.set_duty_cycle(duty_cycle as f32 / IPOLATE_DIV);
-                        busy_wait_for(CuDuration::from_millis(10));
+                        plnk_busy_wait_for(Duration::from_millis(10));
                     }
 
-                    busy_wait_for(CuDuration::from_millis(1750));
+                    plnk_busy_wait_for(Duration::from_millis(1750));
 
                     for duty_cycle in (start..=target_duty_cycle).rev().step_by(1) {
                         _ = controller.sg90_pos_cmd.set_duty_cycle(duty_cycle as f32 / IPOLATE_DIV);
-                        busy_wait_for(CuDuration::from_millis(10));
+                        plnk_busy_wait_for(Duration::from_millis(10));
                     }
                 }
             }
@@ -168,7 +185,7 @@ impl CuSinkTask for CameraPanning {
             // Cleanup
             // Return back to middle position
             _ = controller.sg90_pos_cmd.set_duty_cycle(0.075);
-            busy_wait_for(CuDuration::from_millis(1750));
+            plnk_busy_wait_for(Duration::from_millis(1750));
 
             _ = controller.sg90_pos_cmd.enable(false);
             _ = controller.sg90_pos_cmd.set_duty_cycle(0.0);
