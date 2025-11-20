@@ -167,13 +167,21 @@ impl CuSinkTask for CameraPanning {
                     plnk_busy_wait_for(Duration::from_millis(1750));
                 }
                 else {
-                    for duty_cycle in (start..=target_duty_cycle).step_by(1) {
-                        _ = controller.sg90_pos_cmd.set_duty_cycle(duty_cycle as f32 / IPOLATE_DIV);
-                        plnk_busy_wait_for(Duration::from_millis(10));
+                    if start < target_duty_cycle {
+                        for duty_cycle in (start..=target_duty_cycle).step_by(1) {
+                            _ = controller.sg90_pos_cmd.set_duty_cycle(duty_cycle as f32 / IPOLATE_DIV);
+                            plnk_busy_wait_for(Duration::from_millis(10));
+                        }
+
+                    }
+                    else {
+                        for duty_cycle in (target_duty_cycle..=start).step_by(1) {
+                            _ = controller.sg90_pos_cmd.set_duty_cycle(duty_cycle as f32 / IPOLATE_DIV);
+                            plnk_busy_wait_for(Duration::from_millis(10));
+                        }
                     }
 
                     plnk_busy_wait_for(Duration::from_millis(1750));
-
                     for duty_cycle in (start..=target_duty_cycle).rev().step_by(1) {
                         _ = controller.sg90_pos_cmd.set_duty_cycle(duty_cycle as f32 / IPOLATE_DIV);
                         plnk_busy_wait_for(Duration::from_millis(10));
