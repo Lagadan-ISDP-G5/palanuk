@@ -1,7 +1,7 @@
 (
-    runtime: (
-        rate_target_hz: 4, // 250ms cycle time
-    ),
+    // runtime: (
+    //     rate_target_hz: 4, // 250ms cycle time
+    // ),
 
     tasks: [
         (

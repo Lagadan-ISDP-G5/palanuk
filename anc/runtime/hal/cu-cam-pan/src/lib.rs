@@ -1,5 +1,5 @@
-use std::sync::{Arc, atomic::{AtomicBool, AtomicU8, Ordering}};
-use std::thread::{JoinHandle, spawn};
+use std::{str::FromStr, sync::{Arc, atomic::{AtomicBool, AtomicU8, Ordering}}};
+use std::thread::{JoinHandle, spawn, Builder};
 use std::time::{Duration, Instant};
 use libc::*;
 use dumb_sysfs_pwm::{Pwm, Polarity};
@@ -114,7 +114,10 @@ impl CuSinkTask for CameraPanning {
         let pos_cmd = Arc::clone(&self.recvd_pos_cmd);
         let controller = Arc::clone(&self.pin_controller_instances);
 
-        let ipolate_thread_hdl = spawn(move || -> CuResult<()> {
+        let ipolate_thread_hdl = Builder::new()
+            .name(String::from_str("cu-cam-pan-ipolate-thread").unwrap())
+            .stack_size(8 * 1024 * 1024)
+            .spawn(move || -> CuResult<()> {
             let thread_param = sched_param {sched_priority: 70};
             let sched_res = unsafe {
                 sched_setscheduler(0, SCHED_RR, &thread_param)
