@@ -1,3 +1,13 @@
+Setup instructions:
+install mediamtx
+configure mediamtx yaml path
+install onnx file to PI
+
+
+Image dataset:
+https://universe.roboflow.com/yodatrafik/park-01hnp
+
+
 Benchmarks:
 
 1. Video latency <300ms
