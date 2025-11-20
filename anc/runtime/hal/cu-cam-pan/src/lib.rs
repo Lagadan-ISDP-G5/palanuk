@@ -96,7 +96,6 @@ impl CuSinkTask for CameraPanning {
             .clone()
             .into();
 
-        // #[cfg(hardware)]
         let sg90_pos_cmd_instance = Pwm::new(0, sg90_pos_cmd_pin_offset).unwrap();
         let pin_controller_instances = CameraPanningControllerInstances {
             sg90_pos_cmd: sg90_pos_cmd_instance

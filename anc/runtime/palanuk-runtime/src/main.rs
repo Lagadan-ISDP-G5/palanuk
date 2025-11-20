@@ -164,7 +164,7 @@ fn main() {
     }
 
     let _ = core_affinity::set_for_current(CoreId {id: 2}); // Cores 2-3 isolated
-    let thread_param = sched_param {sched_priority: 90};
+    let thread_param = sched_param {sched_priority: 92};
     let sched_res = unsafe {
         sched_setscheduler(0, SCHED_RR, &thread_param)
     };

@@ -2,16 +2,11 @@ use cu29::prelude::*;
 use bincode::{Decode, Encode};
 use hcsr04_gpio_cdev::*;
 
-// #[cfg(hardware)]
 use serde::{Deserialize, Serialize};
 pub const IGNORE_VAL: f64 = 69420.0;
 
 pub struct CuHcSr04 {
-    driver_instance: HcSr04,
-    // #[cfg(hardware)]
-    echo_pin: u32,
-    // #[cfg(hardware)]
-    trig_pin: u32,
+    driver_instance: HcSr04
 }
 
 #[derive(Debug, Clone, Copy, Encode, Decode, Default, PartialEq, Serialize, Deserialize)]
@@ -43,18 +38,14 @@ impl CuSrcTask for CuHcSr04 {
             .clone()
             .into();
 
-        // #[cfg(hardware)]
         let driver_instance = HcSr04::new(trig_pin_offset, echo_pin_offset).expect("GPIO driver error");
 
         Ok(Self {
-            driver_instance,
-            trig_pin: trig_pin_offset,
-            echo_pin: echo_pin_offset
+            driver_instance
         })
     }
 
     fn process(&mut self, _clock: &RobotClock, msg: &mut Self::Output<'_>) -> CuResult<()> {
-        // #[cfg(hardware)]
         let dist_cm = self.driver_instance.dist_cm(None).ok();
 
         let dist_msg = match dist_cm {
