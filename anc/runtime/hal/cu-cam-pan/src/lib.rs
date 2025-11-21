@@ -208,7 +208,7 @@ impl CuSinkTask for CameraPanning {
             Ok(())
         });
 
-        self.ipolate_thread_hdl = Some(ipolate_thread_hdl);
+        self.ipolate_thread_hdl = Some(ipolate_thread_hdl.expect("Failed to spawn ipolate-thread"));
         Ok(())
     }
 

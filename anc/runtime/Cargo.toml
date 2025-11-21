@@ -18,12 +18,12 @@ cu29-helpers = "0.10.0"
 bincode = "2.0.1"
 serde = "1.0.228"
 hcsr04-gpio-cdev = "0.1.2"
-dumb-sysfs-pwm = { path = "/Users/ander/Documents/proj/dumb-sysfs-pwm" }
+dumb-sysfs-pwm = { git = "https://github.com/andergisomon/dumb-sysfs-pwm.git" }
 gpio-cdev = "0.6.0"
-cu-propulsion = { path = "/Users/ander/Documents/proj/palanuk/anc/runtime/hal/cu-propulsion" }
-cu-cam-pan = { path = "/Users/ander/Documents/proj/palanuk/anc/runtime/hal/cu-cam-pan" }
-cu-hcsr04 = { path = "/Users/ander/Documents/proj/palanuk/anc/runtime/hal/cu-hcsr04" }
-cu-powermon = { path = "/Users/ander/Documents/proj/palanuk/anc/runtime/hal/cu-powermon" }
+cu-propulsion = { path = "./hal/cu-propulsion" }
+cu-cam-pan = { path = "./hal/cu-cam-pan" }
+cu-hcsr04 = { path = "./hal/cu-hcsr04" }
+cu-powermon = { path = "./hal/cu-powermon" }
 cu-consolemon = "0.10.0"
 ctrlc = "3.5.1"
 libc = "0.2.176"

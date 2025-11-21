@@ -1065,6 +1065,7 @@ dependencies = [
 [[package]]
 name = "dumb-sysfs-pwm"
 version = "0.1.0"
+source = "git+https://github.com/andergisomon/dumb-sysfs-pwm.git#f441fe4f3bb46aa28b19b76d60a670716e741426"
 
 [[package]]
 name = "either"
