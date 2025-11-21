@@ -71,8 +71,8 @@
         (src: "panner", dst: "camera-panning", msg: "cu_cam_pan::CameraPanningPayload"),
         (src: "power-monitoring", dst: "dummy", msg: "cu_powermon::Ina219Payload"),
     ],
-    monitor: (
-          type: "cu_consolemon::CuConsoleMon",
-    ),
+    // monitor: (
+    //       type: "cu_consolemon::CuConsoleMon",
+    // ),
     logging: ( file: "palanuk.copper", level: "debug" ),
 )

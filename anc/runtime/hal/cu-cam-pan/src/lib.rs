@@ -1,5 +1,5 @@
 use std::{str::FromStr, sync::{Arc, atomic::{AtomicBool, AtomicU8, Ordering}}};
-use std::thread::{JoinHandle, spawn, Builder};
+use std::thread::{JoinHandle, spawn, Builder, sleep};
 use std::time::{Duration, Instant};
 use libc::*;
 use dumb_sysfs_pwm::{Pwm, Polarity};
@@ -145,7 +145,8 @@ impl CuSinkTask for CameraPanning {
 
             // Initialize at middle position
             _ = controller.sg90_pos_cmd.set_duty_cycle(0.075);
-            plnk_busy_wait_for(Duration::from_millis(1750));
+            // plnk_busy_wait_for(Duration::from_millis(1750));
+            sleep(Duration::from_millis(1750));
 
             while task_running.load(Ordering::Relaxed) {
                 let pos_cmd_copy = PositionCommand::from_u8(pos_cmd.load(Ordering::Acquire));
@@ -167,31 +168,40 @@ impl CuSinkTask for CameraPanning {
 
                 if target_duty_cycle == start {
                     _ = controller.sg90_pos_cmd.set_duty_cycle(DUTY_CYCLE_POS_FRONT);
-                    plnk_busy_wait_for(Duration::from_millis(1750));
+                    // plnk_busy_wait_for(Duration::from_millis(1750));
+                    sleep(Duration::from_millis(1750));
                 }
                 else {
                     if start < target_duty_cycle {
                         for duty_cycle in (start..=target_duty_cycle).step_by(1) {
                             _ = controller.sg90_pos_cmd.set_duty_cycle(duty_cycle as f32 / IPOLATE_DIV);
-                            plnk_busy_wait_for(Duration::from_millis(10));
+                            // plnk_busy_wait_for(Duration::from_millis(10));
+                            sleep(Duration::from_millis(10));
                         }
 
-                        plnk_busy_wait_for(Duration::from_millis(1750));
+                        // plnk_busy_wait_for(Duration::from_millis(1750));
+                        sleep(Duration::from_millis(1750));
+                        debug!("waited for 1750ms");
                         for duty_cycle in (start..=target_duty_cycle).rev().step_by(1) {
                             _ = controller.sg90_pos_cmd.set_duty_cycle(duty_cycle as f32 / IPOLATE_DIV);
-                            plnk_busy_wait_for(Duration::from_millis(10));
+                            // plnk_busy_wait_for(Duration::from_millis(10));
+                            sleep(Duration::from_millis(10));
                         }
                     }
                     else {
                         for duty_cycle in (target_duty_cycle..=start).step_by(1) {
                             _ = controller.sg90_pos_cmd.set_duty_cycle(duty_cycle as f32 / IPOLATE_DIV);
-                            plnk_busy_wait_for(Duration::from_millis(10));
+                            // plnk_busy_wait_for(Duration::from_millis(10));
+                            sleep(Duration::from_millis(10));
                         }
 
-                        plnk_busy_wait_for(Duration::from_millis(1750));
+                        // plnk_busy_wait_for(Duration::from_millis(1750));
+                        sleep(Duration::from_millis(1750));
+                        debug!("waited for 1750ms");
                         for duty_cycle in (target_duty_cycle..=start).rev().step_by(1) {
                             _ = controller.sg90_pos_cmd.set_duty_cycle(duty_cycle as f32 / IPOLATE_DIV);
-                            plnk_busy_wait_for(Duration::from_millis(10));
+                            // plnk_busy_wait_for(Duration::from_millis(10));
+                            sleep(Duration::from_millis(10));
                         }
                     }
                 }
@@ -200,7 +210,8 @@ impl CuSinkTask for CameraPanning {
             // Cleanup
             // Return back to middle position
             _ = controller.sg90_pos_cmd.set_duty_cycle(0.075);
-            plnk_busy_wait_for(Duration::from_millis(1750));
+            // plnk_busy_wait_for(Duration::from_millis(1750));
+            sleep(Duration::from_millis(1750));
 
             _ = controller.sg90_pos_cmd.enable(false);
             _ = controller.sg90_pos_cmd.set_duty_cycle(0.0);
