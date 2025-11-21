@@ -219,15 +219,23 @@ impl CuSinkTask for Propulsion {
         let en_a_hdl = &mut self.pin_controller_instances.lmtr_en_a;
         let en_b_hdl = &mut self.pin_controller_instances.rmtr_en_b;
 
-        _ = en_a_hdl.export();
-        _ = en_b_hdl.export();
+        let (ret1, ret2) = (en_a_hdl.export(), en_b_hdl.export());
+        let mut success: bool = false;
 
-        _ = en_a_hdl.set_period_ns(20_000);
-        _ = en_b_hdl.set_period_ns(20_000);
+        if let Ok(_) = ret1 && let Ok(_) = ret2 {
+            let (ret1, ret2) = (en_a_hdl.set_period_ns(20_000), en_b_hdl.set_period_ns(20_000));
+            if let Ok(_) = ret1 && let Ok(_) = ret2 {
+                let (ret1, ret2) = (en_a_hdl.set_duty_cycle(0.0), en_b_hdl.set_duty_cycle(0.0));
+                if let Ok(_) = ret1 && let Ok(_) = ret2 {
+                    success = true;
+                }
+            }
+        }
 
-        _ = en_a_hdl.set_duty_cycle(0.0);
-        _ = en_b_hdl.set_duty_cycle(0.0);
-        Ok(())
+        match success {
+            true => Ok(()),
+            false => Err(CuError::from(format!("Failed to init propulsion Pwm")))
+        }
     }
 
     fn process(&mut self, _clock: &RobotClock, input: &Self::Input<'_>) -> Result<(), CuError> {
@@ -397,17 +405,31 @@ impl CuSinkTask for Propulsion {
         let en_a_hdl = &mut self.pin_controller_instances.lmtr_en_a;
         let en_b_hdl = &mut self.pin_controller_instances.rmtr_en_b;
 
-        in_1_line.set_value(0).unwrap();
-        in_2_line.set_value(0).unwrap();
-        in_3_line.set_value(0).unwrap();
-        in_4_line.set_value(0).unwrap();
+        let line_1_ret = in_1_line.set_value(0).ok();
+        let line_2_ret = in_2_line.set_value(0).ok();
+        let line_3_ret = in_3_line.set_value(0).ok();
+        let line_4_ret = in_4_line.set_value(0).ok();
+        let mut stop_success: bool = false;
 
-        _ = en_a_hdl.set_duty_cycle(0.0);
-        _ = en_b_hdl.set_duty_cycle(0.0);
+        if
+            let Some(_) = line_1_ret &&
+            let Some(_) = line_2_ret &&
+            let Some(_) = line_3_ret &&
+            let Some(_) = line_4_ret
+        {
+            let (ret1, ret2) = (en_a_hdl.set_duty_cycle(0.0), en_b_hdl.set_duty_cycle(0.0));
+            if let Ok(_) = ret1 && let Ok(_) = ret2 {
+                let (ret1, ret2) = (en_a_hdl.unexport(), en_b_hdl.unexport());
+                if let Ok(_) = ret1 && let Ok(_) = ret2 {
+                    stop_success = true;
+                }
+            }
+        }
 
-        _ = en_a_hdl.unexport();
-        _ = en_b_hdl.unexport();
-        Ok(())
+        match stop_success {
+            true => Ok(()),
+            false => Err(CuError::from(format!("Failed to stop cu-propulsion due to I/O error")))
+        }
     }
 }
 

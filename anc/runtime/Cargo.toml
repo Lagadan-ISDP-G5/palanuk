@@ -34,4 +34,4 @@ core_affinity = "0.8.3"
 target = "aarch64-unknown-linux-gnu"
 
 [profile.release]
-debug = false
+debug = true
