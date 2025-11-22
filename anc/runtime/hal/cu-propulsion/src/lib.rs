@@ -242,13 +242,13 @@ impl CuSinkTask for Propulsion {
         let en_a_hdl = &mut self.pin_controller_instances.lmtr_en_a;
         let en_a_is_enabled = match en_a_hdl.get_enabled() {
             Ok(ret) => ret,
-            Err(_) => return Err(CuError::from("failed to get enabled status"))
+            Err(_) => return Err(CuError::from(format!("failed to get enabled status")))
         };
 
         let en_b_hdl = &mut self.pin_controller_instances.rmtr_en_b;
         let en_b_is_enabled = match en_b_hdl.get_enabled() {
             Ok(ret) => ret,
-            Err(_) => return Err(CuError::from("failed to get enabled status"))
+            Err(_) => return Err(CuError::from(format!("failed to get enabled status")))
 
         };
 

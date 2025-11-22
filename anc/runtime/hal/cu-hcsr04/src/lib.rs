@@ -51,7 +51,7 @@ impl CuSrcTask for CuHcSr04 {
 
         let dist_msg = match dist_cm {
             Some(val) => val.to_val(),
-            None => IGNORE_VAL
+            None => return Err(CuError::from(format!("failed to get distance sensor reading")))
         };
 
         msg.set_payload(HcSr04Payload { distance: dist_msg });

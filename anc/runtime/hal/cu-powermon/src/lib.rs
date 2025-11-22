@@ -58,22 +58,22 @@ impl CuSrcTask for CuIna219 {
 
         let power_reading = match dev.power().ok() {
             Some(val) => val,
-            None => PowerUnit::milliwatts(0.0)
+            None => return Err(CuError::from(format!("failed to get power reading")))
         };
 
         let current_reading = match dev.load_current().ok() {
             Some(val) => val,
-            None => CurrentUnit::milliamps(0.0)
+            None => return Err(CuError::from(format!("failed to get current reading")))
         };
 
         let shunt_voltage_reading = match dev.shunt_voltage().ok() {
             Some(val) => val,
-            None => VoltageUnit::millivolts(0.0)
+            None => return Err(CuError::from(format!("failed to get shunt voltage reading")))
         };
 
         let bus_voltage_reading = match dev.bus_voltage().ok() {
             Some(val) => val,
-            None => VoltageUnit::millivolts(0.0)
+            None => return Err(CuError::from(format!("failed to get bus voltage reading")))
         };
 
         let power = power_reading.get_val()*1000.0;
