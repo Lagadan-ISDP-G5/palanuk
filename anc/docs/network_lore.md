@@ -23,3 +23,9 @@ sudo arp-scan --interface=en0 --localnet
 ```
 
 and then use that IP to connect to ssh.
+
+## Auto-reconnect
+
+An auto-reconnect script is stored at `/home/pi/nulunabalu-reconnect.sh`.
+
+This was configured as a cron job. The entry is in `/etc/crontab`.
