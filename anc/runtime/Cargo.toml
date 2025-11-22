@@ -17,7 +17,8 @@ cu29-export = { version = "0.10.0" }
 cu29-helpers = "0.10.0"
 bincode = "2.0.1"
 serde = "1.0.228"
-hcsr04-gpio-cdev = "0.1.2"
+# hcsr04-gpio-cdev = "0.1.2"
+hcsr04-gpio-cdev = { path = "/Users/ander/Documents/proj/hc-sr04-gpio-cdev" }
 dumb-sysfs-pwm = { git = "https://github.com/andergisomon/dumb-sysfs-pwm.git" }
 gpio-cdev = "0.6.0"
 cu-propulsion = { path = "./hal/cu-propulsion" }
@@ -34,4 +35,4 @@ core_affinity = "0.8.3"
 target = "aarch64-unknown-linux-gnu"
 
 [profile.release]
-debug = true
+debug = false

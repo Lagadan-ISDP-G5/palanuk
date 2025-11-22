@@ -2,7 +2,7 @@ use std::{str::FromStr, sync::{Arc, atomic::{AtomicBool, AtomicU8, Ordering}}};
 use std::thread::{JoinHandle, Builder, sleep};
 use std::time::{Duration, Instant};
 use libc::*;
-// use dumb_sysfs_pwm::{Pwm, Polarity};
+use dumb_sysfs_pwm::{Pwm, Polarity};
 use cu29::prelude::*;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
@@ -72,7 +72,7 @@ impl PositionCommand {
 }
 
 pub struct CameraPanningControllerInstances {
-    // sg90_pos_cmd: Pwm
+    sg90_pos_cmd: Pwm
 }
 
 pub struct CameraPanning {
@@ -98,9 +98,9 @@ impl CuSinkTask for CameraPanning {
             .clone()
             .into();
 
-        // let sg90_pos_cmd_instance = Pwm::new(0, sg90_pos_cmd_pin_offset).unwrap();
+        let sg90_pos_cmd_instance = Pwm::new(0, sg90_pos_cmd_pin_offset).unwrap();
         let pin_controller_instances = CameraPanningControllerInstances {
-            // sg90_pos_cmd: sg90_pos_cmd_instance
+            sg90_pos_cmd: sg90_pos_cmd_instance
         };
 
         Ok(Self {
@@ -134,19 +134,19 @@ impl CuSinkTask for CameraPanning {
             }
 
             // make sure PWM params are initialized
-            // _ = controller.sg90_pos_cmd.export(); // export first
-            // _ = controller.sg90_pos_cmd.set_period_ns(PERIOD_NS);
-            // _ = controller.sg90_pos_cmd.set_polarity(Polarity::Normal);
+            _ = controller.sg90_pos_cmd.export(); // export first
+            _ = controller.sg90_pos_cmd.set_period_ns(PERIOD_NS);
+            _ = controller.sg90_pos_cmd.set_polarity(Polarity::Normal);
 
             // check if controller is enabled yet
-            // if !controller.sg90_pos_cmd.get_enabled().unwrap() {
-            //     controller.sg90_pos_cmd.enable(true).unwrap();
-            //     // should probably add a reset routine here, with a helper function to make sure the servo
-            //     // resets to the front position
-            // }
+            if !controller.sg90_pos_cmd.get_enabled().unwrap() {
+                controller.sg90_pos_cmd.enable(true).unwrap();
+                // should probably add a reset routine here, with a helper function to make sure the servo
+                // resets to the front position
+            }
 
             // Initialize at middle position
-            // _ = controller.sg90_pos_cmd.set_duty_cycle(0.075);
+            _ = controller.sg90_pos_cmd.set_duty_cycle(0.075);
             // plnk_busy_wait_for(Duration::from_millis(1750));
             sleep(Duration::from_millis(1750));
 
@@ -176,7 +176,7 @@ impl CuSinkTask for CameraPanning {
                 else {
                     if start < target_duty_cycle {
                         for duty_cycle in (start..=target_duty_cycle).step_by(1) {
-                            // _ = controller.sg90_pos_cmd.set_duty_cycle(duty_cycle as f32 / IPOLATE_DIV);
+                            _ = controller.sg90_pos_cmd.set_duty_cycle(duty_cycle as f32 / IPOLATE_DIV);
                             // plnk_busy_wait_for(Duration::from_millis(10));
                             sleep(Duration::from_millis(10));
                         }
@@ -184,14 +184,14 @@ impl CuSinkTask for CameraPanning {
                         // plnk_busy_wait_for(Duration::from_millis(1750));
                         sleep(Duration::from_millis(1750));
                         for duty_cycle in (start..=target_duty_cycle).rev().step_by(1) {
-                            // _ = controller.sg90_pos_cmd.set_duty_cycle(duty_cycle as f32 / IPOLATE_DIV);
+                            _ = controller.sg90_pos_cmd.set_duty_cycle(duty_cycle as f32 / IPOLATE_DIV);
                             // plnk_busy_wait_for(Duration::from_millis(10));
                             sleep(Duration::from_millis(10));
                         }
                     }
                     else {
                         for duty_cycle in (target_duty_cycle..=start).step_by(1) {
-                            // _ = controller.sg90_pos_cmd.set_duty_cycle(duty_cycle as f32 / IPOLATE_DIV);
+                            _ = controller.sg90_pos_cmd.set_duty_cycle(duty_cycle as f32 / IPOLATE_DIV);
                             // plnk_busy_wait_for(Duration::from_millis(10));
                             sleep(Duration::from_millis(10));
                         }
@@ -199,7 +199,7 @@ impl CuSinkTask for CameraPanning {
                         // plnk_busy_wait_for(Duration::from_millis(1750));
                         sleep(Duration::from_millis(1750));
                         for duty_cycle in (target_duty_cycle..=start).rev().step_by(1) {
-                            // _ = controller.sg90_pos_cmd.set_duty_cycle(duty_cycle as f32 / IPOLATE_DIV);
+                            _ = controller.sg90_pos_cmd.set_duty_cycle(duty_cycle as f32 / IPOLATE_DIV);
                             // plnk_busy_wait_for(Duration::from_millis(10));
                             sleep(Duration::from_millis(10));
                         }
@@ -209,13 +209,13 @@ impl CuSinkTask for CameraPanning {
 
             // Cleanup
             // Return back to middle position
-            // _ = controller.sg90_pos_cmd.set_duty_cycle(0.075);
+            _ = controller.sg90_pos_cmd.set_duty_cycle(0.075);
             // plnk_busy_wait_for(Duration::from_millis(1750));
             sleep(Duration::from_millis(1750));
 
-            // _ = controller.sg90_pos_cmd.enable(false);
-            // _ = controller.sg90_pos_cmd.set_duty_cycle(0.0);
-            // _ = controller.sg90_pos_cmd.unexport();
+            _ = controller.sg90_pos_cmd.enable(false);
+            _ = controller.sg90_pos_cmd.set_duty_cycle(0.0);
+            _ = controller.sg90_pos_cmd.unexport();
             Ok(())
         });
 

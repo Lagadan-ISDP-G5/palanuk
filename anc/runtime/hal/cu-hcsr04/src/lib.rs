@@ -46,6 +46,7 @@ impl CuSrcTask for CuHcSr04 {
     }
 
     fn process(&mut self, _clock: &RobotClock, msg: &mut Self::Output<'_>) -> CuResult<()> {
+        // let dist_cm = self.driver_instance.dist_cm(Some(range_to_timeout(DistanceUnit::Cm(100.0)).unwrap())).ok();
         let dist_cm = self.driver_instance.dist_cm(None).ok();
 
         let dist_msg = match dist_cm {
