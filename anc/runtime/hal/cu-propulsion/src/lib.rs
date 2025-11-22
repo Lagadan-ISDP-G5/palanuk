@@ -240,10 +240,17 @@ impl CuSinkTask for Propulsion {
 
     fn process(&mut self, _clock: &RobotClock, input: &Self::Input<'_>) -> Result<(), CuError> {
         let en_a_hdl = &mut self.pin_controller_instances.lmtr_en_a;
-        let en_a_is_enabled = en_a_hdl.get_enabled();
+        let en_a_is_enabled = match en_a_hdl.get_enabled() {
+            Ok(ret) => ret,
+            Err(_) => return Err(CuError::from("failed to get enabled status"))
+        };
 
         let en_b_hdl = &mut self.pin_controller_instances.rmtr_en_b;
-        let en_b_is_enabled = en_b_hdl.get_enabled();
+        let en_b_is_enabled = match en_b_hdl.get_enabled() {
+            Ok(ret) => ret,
+            Err(_) => return Err(CuError::from("failed to get enabled status"))
+
+        };
 
         let payload = input.payload();
 
@@ -251,70 +258,50 @@ impl CuSinkTask for Propulsion {
             if payload.left_enable {
                 self.left_wheel.enable = true;
                 match en_a_is_enabled {
-                    Ok(val) => {
-                        match val {
-                            true => (),
-                            false => {
-                                match en_a_hdl.enable(true) {
-                                    Ok(_) => (),
-                                    Err(_) => return Err(CuError::from(format!("Failed to set enable")))
-                                }
-                            }
+                    true => (),
+                    false => {
+                        match en_a_hdl.enable(true) {
+                            Ok(_) => (),
+                            Err(_) => return Err(CuError::from(format!("Failed to set enable")))
                         }
-                    },
-                    Err(_) => return Err(CuError::from(format!("Failed to get enabled status feedback")))
+                    }
                 }
             }
             else {
                 self.left_wheel.enable = false;
                 match en_a_is_enabled {
-                    Ok(val) => {
-                        match val {
-                            true => {
-                                match en_a_hdl.enable(false) {
-                                    Ok(_) => (),
-                                    Err(_) => return Err(CuError::from(format!("Failed to set enable")))
-                                }
-                            },
-                            false => ()
+                    true => {
+                        match en_a_hdl.enable(false) {
+                            Ok(_) => (),
+                            Err(_) => return Err(CuError::from(format!("Failed to set enable")))
                         }
                     },
-                    Err(_) => return Err(CuError::from(format!("Failed to get enabled status feedback")))
+                    false => ()
                 }
             }
 
             if payload.right_enable {
                 self.right_wheel.enable = true;
                 match en_b_is_enabled {
-                    Ok(val) => {
-                        match val {
-                            true => (),
-                            false => {
-                                match en_b_hdl.enable(true) {
-                                    Ok(_) => (),
-                                    Err(_) => return Err(CuError::from(format!("Failed to set enable")))
-                                }
-                            }
+                    true => (),
+                    false => {
+                        match en_b_hdl.enable(true) {
+                            Ok(_) => (),
+                            Err(_) => return Err(CuError::from(format!("Failed to set enable")))
                         }
-                    },
-                    Err(_) => return Err(CuError::from(format!("Failed to get enabled status feedback")))
+                    }
                 }
             }
             else {
                 self.right_wheel.enable = false;
                 match en_b_is_enabled {
-                    Ok(val) => {
-                        match val {
-                            true => {
-                                match en_b_hdl.enable(false) {
-                                    Ok(_) => (),
-                                    Err(_) => return Err(CuError::from(format!("Failed to set enable")))
-                                }
-                            }
-                            false => ()
+                    true => {
+                        match en_b_hdl.enable(false) {
+                            Ok(_) => (),
+                            Err(_) => return Err(CuError::from(format!("Failed to set enable")))
                         }
                     },
-                    Err(_) => return Err(CuError::from(format!("Failed to get enabled status feedback")))
+                    false => ()
                 }
             }
 
