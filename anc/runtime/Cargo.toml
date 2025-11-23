@@ -7,7 +7,7 @@ publish = false
 version = "0.1.0"
 authors = ["Ander Jiloh <ander.jiloh@gmail.com>"]
 edition = "2024"
-license = "LGPL-2.1-only"
+license = "GPL-3.0-only"
 keywords = ["autonomous", "copper-rs", "robotics", "real-time"]
 
 [workspace.dependencies]
