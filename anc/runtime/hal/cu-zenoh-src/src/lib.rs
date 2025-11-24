@@ -34,7 +34,7 @@ where
     where
         Self: Sized,
     {
-        let config = config.ok_or(CuError::from("ZSrc: missing config field: \"zenoh_config_file\" "))?;
+        let config = config.ok_or(CuError::from("ZSrc: missing config! provide at least no value for the \"topic\" field"))?;
 
         let session_config = config.get::<String>("zenoh_config_file").map_or(
             Ok(Config::default()),
