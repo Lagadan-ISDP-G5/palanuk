@@ -7,8 +7,6 @@ use cu29::prelude::*;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
-
-
 /// We're assuming that during operation, we won't send commands before the previous sent command has been
 /// fully actuated by the servo. The SG90 is a cheap, crappy servo that easily gets confused by quick
 /// changes in the PWM duty cycle. No point in overengineering the code (it already is) just to handle

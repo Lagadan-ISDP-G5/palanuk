@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["palanuk-runtime", "hal/cu-hcsr04", "hal/cu-propulsion", "hal/cu-cam-pan", "hal/cu-powermon"]
+members = ["palanuk-runtime", "hal/cu-hcsr04", "hal/cu-propulsion", "hal/cu-cam-pan", "hal/cu-powermon", "hal/cu-zenoh-src", "hal/cu-zenoh-sink"]
 
 [workspace.package]
 publish = false
@@ -29,6 +29,7 @@ ctrlc = "3.5.1"
 libc = "0.2.176"
 core_affinity = "0.8.3"
 # iceoryx2 = "0.7.0"
+zenoh = "1.6.2"
 
 [build]
 target = "aarch64-unknown-linux-gnu"
