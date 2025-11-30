@@ -3,6 +3,8 @@ use bincode::decode_from_slice;
 use zenoh::{Config, Session, handlers::{FifoChannel, FifoChannelHandler}, key_expr::KeyExpr, pubsub::Subscriber, sample::Sample};
 use core::marker::PhantomData;
 
+const CHANNEL_CAPACITY: usize = 2048;
+
 pub struct ZSrc<S>
 where
     S: CuMsgPayload,
@@ -68,7 +70,7 @@ where
             )?;
 
         debug!("Zenoh session open");
-        let subscriber = zenoh::Wait::wait(session.declare_subscriber(key_expr).with(FifoChannel::new(2048)))
+        let subscriber = zenoh::Wait::wait(session.declare_subscriber(key_expr).with(FifoChannel::new(CHANNEL_CAPACTITY)))
             .map_err(
                 |_| -> CuError {CuError::from("ZSrc: Failed to create subscriber")}
             )?;
