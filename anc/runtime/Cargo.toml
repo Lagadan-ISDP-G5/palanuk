@@ -11,10 +11,10 @@ license = "GPL-3.0-only"
 keywords = ["autonomous", "copper-rs", "robotics", "real-time"]
 
 [workspace.dependencies]
-cu29 = { version = "0.10.0", features = ["macro_debug"] }
-cu29-runtime = "0.10.0"
-cu29-export = { version = "0.10.0" }
-cu29-helpers = "0.10.0"
+cu29 = { version = "0.11.0", features = ["macro_debug"] }
+cu29-runtime = "0.11.0"
+cu29-export = { version = "0.11.0" }
+cu29-helpers = "0.11.0"
 bincode = "2.0.1"
 serde = "1.0.228"
 hcsr04-gpio-cdev = "0.1.3"
@@ -24,7 +24,7 @@ cu-propulsion = { path = "./hal/cu-propulsion" }
 cu-cam-pan = { path = "./hal/cu-cam-pan" }
 cu-hcsr04 = { path = "./hal/cu-hcsr04" }
 cu-powermon = { path = "./hal/cu-powermon" }
-cu-consolemon = "0.10.0"
+cu-consolemon = "0.11.0"
 ctrlc = "3.5.1"
 libc = "0.2.176"
 core_affinity = "0.8.3"

@@ -3,7 +3,7 @@ use bincode::decode_from_slice;
 use zenoh::{Config, Session, handlers::{FifoChannel, FifoChannelHandler}, key_expr::KeyExpr, pubsub::Subscriber, sample::Sample};
 use core::marker::PhantomData;
 
-const CHANNEL_CAPACITY: usize = 2048;
+pub const CHANNEL_CAPACITY: usize = 2048;
 
 pub struct ZSrc<S>
 where
@@ -70,7 +70,7 @@ where
             )?;
 
         debug!("Zenoh session open");
-        let subscriber = zenoh::Wait::wait(session.declare_subscriber(key_expr).with(FifoChannel::new(CHANNEL_CAPACTITY)))
+        let subscriber = zenoh::Wait::wait(session.declare_subscriber(key_expr).with(FifoChannel::new(CHANNEL_CAPACITY)))
             .map_err(
                 |_| -> CuError {CuError::from("ZSrc: Failed to create subscriber")}
             )?;
