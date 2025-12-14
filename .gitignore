@@ -1,2 +1,23 @@
-target/
+# Build
+build/
+
+# Data
+data/
+cmake-build-*/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Compiled
+*.o
+*.a
+*.so
+*.dylib
+
+# OS
 .DS_Store
+Thumbs.db
