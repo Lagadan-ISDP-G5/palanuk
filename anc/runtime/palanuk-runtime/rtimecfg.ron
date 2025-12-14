@@ -4,6 +4,7 @@
     ),
 
     tasks: [
+
         (
             id: "distance-sensor",
             type: "cu_hcsr04::CuHcSr04",

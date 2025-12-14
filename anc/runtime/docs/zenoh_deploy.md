@@ -35,3 +35,9 @@ There are 3 peer nodes:
 - Peer 1: UGV pubsub
 - Peer 2: ODD TypeScript pubsub over REST API [https://github.com/eclipse-zenoh/zenoh-ts/blob/main/zenoh-plugin-remote-api/README.md]()
 - Peer 3: ITP Python pubsub [https://github.com/eclipse-zenoh/zenoh-python]()
+
+## Code examples
+
+### ODD code example for pubsub
+
+[https://github.com/eclipse-zenoh/zenoh-ts/blob/main/zenoh-ts/examples/browser/chat/src/chat_session.ts]()
