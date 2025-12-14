@@ -137,9 +137,20 @@ LineDetectionResult detect_horizontal_line(const cv::Mat& thresh, int start_y, i
         }
     }
 
-    if (result.points.size() >= 2) {
+    if (result.points.size() >= 3) {
         cv::fitLine(result.points, result.fitted_line, cv::DIST_L2, 0, 0.01, 0.01);
-        result.valid = true;
+
+        // Verify line is actually horizontal (vx should dominate vy)
+        float vx = std::abs(result.fitted_line[0]);
+        float vy = std::abs(result.fitted_line[1]);
+        bool is_horizontal = vx > vy * 2;  // at least 2:1 ratio
+
+        // Verify points span a reasonable horizontal distance
+        float min_x = result.points.front().x;
+        float max_x = result.points.back().x;
+        bool has_span = (max_x - min_x) > 50;
+
+        result.valid = is_horizontal && has_span;
     }
 
     return result;
