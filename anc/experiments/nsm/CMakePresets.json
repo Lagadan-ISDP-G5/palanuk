@@ -1,0 +1,48 @@
+{
+  "version": 3,
+  "configurePresets": [
+    {
+      "name": "host",
+      "displayName": "Host (native)",
+      "description": "Build for the local machine",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "pi",
+      "displayName": "Raspberry Pi (aarch64)",
+      "description": "Cross-compile for Raspberry Pi",
+      "binaryDir": "${sourceDir}/build-pi",
+      "toolchainFile": "${sourceDir}/cmake/toolchain-aarch64-linux.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "pi-debug",
+      "displayName": "Raspberry Pi (aarch64) Debug",
+      "description": "Cross-compile for Raspberry Pi with debug symbols",
+      "binaryDir": "${sourceDir}/build-pi-debug",
+      "toolchainFile": "${sourceDir}/cmake/toolchain-aarch64-linux.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "host",
+      "configurePreset": "host"
+    },
+    {
+      "name": "pi",
+      "configurePreset": "pi"
+    },
+    {
+      "name": "pi-debug",
+      "configurePreset": "pi-debug"
+    }
+  ]
+}
