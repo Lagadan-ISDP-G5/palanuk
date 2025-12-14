@@ -18,28 +18,18 @@ struct CornerDetectionResult {
     bool detected = false;
 };
 
+// ROI: bottom 73% of frame (top 27% is ignored)
+constexpr float ROI_IGNORE_TOP_PERCENT = 0.27f;
+
 cv::Mat threshold_white_line(const cv::Mat& img) {
-    cv::Mat blurred, hsv;
-    cv::GaussianBlur(img, blurred, cv::Size(5, 5), 0);
-    cv::cvtColor(blurred, hsv, cv::COLOR_BGR2HSV);
+    cv::Mat gray, blurred, thresh;
+    cv::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
+    cv::GaussianBlur(gray, blurred, cv::Size(5, 5), 0);
+    cv::threshold(blurred, thresh, 200, 255, cv::THRESH_BINARY);
 
-    // Split into H, S, V channels
-    std::vector<cv::Mat> channels;
-    cv::split(hsv, channels);
-    cv::Mat& saturation = channels[1];
-    cv::Mat& value = channels[2];
-
-    // White = high value AND low saturation
-    // Reflections typically have higher saturation (color tint)
-    cv::Mat high_value, low_saturation, thresh;
-    cv::threshold(value, high_value, 200, 255, cv::THRESH_BINARY);
-    cv::threshold(saturation, low_saturation, 40, 255, cv::THRESH_BINARY_INV);
-
-    cv::bitwise_and(high_value, low_saturation, thresh);
-
-    // Morphological opening to remove small noise/reflection speckles
-    cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
-    cv::morphologyEx(thresh, thresh, cv::MORPH_OPEN, kernel);
+    // Mask out the top 27% of the frame
+    int roi_top = static_cast<int>(img.rows * ROI_IGNORE_TOP_PERCENT);
+    thresh(cv::Rect(0, 0, img.cols, roi_top)) = 0;
 
     return thresh;
 }
