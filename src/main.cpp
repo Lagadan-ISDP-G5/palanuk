@@ -18,8 +18,8 @@ struct CornerDetectionResult {
     bool detected = false;
 };
 
-// ROI: bottom 73% of frame (top 27% is ignored)
-constexpr float ROI_IGNORE_TOP_PERCENT = 0.27f;
+// ROI: bottom 67% of frame (top 33% is ignored)
+constexpr float ROI_IGNORE_TOP_PERCENT = 0.33f;
 
 cv::Mat threshold_white_line(const cv::Mat& img) {
     cv::Mat gray, blurred, thresh;
