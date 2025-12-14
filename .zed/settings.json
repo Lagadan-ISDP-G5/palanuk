@@ -1,0 +1,12 @@
+{
+  "lsp": {
+    "clangd": {
+      "binary": {
+        "arguments": [
+          "--compile-commands-dir=build", // relpath, build is a directory at the root level
+          "--background-index"
+        ]
+      }
+    }
+  }
+}

@@ -1,3 +1,28 @@
-target/
-.DS_Store
+# Build
+build/
+
+# Data
+data/
+cmake-build-*/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
 .zed/
+
+# Compiled
+*.o
+*.a
+*.so
+*.dylib
+
+# OS
+.DS_Store
+<<<<<<< HEAD
+.zed/
+=======
+Thumbs.db
+>>>>>>> ecf626126f831741fa7977ebf70674370c480288
