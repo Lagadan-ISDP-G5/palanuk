@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(itp)
+project(anc_nsm)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 

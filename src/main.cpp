@@ -25,7 +25,6 @@ cv::Mat threshold_white_line(const cv::Mat& img) {
     cv::Mat gray, blurred, thresh;
     cv::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
     cv::GaussianBlur(gray, blurred, cv::Size(5, 5), 0);
-    cv::threshold(blurred, thresh, 200, 255, cv::THRESH_BINARY);
 
     // Mask out the top 27% of the frame
     int roi_top = static_cast<int>(img.rows * ROI_IGNORE_TOP_PERCENT);
