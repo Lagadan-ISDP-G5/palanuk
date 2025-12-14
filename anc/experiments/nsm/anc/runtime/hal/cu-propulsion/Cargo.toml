@@ -1,0 +1,18 @@
+[package]
+name = "cu-propulsion"
+publish.workspace = true
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+keywords.workspace = true
+
+[dependencies]
+dumb-sysfs-pwm = { workspace = true }
+gpio-cdev = { workspace = true }
+cu29 = { workspace = true }
+serde = { workspace = true }
+bincode = { workspace = true }
+
+[build-dependencies]
+cfg_aliases = "0.2.1"
