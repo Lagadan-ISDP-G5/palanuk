@@ -1,3 +1,0 @@
-# EC
-
-Responsible Engineer: Najdzmi
