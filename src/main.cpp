@@ -160,34 +160,31 @@ CornerDetectionResult detect_L_corner(const cv::Mat& thresh, const LineDetection
         return result;
     }
 
-    // The corner is likely near where the center line points end (topmost point)
-    cv::Point2f topmost = center_line.points.back();
-    for (const auto& pt : center_line.points) {
-        if (pt.y < topmost.y) {
-            topmost = pt;
-        }
-    }
+    // The corner is likely near the last detected point in the sliding window sequence
+    // (where the line ends or changes direction)
+    cv::Point2f endpoint = center_line.points.back();
 
-    // Search for horizontal line near the topmost point
-    LineDetectionResult horiz = detect_horizontal_line(thresh, static_cast<int>(topmost.y));
+    // Search for horizontal line near the endpoint
+    LineDetectionResult horiz = detect_horizontal_line(thresh, static_cast<int>(endpoint.y));
 
     // Also use Harris corners as candidates
     std::vector<cv::Point2f> harris_corners = detect_harris_corners(thresh);
 
-    // Find the best corner candidate near the intersection
-    cv::Point2f best_corner = topmost;
+    // Find the best corner candidate near the endpoint
+    cv::Point2f best_corner = endpoint;
     float best_dist = std::numeric_limits<float>::max();
 
     for (const auto& corner : harris_corners) {
-        // Corner should be near the top of the center line
-        float dist = cv::norm(corner - topmost);
+        // Corner should be near the endpoint of the center line
+        float dist = cv::norm(corner - endpoint);
         if (dist < best_dist && dist < 100) {  // within 100 pixels
             best_dist = dist;
             best_corner = corner;
         }
     }
 
-    if (best_dist < 100 || horiz.valid) {
+    // Require both a nearby Harris corner AND a valid horizontal line
+    if (best_dist < 100 && horiz.valid) {
         result.corner_point = best_corner;
         result.detected = true;
 
