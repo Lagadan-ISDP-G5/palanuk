@@ -22,3 +22,5 @@ cmake-build-*/
 # OS
 .DS_Store
 .zed/
+
+target/
