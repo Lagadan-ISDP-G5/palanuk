@@ -2,6 +2,7 @@
 #include <filesystem>
 #include <iostream>
 #include <vector>
+#include <limits>
 
 namespace fs = std::filesystem;
 
@@ -9,6 +10,12 @@ struct LineDetectionResult {
     std::vector<cv::Point2f> points;
     cv::Vec4f fitted_line;  // (vx, vy, x0, y0)
     bool valid = false;
+};
+
+struct CornerDetectionResult {
+    cv::Point2f corner_point;
+    cv::Point2f horizontal_direction;  // unit vector along horizontal line
+    bool detected = false;
 };
 
 cv::Mat threshold_white_line(const cv::Mat& img) {
@@ -61,21 +68,161 @@ LineDetectionResult detect_line_sliding_window(const cv::Mat& thresh, int num_wi
     return result;
 }
 
-cv::Mat visualize_result(const cv::Mat& original, const cv::Mat& thresh, const LineDetectionResult& result) {
+// Detect horizontal line using sliding windows (scans left-to-right)
+LineDetectionResult detect_horizontal_line(const cv::Mat& thresh, int start_y, int num_windows = 10, int window_height = 40) {
+    LineDetectionResult result;
+    int height = thresh.rows;
+    int width = thresh.cols;
+    int window_width = width / num_windows;
+
+    // Search region around the expected y position
+    int search_top = std::max(0, start_y - window_height);
+    int search_bottom = std::min(height, start_y + window_height);
+    int search_height = search_bottom - search_top;
+
+    if (search_height <= 0) return result;
+
+    int current_y = start_y;
+
+    for (int i = 0; i < num_windows; i++) {
+        int x_left = i * window_width;
+        int x_center = x_left + window_width / 2;
+
+        int y_top = std::max(0, current_y - window_height / 2);
+        int y_bottom = std::min(height, current_y + window_height / 2);
+        int rect_height = y_bottom - y_top;
+
+        if (rect_height <= 0 || x_left + window_width > width) break;
+
+        cv::Rect window_rect(x_left, y_top, window_width, rect_height);
+        cv::Mat window = thresh(window_rect);
+
+        cv::Moments wm = cv::moments(window, true);
+        if (wm.m00 > 50) {
+            int local_y = static_cast<int>(wm.m01 / wm.m00);
+            current_y = y_top + local_y;
+            result.points.emplace_back(x_center, current_y);
+        }
+    }
+
+    if (result.points.size() >= 2) {
+        cv::fitLine(result.points, result.fitted_line, cv::DIST_L2, 0, 0.01, 0.01);
+        result.valid = true;
+    }
+
+    return result;
+}
+
+// Detect L-corner using Harris corner detection on the thresholded image
+std::vector<cv::Point2f> detect_harris_corners(const cv::Mat& thresh, int max_corners = 10) {
+    std::vector<cv::Point2f> corners;
+
+    cv::Mat corners_response;
+    cv::cornerHarris(thresh, corners_response, 9, 3, 0.04);
+
+    cv::Mat corners_norm;
+    cv::normalize(corners_response, corners_norm, 0, 255, cv::NORM_MINMAX);
+
+    // Find local maxima above threshold
+    double threshold_val = 150;
+    for (int y = 10; y < corners_norm.rows - 10; y++) {
+        for (int x = 10; x < corners_norm.cols - 10; x++) {
+            float val = corners_norm.at<float>(y, x);
+            if (val > threshold_val) {
+                // Check if local maximum
+                bool is_max = true;
+                for (int dy = -5; dy <= 5 && is_max; dy++) {
+                    for (int dx = -5; dx <= 5 && is_max; dx++) {
+                        if (dx == 0 && dy == 0) continue;
+                        if (corners_norm.at<float>(y + dy, x + dx) >= val) {
+                            is_max = false;
+                        }
+                    }
+                }
+                if (is_max) {
+                    corners.emplace_back(x, y);
+                    if (corners.size() >= static_cast<size_t>(max_corners)) {
+                        return corners;
+                    }
+                }
+            }
+        }
+    }
+
+    return corners;
+}
+
+// Main corner detection: finds where center line meets horizontal line
+CornerDetectionResult detect_L_corner(const cv::Mat& thresh, const LineDetectionResult& center_line) {
+    CornerDetectionResult result;
+
+    if (!center_line.valid || center_line.points.size() < 2) {
+        return result;
+    }
+
+    // The corner is likely near where the center line points end (topmost point)
+    cv::Point2f topmost = center_line.points.back();
+    for (const auto& pt : center_line.points) {
+        if (pt.y < topmost.y) {
+            topmost = pt;
+        }
+    }
+
+    // Search for horizontal line near the topmost point
+    LineDetectionResult horiz = detect_horizontal_line(thresh, static_cast<int>(topmost.y));
+
+    // Also use Harris corners as candidates
+    std::vector<cv::Point2f> harris_corners = detect_harris_corners(thresh);
+
+    // Find the best corner candidate near the intersection
+    cv::Point2f best_corner = topmost;
+    float best_dist = std::numeric_limits<float>::max();
+
+    for (const auto& corner : harris_corners) {
+        // Corner should be near the top of the center line
+        float dist = cv::norm(corner - topmost);
+        if (dist < best_dist && dist < 100) {  // within 100 pixels
+            best_dist = dist;
+            best_corner = corner;
+        }
+    }
+
+    if (best_dist < 100 || horiz.valid) {
+        result.corner_point = best_corner;
+        result.detected = true;
+
+        // Determine horizontal direction from horizontal line if available
+        if (horiz.valid) {
+            result.horizontal_direction = cv::Point2f(horiz.fitted_line[0], horiz.fitted_line[1]);
+            // Ensure pointing right (positive x)
+            if (result.horizontal_direction.x < 0) {
+                result.horizontal_direction = -result.horizontal_direction;
+            }
+        } else {
+            result.horizontal_direction = cv::Point2f(1, 0);  // default right
+        }
+    }
+
+    return result;
+}
+
+cv::Mat visualize_result(const cv::Mat& original, const cv::Mat& thresh,
+                         const LineDetectionResult& center_line,
+                         const CornerDetectionResult& corner) {
     cv::Mat vis = original.clone();
 
-    // Draw detected points
-    for (const auto& pt : result.points) {
+    // Draw center line detected points
+    for (const auto& pt : center_line.points) {
         cv::circle(vis, pt, 8, cv::Scalar(0, 255, 0), -1);  // green filled circles
         cv::circle(vis, pt, 8, cv::Scalar(0, 0, 0), 2);     // black outline
     }
 
-    // Draw fitted line
-    if (result.valid) {
-        float vx = result.fitted_line[0];
-        float vy = result.fitted_line[1];
-        float x0 = result.fitted_line[2];
-        float y0 = result.fitted_line[3];
+    // Draw fitted center line
+    if (center_line.valid) {
+        float vx = center_line.fitted_line[0];
+        float vy = center_line.fitted_line[1];
+        float x0 = center_line.fitted_line[2];
+        float y0 = center_line.fitted_line[3];
 
         // Extend line to image boundaries
         int y1 = vis.rows;
@@ -84,6 +231,22 @@ cv::Mat visualize_result(const cv::Mat& original, const cv::Mat& thresh, const L
         int x2 = static_cast<int>(x0 + (y2 - y0) * vx / vy);
 
         cv::line(vis, cv::Point(x1, y1), cv::Point(x2, y2), cv::Scalar(0, 0, 255), 3);  // red line
+    }
+
+    // Draw L-corner if detected
+    if (corner.detected) {
+        // Draw corner point (large cyan circle)
+        cv::circle(vis, corner.corner_point, 15, cv::Scalar(255, 255, 0), -1);  // cyan filled
+        cv::circle(vis, corner.corner_point, 15, cv::Scalar(0, 0, 0), 3);       // black outline
+
+        // Draw horizontal direction arrow
+        cv::Point2f arrow_end = corner.corner_point + corner.horizontal_direction * 80;
+        cv::arrowedLine(vis, corner.corner_point, arrow_end,
+                        cv::Scalar(255, 0, 255), 3, cv::LINE_AA, 0, 0.3);  // magenta arrow
+
+        // Label the corner
+        cv::putText(vis, "CORNER", corner.corner_point + cv::Point2f(-30, -25),
+                    cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 255, 0), 2);
     }
 
     // Create side-by-side output: threshold | visualization
@@ -125,16 +288,21 @@ int main(int argc, char** argv) {
 
         // Process
         cv::Mat thresh = threshold_white_line(img);
-        LineDetectionResult result = detect_line_sliding_window(thresh);
+        LineDetectionResult center_line = detect_line_sliding_window(thresh);
+        CornerDetectionResult corner = detect_L_corner(thresh, center_line);
 
-        std::cout << " -> " << result.points.size() << " points";
-        if (result.valid) {
+        std::cout << " -> " << center_line.points.size() << " points";
+        if (center_line.valid) {
             std::cout << ", line fitted";
+        }
+        if (corner.detected) {
+            std::cout << ", CORNER at (" << static_cast<int>(corner.corner_point.x)
+                      << "," << static_cast<int>(corner.corner_point.y) << ")";
         }
         std::cout << std::endl;
 
         // Save visualization
-        cv::Mat output = visualize_result(img, thresh, result);
+        cv::Mat output = visualize_result(img, thresh, center_line, corner);
         fs::path output_path = output_dir / ("processed_" + filename);
         cv::imwrite(output_path.string(), output);
     }
