@@ -25,8 +25,9 @@ cv::Mat threshold_white_line(const cv::Mat& img) {
     cv::Mat gray, blurred, thresh;
     cv::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
     cv::GaussianBlur(gray, blurred, cv::Size(5, 5), 0);
+    cv::threshold(blurred, thresh, 210, 255, cv::THRESH_BINARY);
 
-    // Mask out the top 27% of the frame
+    // Mask out the top 33% of the frame
     int roi_top = static_cast<int>(img.rows * ROI_IGNORE_TOP_PERCENT);
     thresh(cv::Rect(0, 0, img.cols, roi_top)) = 0;
 
@@ -278,6 +279,10 @@ int main(int argc, char** argv) {
 
     for (const auto& entry : fs::directory_iterator(stills_dir)) {
         if (!entry.is_regular_file()) continue;
+
+        // Skip non-image files
+        std::string ext = entry.path().extension().string();
+        if (ext != ".jpg" && ext != ".jpeg" && ext != ".png" && ext != ".bmp") continue;
 
         std::string path = entry.path().string();
         cv::Mat img = cv::imread(path);
