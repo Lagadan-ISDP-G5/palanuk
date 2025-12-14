@@ -1,3 +1,0 @@
-# ODD
-
-Responsible Engineer: Verossiny
