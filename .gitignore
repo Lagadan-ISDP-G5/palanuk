@@ -21,8 +21,4 @@ cmake-build-*/
 
 # OS
 .DS_Store
-<<<<<<< HEAD
 .zed/
-=======
-Thumbs.db
->>>>>>> ecf626126f831741fa7977ebf70674370c480288
