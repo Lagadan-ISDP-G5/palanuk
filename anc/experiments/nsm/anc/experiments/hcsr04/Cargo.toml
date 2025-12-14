@@ -1,0 +1,17 @@
+[package]
+name = "hcsr04"
+version = "0.1.0"
+edition = "2024"
+license = "GPL-3.0-only"
+keywords = ["raspberry-pi", "hc-sr04", "ultrasonic", "raspberry-pi-5"]
+categories = ["hardware-support"]
+description = "gpio-cdev-based driver for HC-SR04 on the Raspberry Pi 5."
+readme = "README.md"
+repository = "https://github.com/andergisomon/hc-sr04-gpio-cdev"
+
+[[example]]
+name = "hcsr04_xmpl"
+path = "usage_example/example.rs"
+
+[dependencies]
+gpio-cdev = "0.6.0"
