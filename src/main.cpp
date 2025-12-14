@@ -18,18 +18,42 @@ struct CornerDetectionResult {
     bool detected = false;
 };
 
-// ROI: bottom 67% of frame (top 33% is ignored)
-constexpr float ROI_IGNORE_TOP_PERCENT = 0.33f;
+// ROI: bottom 47% of frame (top 53% is ignored)
+constexpr float ROI_IGNORE_TOP_PERCENT = 0.53f;
 
 cv::Mat threshold_white_line(const cv::Mat& img) {
-    cv::Mat gray, blurred, thresh;
+    cv::Mat gray, blurred, thresh_raw;
     cv::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
     cv::GaussianBlur(gray, blurred, cv::Size(5, 5), 0);
-    cv::threshold(blurred, thresh, 210, 255, cv::THRESH_BINARY);
+    cv::threshold(blurred, thresh_raw, 200, 255, cv::THRESH_BINARY);
 
-    // Mask out the top 33% of the frame
+    // Mask out the top 53% of the frame
     int roi_top = static_cast<int>(img.rows * ROI_IGNORE_TOP_PERCENT);
-    thresh(cv::Rect(0, 0, img.cols, roi_top)) = 0;
+    thresh_raw(cv::Rect(0, 0, img.cols, roi_top)) = 0;
+
+    // Find contours and filter by shape
+    std::vector<std::vector<cv::Point>> contours;
+    cv::findContours(thresh_raw, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+
+    cv::Mat thresh = cv::Mat::zeros(thresh_raw.size(), CV_8UC1);
+
+    for (const auto& contour : contours) {
+        cv::RotatedRect rect = cv::minAreaRect(contour);
+        float width = rect.size.width;
+        float height = rect.size.height;
+        float longer = std::max(width, height);
+        float shorter = std::min(width, height);
+        float aspect_ratio = longer / std::max(shorter, 1.0f);
+
+        // Lines are long (longer dimension > 50px) OR elongated (aspect > 2.5)
+        // Glare is short and round
+        bool is_long = longer > 50;
+        bool is_elongated = aspect_ratio > 2.5;
+
+        if (is_long || is_elongated) {
+            cv::drawContours(thresh, std::vector<std::vector<cv::Point>>{contour}, 0, 255, cv::FILLED);
+        }
+    }
 
     return thresh;
 }
