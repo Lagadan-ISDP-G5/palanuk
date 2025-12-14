@@ -1,3 +1,0 @@
-# ITP
-
-Responsible Engineer: Mclaren
