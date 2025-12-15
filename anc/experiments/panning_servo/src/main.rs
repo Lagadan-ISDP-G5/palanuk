@@ -49,26 +49,26 @@ fn main() -> Result<(), Box<dyn Error>> {
         std::thread::sleep(Duration::from_millis(1750));
 
         // Pan right (upon UGV POV)
-        for duty in (50..=75).rev().step_by(1) {
-            ctrl_pwm_hndl.set_duty_cycle(duty as f64 / 1000.0)?;
-            std::thread::sleep(Duration::from_millis(20));
-        }
+        // for duty in (50..=75).rev().step_by(1) {
+        //     ctrl_pwm_hndl.set_duty_cycle(duty as f64 / 1000.0)?;
+        //     std::thread::sleep(Duration::from_millis(20));
+        // }
 
-        std::thread::sleep(Duration::from_millis(1750));
+        // std::thread::sleep(Duration::from_millis(1750));
 
-        // Pan left (upon UGV POV)
-        for duty in (75..=100).step_by(1) {
-            ctrl_pwm_hndl.set_duty_cycle(duty as f64 / 1000.0)?;
-            std::thread::sleep(Duration::from_millis(20));
-        }
+        // // Pan left (upon UGV POV)
+        // for duty in (75..=100).step_by(1) {
+        //     ctrl_pwm_hndl.set_duty_cycle(duty as f64 / 1000.0)?;
+        //     std::thread::sleep(Duration::from_millis(20));
+        // }
 
-        std::thread::sleep(Duration::from_millis(1750));
+        // std::thread::sleep(Duration::from_millis(1750));
 
-        // Return to middle position
-        for duty in (75..=100).rev().step_by(1) {
-            ctrl_pwm_hndl.set_duty_cycle(duty as f64 / 1000.0)?;
-            std::thread::sleep(Duration::from_millis(20));
-        }
+        // // Return to middle position
+        // for duty in (75..=100).rev().step_by(1) {
+        //     ctrl_pwm_hndl.set_duty_cycle(duty as f64 / 1000.0)?;
+        //     std::thread::sleep(Duration::from_millis(20));
+        // }
 
 
 

@@ -19,7 +19,7 @@
            id: "power-monitoring",
            type: "cu_powermon::CuIna219",
            config: {
-               "target_addr": 68, // 0d68 = 0x44
+               "target_addr": 0x40, // 0d68 = 0x44
            },
        ),
 

@@ -2,13 +2,10 @@ use cu29::prelude::*;
 use cu29_helpers::basic_copper_setup;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
 use cu_propulsion::{PropulsionPayload, WheelDirection};
 use cu_cam_pan::{CameraPanningPayload, PositionCommand};
 use cu_hcsr04::{HcSr04Payload, IGNORE_VAL};
-use cu_powermon::{CuIna219, Ina219Payload};
-use ctrlc::*;
-use std::sync::mpsc::channel;
+use cu_powermon::{Ina219Payload};
 use core_affinity::*;
 use libc::*;
 // use iceoryx2::prelude::*;
@@ -92,8 +89,8 @@ impl CuTask for Jogger {
                 right_enable: true,
                 left_direction: WheelDirection::Forward,
                 right_direction: WheelDirection::Forward,
-                left_speed: 1.0,
-                right_speed: 1.0// 0.01
+                left_speed: 0.8,
+                right_speed: 0.8
             });
 
             output.metadata.set_status(format!("Moving..."));
@@ -201,20 +198,6 @@ fn main() {
         copper_ctx.unified_logger.clone(),
         None
     ).expect("Failed to create runtime.");
-
-    // let running = Arc::new(AtomicBool::new(true));
-    // let running_clone = Arc::clone(&running);
-    // let (tx, rx) = channel::<AtomicBool>();
-
-    // ctrlc::set_handler(move || {
-    //     running_clone.store(false, Ordering::SeqCst);
-    // })
-    // .expect("Error setting Ctrl-C handler");
-
-    // debug!("Running... starting clock: {}.", clock.now());
-    // while running.load(Ordering::Relaxed) {
-    //     _ = application.run_one_iteration();
-    // }
 
     application.run().expect("Failed to run application."); // blocks indefinitely
     debug!("End of app: final clock: {}.", clock.now());
