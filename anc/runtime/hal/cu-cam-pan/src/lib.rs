@@ -1,4 +1,4 @@
-use std::{str::FromStr, sync::{Arc, atomic::{AtomicBool, AtomicU8, Ordering}}};
+use std::{str::FromStr, sync::{Arc, Mutex, atomic::{AtomicBool, AtomicU8, Ordering}}};
 use std::thread::{JoinHandle, Builder, sleep};
 use std::time::{Duration, Instant};
 use libc::*;
@@ -76,7 +76,7 @@ pub struct CameraPanningControllerInstances {
 pub struct CameraPanning {
     task_running: Arc<AtomicBool>,
     recvd_pos_cmd: Arc<AtomicU8>,
-    pin_controller_instances: Arc<CameraPanningControllerInstances>,
+    pin_controller_instances: Arc<Mutex<CameraPanningControllerInstances>>,
     ipolate_thread_hdl: Option<JoinHandle<Result<(), cu29::CuError>>>,
 }
 
@@ -96,7 +96,7 @@ impl CuSinkTask for CameraPanning {
             .clone()
             .into();
 
-        let sg90_pos_cmd_instance = PwmBuilder::new(0, sg90_pos_cmd_pin_offset, 0).build().unwrap();
+        let sg90_pos_cmd_instance = PwmBuilder::new(0, sg90_pos_cmd_pin_offset, 5_000_000).build().unwrap();
         // let sg90_pos_cmd_instance = Pwm::new(0, sg90_pos_cmd_pin_offset).unwrap();
         let pin_controller_instances = CameraPanningControllerInstances {
             sg90_pos_cmd: sg90_pos_cmd_instance
@@ -106,7 +106,7 @@ impl CuSinkTask for CameraPanning {
             task_running: Arc::new(AtomicBool::new(true)),
             recvd_pos_cmd: Arc::new(AtomicU8::new(PositionCommand::to_u8(PositionCommand::default()))),
             ipolate_thread_hdl: None,
-            pin_controller_instances: Arc::new(pin_controller_instances),
+            pin_controller_instances: Arc::new(Mutex::new(pin_controller_instances)),
         })
     }
 
@@ -131,6 +131,11 @@ impl CuSinkTask for CameraPanning {
                     return Err(CuError::from("cu-cam-pan ipolate thread: sched_setscheduler call returned -1. sched_setscheduler failed."));
                 }
             }
+
+            let mut controller = match controller.try_lock() {
+                Ok(ret) => ret,
+                Err(_) => return Err(CuError::from(format!("Failed to acquire lock on CameraPanningControllerInstances")))
+            };
 
             // make sure PWM params are initialized
             // _ = controller.sg90_pos_cmd.export(); // export first

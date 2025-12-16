@@ -37,7 +37,7 @@
             type: "cu_propulsion::Propulsion",
             config: {
                 "l298n_en_a": 2, // PWM_CHAN2 = GPIO18
-                "l298n_en_b": 1, // PWM_CHAN1 = GPIO13
+                "l298n_en_b": 3, // PWM_CHAN1 = GPIO13, PWM_CHAN1 is somehow faulty, using PWM_CHAN3 = GPIO15, PIN10
                 "l298n_in_1": 23,
                 "l298n_in_2": 24,
                 "l298n_in_3": 26,

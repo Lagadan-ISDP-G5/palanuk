@@ -16,6 +16,8 @@ struct Palanuk {}
 #[allow(clippy::identity_op)]
 const SLAB_SIZE: Option<usize> = Some(1 * 1024 * 1024 * 1024);
 
+const MOTOR_COMPENSATION: f32 = 0.85;
+
 pub struct Jogger {}
 pub struct Panner {}
 pub struct Dummy {}
@@ -89,8 +91,8 @@ impl CuTask for Jogger {
                 right_enable: true,
                 left_direction: WheelDirection::Forward,
                 right_direction: WheelDirection::Forward,
-                left_speed: 0.6,
-                right_speed: 0.05,
+                left_speed: 0.5,
+                right_speed: 0.5,
             });
 
             output.metadata.set_status(format!("Moving..."));
