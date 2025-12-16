@@ -1,4 +1,4 @@
-use dumb_sysfs_pwm::Pwm;
+use dumb_sysfs_pwm::{Pwm, PwmBuilder};
 use gpio_cdev::*;
 use cu29::prelude::*;
 use bincode::{Decode, Encode};
@@ -168,9 +168,11 @@ impl CuSinkTask for Propulsion {
             .clone()
             .into();
 
+        let lmtr_en_a_instance = PwmBuilder::new(0, l298n_en_a_pin_offset, 0).build().unwrap();
+        let rmtr_en_b_instance = PwmBuilder::new(0, l298n_en_b_pin_offset, 0).build().unwrap();
 
-        let lmtr_en_a_instance = Pwm::new(0, l298n_en_a_pin_offset).unwrap();
-        let rmtr_en_b_instance = Pwm::new(0, l298n_en_b_pin_offset).unwrap();
+        // let lmtr_en_a_instance = Pwm::new(0, l298n_en_a_pin_offset).unwrap();
+        // let rmtr_en_b_instance = Pwm::new(0, l298n_en_b_pin_offset).unwrap();
         let mut gpio = Chip::new("/dev/gpiochip4").unwrap();
 
         let pin_assignments = PropulsionPinAssignments {
@@ -219,38 +221,28 @@ impl CuSinkTask for Propulsion {
         let en_a_hdl = &mut self.pin_controller_instances.lmtr_en_a;
         let en_b_hdl = &mut self.pin_controller_instances.rmtr_en_b;
 
-        let (ret1, ret2) = (en_a_hdl.export(), en_b_hdl.export());
-        let mut success: bool = false;
+        en_a_hdl.set_period_ns(5_000_000);
+        en_b_hdl.set_period_ns(5_000_000);
 
-        if let Ok(_) = ret1 && let Ok(_) = ret2 {
-            let (ret1, ret2) = (en_a_hdl.set_period_ns(20_000), en_b_hdl.set_period_ns(20_000));
-            if let Ok(_) = ret1 && let Ok(_) = ret2 {
-                let (ret1, ret2) = (en_a_hdl.set_duty_cycle(0.0), en_b_hdl.set_duty_cycle(0.0));
-                if let Ok(_) = ret1 && let Ok(_) = ret2 {
-                    success = true;
-                }
-            }
+        match en_a_hdl.set_duty_cycle(0.0) {
+            Ok(_) => (),
+            Err(e) => {return Err(CuError::from(format!("Failed to init propulsion Pwm: {}", e.to_string())))}
         }
 
-        match success {
-            true => Ok(()),
-            false => Err(CuError::from(format!("Failed to init propulsion Pwm")))
+        match en_b_hdl.set_duty_cycle(0.0) {
+            Ok(_) => (),
+            Err(e) => {return Err(CuError::from(format!("Failed to init propulsion Pwm: {}", e.to_string())))}
         }
+
+        Ok(())
     }
 
     fn process(&mut self, _clock: &RobotClock, input: &Self::Input<'_>) -> Result<(), CuError> {
         let en_a_hdl = &mut self.pin_controller_instances.lmtr_en_a;
-        let en_a_is_enabled = match en_a_hdl.get_enabled() {
-            Ok(ret) => ret,
-            Err(_) => return Err(CuError::from(format!("failed to get enabled status")))
-        };
+        let en_a_is_enabled = en_a_hdl.get_enable();
 
         let en_b_hdl = &mut self.pin_controller_instances.rmtr_en_b;
-        let en_b_is_enabled = match en_b_hdl.get_enabled() {
-            Ok(ret) => ret,
-            Err(_) => return Err(CuError::from(format!("failed to get enabled status")))
-
-        };
+        let en_b_is_enabled = en_b_hdl.get_enable();
 
         let payload = input.payload();
 
@@ -260,7 +252,7 @@ impl CuSinkTask for Propulsion {
                 match en_a_is_enabled {
                     true => (),
                     false => {
-                        match en_a_hdl.enable(true) {
+                        match en_a_hdl.set_enable(true) {
                             Ok(_) => (),
                             Err(_) => return Err(CuError::from(format!("Failed to set enable")))
                         }
@@ -271,7 +263,7 @@ impl CuSinkTask for Propulsion {
                 self.left_wheel.enable = false;
                 match en_a_is_enabled {
                     true => {
-                        match en_a_hdl.enable(false) {
+                        match en_a_hdl.set_enable(false) {
                             Ok(_) => (),
                             Err(_) => return Err(CuError::from(format!("Failed to set enable")))
                         }
@@ -285,7 +277,7 @@ impl CuSinkTask for Propulsion {
                 match en_b_is_enabled {
                     true => (),
                     false => {
-                        match en_b_hdl.enable(true) {
+                        match en_b_hdl.set_enable(true) {
                             Ok(_) => (),
                             Err(_) => return Err(CuError::from(format!("Failed to set enable")))
                         }
@@ -296,7 +288,7 @@ impl CuSinkTask for Propulsion {
                 self.right_wheel.enable = false;
                 match en_b_is_enabled {
                     true => {
-                        match en_b_hdl.enable(false) {
+                        match en_b_hdl.set_enable(false) {
                             Ok(_) => (),
                             Err(_) => return Err(CuError::from(format!("Failed to set enable")))
                         }

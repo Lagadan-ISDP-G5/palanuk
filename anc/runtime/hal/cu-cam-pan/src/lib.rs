@@ -2,7 +2,7 @@ use std::{str::FromStr, sync::{Arc, atomic::{AtomicBool, AtomicU8, Ordering}}};
 use std::thread::{JoinHandle, Builder, sleep};
 use std::time::{Duration, Instant};
 use libc::*;
-use dumb_sysfs_pwm::{Pwm, Polarity};
+use dumb_sysfs_pwm::{Pwm, PwmBuilder};
 use cu29::prelude::*;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
@@ -96,7 +96,8 @@ impl CuSinkTask for CameraPanning {
             .clone()
             .into();
 
-        let sg90_pos_cmd_instance = Pwm::new(0, sg90_pos_cmd_pin_offset).unwrap();
+        let sg90_pos_cmd_instance = PwmBuilder::new(0, sg90_pos_cmd_pin_offset, 0).build().unwrap();
+        // let sg90_pos_cmd_instance = Pwm::new(0, sg90_pos_cmd_pin_offset).unwrap();
         let pin_controller_instances = CameraPanningControllerInstances {
             sg90_pos_cmd: sg90_pos_cmd_instance
         };
@@ -132,13 +133,12 @@ impl CuSinkTask for CameraPanning {
             }
 
             // make sure PWM params are initialized
-            _ = controller.sg90_pos_cmd.export(); // export first
+            // _ = controller.sg90_pos_cmd.export(); // export first
             _ = controller.sg90_pos_cmd.set_period_ns(PERIOD_NS);
-            _ = controller.sg90_pos_cmd.set_polarity(Polarity::Normal);
 
             // check if controller is enabled yet
-            if !controller.sg90_pos_cmd.get_enabled().unwrap() {
-                controller.sg90_pos_cmd.enable(true).unwrap();
+            if !controller.sg90_pos_cmd.get_enable() {
+                controller.sg90_pos_cmd.set_enable(true).unwrap();
                 // should probably add a reset routine here, with a helper function to make sure the servo
                 // resets to the front position
             }
@@ -211,7 +211,7 @@ impl CuSinkTask for CameraPanning {
             // plnk_busy_wait_for(Duration::from_millis(1750));
             sleep(Duration::from_millis(1750));
 
-            _ = controller.sg90_pos_cmd.enable(false);
+            _ = controller.sg90_pos_cmd.set_enable(false);
             _ = controller.sg90_pos_cmd.set_duty_cycle(0.0);
             _ = controller.sg90_pos_cmd.unexport();
             Ok(())

@@ -10,6 +10,12 @@ Script location: `/usr/local/sbin/persistent_pin_set.sh`
 
 This service configures GPIO12 as PWM0_CHAN0.
 
+## To reload changes to the service Script
+
+```
+sudo systemctl daemon-reload
+```
+
 ## dtoverlay
 
 This should be the correct overlay for PWM, in `/boot/firmware/config.txt`
