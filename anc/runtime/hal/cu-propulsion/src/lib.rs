@@ -168,8 +168,8 @@ impl CuSinkTask for Propulsion {
             .clone()
             .into();
 
-        let lmtr_en_a_instance = PwmBuilder::new(0, l298n_en_a_pin_offset, 200_000_000).build().unwrap();
-        let rmtr_en_b_instance = PwmBuilder::new(0, l298n_en_b_pin_offset, 200_000_000).build().unwrap();
+        let lmtr_en_a_instance = PwmBuilder::new(0, l298n_en_a_pin_offset, 20_000_000).build().unwrap();
+        let rmtr_en_b_instance = PwmBuilder::new(0, l298n_en_b_pin_offset, 20_000_000).build().unwrap();
 
         // let lmtr_en_a_instance = Pwm::new(0, l298n_en_a_pin_offset).unwrap();
         // let rmtr_en_b_instance = Pwm::new(0, l298n_en_b_pin_offset).unwrap();
@@ -221,8 +221,8 @@ impl CuSinkTask for Propulsion {
         let en_a_hdl = &mut self.pin_controller_instances.lmtr_en_a;
         let en_b_hdl = &mut self.pin_controller_instances.rmtr_en_b;
 
-        en_a_hdl.set_period_ns(200_000_000);
-        en_b_hdl.set_period_ns(200_000_000);
+        en_a_hdl.set_period_ns(20_000_000);
+        en_b_hdl.set_period_ns(20_000_000);
 
         match en_a_hdl.set_duty_cycle(0.0) {
             Ok(_) => (),

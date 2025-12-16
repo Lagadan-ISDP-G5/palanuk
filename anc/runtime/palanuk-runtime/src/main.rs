@@ -91,8 +91,8 @@ impl CuTask for Jogger {
                 right_enable: true,
                 left_direction: WheelDirection::Forward,
                 right_direction: WheelDirection::Forward,
-                left_speed: 0.5,
-                right_speed: 0.5,
+                left_speed: 0.75/MOTOR_COMPENSATION,
+                right_speed: 0.75,
             });
 
             output.metadata.set_status(format!("Moving..."));
