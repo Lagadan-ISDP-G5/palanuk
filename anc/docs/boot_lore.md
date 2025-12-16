@@ -23,6 +23,8 @@ This should be the correct overlay for PWM, in `/boot/firmware/config.txt`
 ```
 ...
 [all]
-dtoverlay=pwm
+dtoverlay=pwm-2chan
 ...
 ```
+
+`dtoverlay=pwm` doesn't seem to work with all the 4 hardware PWM channels.
