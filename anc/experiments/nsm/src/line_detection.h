@@ -6,8 +6,8 @@
 
 namespace nsm {
 
-LineDetectionResult detect_line_sliding_window(const cv::Mat& thresh, const PipelineConfig& config);
-LineDetectionResult detect_horizontal_line(const cv::Mat& thresh, int start_y, const PipelineConfig& config);
+void detect_line_sliding_window(const cv::Mat& thresh, const PipelineConfig& config, LineDetectionResult& out);
+void detect_horizontal_line(const cv::Mat& thresh, int start_y, const PipelineConfig& config, LineDetectionResult& out);
 
 }  // namespace nsm
 

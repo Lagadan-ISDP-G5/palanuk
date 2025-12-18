@@ -10,12 +10,24 @@ struct LineDetectionResult {
     std::vector<cv::Point2f> points;
     cv::Vec4f fitted_line;  // (vx, vy, x0, y0)
     bool valid = false;
+
+    void reset() {
+        points.clear();  // keeps capacity
+        fitted_line = cv::Vec4f();
+        valid = false;
+    }
 };
 
 struct CornerDetectionResult {
     cv::Point2f corner_point;
     cv::Point2f horizontal_direction;  // unit vector along horizontal line
     bool detected = false;
+
+    void reset() {
+        corner_point = cv::Point2f();
+        horizontal_direction = cv::Point2f();
+        detected = false;
+    }
 };
 
 struct FrameResult {
@@ -23,6 +35,13 @@ struct FrameResult {
     LineDetectionResult center_line;
     CornerDetectionResult corner;
     double processing_time_ms = 0.0;
+
+    void reset() {
+        // thresholded cv::Mat reused by OpenCV if same size/type
+        center_line.reset();
+        corner.reset();
+        processing_time_ms = 0.0;
+    }
 };
 
 struct PipelineConfig {
