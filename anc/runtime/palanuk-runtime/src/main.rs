@@ -4,7 +4,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use cu_propulsion::{PropulsionPayload, WheelDirection};
 use cu_cam_pan::{CameraPanningPayload, PositionCommand};
-use cu_hcsr04::{HcSr04Payload, IGNORE_VAL};
+use cu_hcsr04::{HcSr04Payload};
 use cu_powermon::{Ina219Payload};
 use core_affinity::*;
 use libc::*;
@@ -66,14 +66,14 @@ impl CuTask for Jogger {
     -> CuResult<()>
     {
         let hcsr04_msg = input;
-        let mut dist: f64 = 0.0;
+        let mut dist: Option<f64> = None;
 
         match hcsr04_msg.payload() {
-            Some(payload) => dist = payload.distance,
+            Some(payload) => dist = Some(payload.distance),
             _ => {}
         }
 
-        if dist < 10.0 || dist == IGNORE_VAL {
+        if dist < Some(10.0) {
             output.set_payload(PropulsionPayload {
                 left_enable: false,
                 right_enable: false,
@@ -91,8 +91,8 @@ impl CuTask for Jogger {
                 right_enable: true,
                 left_direction: WheelDirection::Forward,
                 right_direction: WheelDirection::Forward,
-                left_speed: 0.75/MOTOR_COMPENSATION,
-                right_speed: 0.75,
+                left_speed: 0.25/MOTOR_COMPENSATION,
+                right_speed: 0.25,
             });
 
             output.metadata.set_status(format!("Moving..."));
@@ -119,18 +119,14 @@ impl CuTask for Panner {
     -> CuResult<()>
     {
         let hcsr04_msg = input;
-        let mut dist: f64 = 0.0;
+        let mut dist: Option<f64> = None;
 
         match hcsr04_msg.payload() {
-            Some(payload) => dist = payload.distance,
+            Some(payload) => dist = Some(payload.distance),
             _ => {}
         }
 
-        // if dist == IGNORE_VAL {
-        //     output.clear_payload();
-        // }
-
-        if dist < 10.0 || dist == IGNORE_VAL {
+        if dist < Some(10.0) {
             output.set_payload(CameraPanningPayload {
                 pos_cmd: PositionCommand::Left
             });

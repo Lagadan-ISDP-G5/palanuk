@@ -3,7 +3,6 @@ use bincode::{Decode, Encode};
 use hcsr04_gpio_cdev::*;
 
 use serde::{Deserialize, Serialize};
-pub const IGNORE_VAL: f64 = 69420.0;
 
 pub struct CuHcSr04 {
     driver_instance: HcSr04
