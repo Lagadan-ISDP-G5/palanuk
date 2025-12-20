@@ -85,7 +85,8 @@ impl CuTask for Jogger {
 
             output.metadata.set_status(format!("Stopped. Obstacle detected."));
         }
-        else {
+
+        if dist > Some(10.0) || dist == None {
             output.set_payload(PropulsionPayload {
                 left_enable: true,
                 right_enable: true,
@@ -133,7 +134,8 @@ impl CuTask for Panner {
 
             output.metadata.set_status(format!("Camera Panning Left."));
         }
-        else {
+
+        if dist > Some(10.0) || dist == None {
             output.set_payload(CameraPanningPayload {
                 pos_cmd: PositionCommand::Front
             });

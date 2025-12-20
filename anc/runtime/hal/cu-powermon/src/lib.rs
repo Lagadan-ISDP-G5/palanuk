@@ -1,6 +1,6 @@
 use std::panic;
 
-use dumb_ina219::{units::{CurrentUnit, Gettable, PowerUnit, ResistanceUnit, VoltageUnit}, *};
+use dumb_ina219::{units::{CurrentUnit, Gettable, ResistanceUnit}, *};
 use cu29::prelude::*;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};

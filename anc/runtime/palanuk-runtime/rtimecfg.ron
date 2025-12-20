@@ -11,6 +11,7 @@
             config: {
                 "trig_pin": 21,
                 "echo_pin": 20,
+                "dist_threshold_cm": 2,
             },
             logging: (enabled: true)
         ),

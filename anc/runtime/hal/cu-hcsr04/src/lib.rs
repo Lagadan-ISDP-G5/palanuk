@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use cu29::prelude::*;
 use bincode::{Decode, Encode};
 use hcsr04_gpio_cdev::*;
@@ -37,7 +39,13 @@ impl CuSrcTask for CuHcSr04 {
             .clone()
             .into();
 
-        let driver_instance = HcSr04::new(trig_pin_offset, echo_pin_offset).expect("GPIO driver error");
+        let dist_threshold_cm: u32 = kv
+            .get("dist_threshold_cm")
+            .expect("threshold for HcSr04 not set in RON config")
+            .clone()
+            .into();
+
+        let driver_instance = HcSr04::new(trig_pin_offset, echo_pin_offset, DistanceUnit::Cm(dist_threshold_cm as f64)).expect("GPIO driver error");
 
         Ok(Self {
             driver_instance
