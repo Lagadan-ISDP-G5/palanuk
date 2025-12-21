@@ -54,11 +54,19 @@ impl CuSrcTask for CuHcSr04 {
 
     fn process(&mut self, _clock: &RobotClock, msg: &mut Self::Output<'_>) -> CuResult<()> {
         // let dist_cm = self.driver_instance.dist_cm(Some(range_to_timeout(DistanceUnit::Cm(100.0)).unwrap())).ok();
-        let dist_cm = self.driver_instance.dist_cm(None).ok();
+        let dist_cm = self.driver_instance.dist_cm(None);
 
         let dist_msg = match dist_cm {
-            Some(val) => val.to_val(),
-            None => return Err(CuError::from(format!("failed to get distance sensor reading")))
+            Ok(val) => val.to_val(),
+            Err(e) => {
+                let ret_err: CuError = match e {
+                    HcSr04Error::Init => CuError::from(format!("hcsr04 init")),
+                    HcSr04Error::Io => CuError::from(format!("echo/trig failure")),
+                    HcSr04Error::LineEventHandleRequest => CuError::from(format!("line event req")),
+                    HcSr04Error::PollFd => CuError::from(format!("fd polling"))
+                };
+                return Err(ret_err)
+            }
         };
 
         msg.set_payload(HcSr04Payload { distance: dist_msg });
