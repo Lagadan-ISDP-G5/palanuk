@@ -7,6 +7,7 @@
 #include "pipeline.h"
 #include "frame_source.h"
 #include "visualization.h"
+#include "line_detection.h"
 
 namespace fs = std::filesystem;
 
@@ -38,6 +39,8 @@ int runBatchMode(nsm::ImageDirectorySource& source, nsm::Pipeline& pipeline,
 
         nsm::FrameResult result = pipeline.process(frame);
 
+        float center_offset = nsm::get_line_center_offset(result.center_line, frame.cols);
+        std::cout << " -> offset: " << center_offset;
         std::cout << " -> " << result.center_line.points.size() << " points";
         if (result.center_line.valid) {
             std::cout << ", line fitted";
@@ -78,6 +81,9 @@ int runLiveMode(nsm::FrameSource& source, nsm::Pipeline& pipeline) {
         }
 
         nsm::FrameResult result = pipeline.process(frame);
+
+        float center_offset = nsm::get_line_center_offset(result.center_line, frame.cols);
+        std::cout << "Frame " << frame_count << " offset: " << center_offset << std::endl;
 
         // Smooth FPS calculation
         double fps = 1000.0 / result.processing_time_ms;
