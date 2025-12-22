@@ -51,21 +51,16 @@ impl CuSrcTask for CuHcSr04 {
     }
 
     fn process(&mut self, _clock: &RobotClock, msg: &mut Self::Output<'_>) -> CuResult<()> {
-        // let dist_cm = self.driver_instance.dist_cm(Some(range_to_timeout(DistanceUnit::Cm(100.0)).unwrap())).ok();
         let dist_cm = self.driver_instance.dist_cm(None);
 
-        let dist_msg = match dist_cm {
-            Ok(val) => val.to_val(),
-            Err(e) => {
-                let ret_err: CuError = match e {
-                    HcSr04Error::Init => CuError::from(format!("hcsr04 init")),
-                    HcSr04Error::Io => CuError::from(format!("echo/trig failure")),
-                    HcSr04Error::LineEventHandleRequest => CuError::from(format!("line event req")),
-                    HcSr04Error::PollFd => CuError::from(format!("fd polling"))
-                };
-                return Err(ret_err)
+        let dist_msg = dist_cm.map_err(|e| {
+            match e {
+                HcSr04Error::Init => CuError::from(format!("hcsr04 init")),
+                HcSr04Error::Io => CuError::from(format!("echo/trig failure")),
+                HcSr04Error::LineEventHandleRequest => CuError::from(format!("line event req")),
+                HcSr04Error::PollFd => CuError::from(format!("fd polling"))
             }
-        };
+        })?.to_val();
 
         msg.set_payload(HcSr04Payload { distance: dist_msg });
         msg.metadata.set_status(format!("{dist_msg:.2} cm"));

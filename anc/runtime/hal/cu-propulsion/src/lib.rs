@@ -4,15 +4,6 @@ use cu29::prelude::*;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
-// Not used here, the assignment is final but it should be passed in the RON instead of being hardcoded
-// const LMTR_ENABLE_PIN: u32 = 18;
-// const LMTR_IN_1: u32 = 23;
-// const LMTR_IN_2: u32 = 24;
-
-// const RMTR_ENABLE_PIN: u32 = 13;
-// const RMTR_IN_3: u32 = 26;
-// const RMTR_IN_4: u32 = 19;
-
 pub struct DirectionPair(u8, u8);
 // Just reassign these if the actual hardware connections happen to be flipped
 const FORWARD: DirectionPair = DirectionPair(0, 1);
@@ -27,22 +18,6 @@ pub enum Speed {
     Slow,
     NotSlow,
 }
-
-// Might remove this abstraction in the future, it might also be useful
-// For now speed in the payload is just the duty cycle
-// const REALLY_SLOW: f32 = 0.2;
-// const SLOW: f32 = 0.4;
-// const NOT_SLOW: f32 = 0.8;
-
-// impl Speed {
-//     fn get_duty_cycle(&self, speed: Speed) -> f32 {
-//         match speed {
-//             Speed::ReallySlow => REALLY_SLOW,
-//             Speed::Slow => SLOW,
-//             Speed::NotSlow => NOT_SLOW
-//         }
-//     }
-// }
 
 /// `left_speed` and `right_speed` are the percentage duty cycles for the Pwm controllers of each wheel.
 #[derive(Debug, Clone, Copy, Default, Encode, Decode, PartialEq, Serialize, Deserialize)]
@@ -104,7 +79,6 @@ pub struct Propulsion {
     left_wheel: WheelState,
     right_wheel: WheelState,
     pin_controller_instances: PropulsionControllerInstances,
-    // #[cfg(hardware)]
     pin_assignments: PropulsionPinAssignments,
 }
 
@@ -169,9 +143,6 @@ impl CuSinkTask for Propulsion {
 
         let lmtr_en_a_instance = PwmBuilder::new(0, l298n_en_a_pin_offset, 20_000_000).build().unwrap();
         let rmtr_en_b_instance = PwmBuilder::new(0, l298n_en_b_pin_offset, 20_000_000).build().unwrap();
-
-        // let lmtr_en_a_instance = Pwm::new(0, l298n_en_a_pin_offset).unwrap();
-        // let rmtr_en_b_instance = Pwm::new(0, l298n_en_b_pin_offset).unwrap();
         let mut gpio = Chip::new("/dev/gpiochip4").unwrap();
 
         let pin_assignments = PropulsionPinAssignments {

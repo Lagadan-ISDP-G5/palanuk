@@ -56,25 +56,21 @@ impl CuSrcTask for CuIna219 {
     fn process(&mut self, _clock: &RobotClock, msg: &mut Self::Output<'_>) -> CuResult<()> {
         let dev = &mut self.driver_instance;
 
-        let power_reading = match dev.power().ok() {
-            Some(val) => val,
-            None => return Err(CuError::from(format!("failed to get power reading")))
-        };
+        let power_reading = dev.power().map_err(|_| {
+            CuError::from(format!("failed to get power reading"))
+        })?;
 
-        let current_reading = match dev.load_current().ok() {
-            Some(val) => val,
-            None => return Err(CuError::from(format!("failed to get current reading")))
-        };
+        let current_reading = dev.load_current().map_err(|_| {
+            CuError::from(format!("failed to get current reading"))
+        })?;
 
-        let shunt_voltage_reading = match dev.shunt_voltage().ok() {
-            Some(val) => val,
-            None => return Err(CuError::from(format!("failed to get shunt voltage reading")))
-        };
+        let shunt_voltage_reading = dev.shunt_voltage().map_err(|_| {
+            CuError::from(format!("failed to get shunt voltage reading"))
+        })?;
 
-        let bus_voltage_reading = match dev.bus_voltage().ok() {
-            Some(val) => val,
-            None => return Err(CuError::from(format!("failed to get bus voltage reading")))
-        };
+        let bus_voltage_reading = dev.bus_voltage().map_err(|_| {
+            CuError::from(format!("failed to get bus voltage reading"))
+        })?;
 
         let power = power_reading.get_val()*1000.0;
         let current = current_reading.get_val()*1000.0;
