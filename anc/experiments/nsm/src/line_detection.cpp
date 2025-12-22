@@ -98,4 +98,22 @@ LineDetectionResult detect_horizontal_line(const cv::Mat& thresh, int start_y, c
     return result;
 }
 
+float get_line_center_offset(const LineDetectionResult& result, int frame_width) {
+    if (result.points.empty() || frame_width <= 0) {
+        return 0.0f;
+    }
+
+    // Points are ordered bottom-to-top, so first points are closest to bottom
+    size_t num_points = std::min(result.points.size(), size_t(3));
+    float sum_x = 0.0f;
+    for (size_t i = 0; i < num_points; i++) {
+        sum_x += result.points[i].x;
+    }
+    float avg_x = sum_x / num_points;
+
+    // Normalize: 0 = center, -1 = left edge, +1 = right edge
+    float center = frame_width / 2.0f;
+    return (avg_x - center) / center;
+}
+
 }  // namespace nsm
