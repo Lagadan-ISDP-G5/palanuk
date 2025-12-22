@@ -4,8 +4,9 @@
 
 namespace nsm {
 
-LineDetectionResult detect_line_sliding_window(const cv::Mat& thresh, const PipelineConfig& config) {
-    LineDetectionResult result;
+void detect_line_sliding_window(const cv::Mat& thresh, const PipelineConfig& config, LineDetectionResult& out) {
+    out.reset();
+
     int height = thresh.rows;
     int width = thresh.cols;
     int window_height = height / config.num_windows;
@@ -13,7 +14,7 @@ LineDetectionResult detect_line_sliding_window(const cv::Mat& thresh, const Pipe
     // Find initial x position from bottom strip
     cv::Mat bottom_strip = thresh(cv::Rect(0, height - window_height, width, window_height));
     cv::Moments m = cv::moments(bottom_strip, true);
-    if (m.m00 == 0) return result;
+    if (m.m00 == 0) return;
 
     int current_x = static_cast<int>(m.m10 / m.m00);
 
@@ -34,20 +35,19 @@ LineDetectionResult detect_line_sliding_window(const cv::Mat& thresh, const Pipe
         if (wm.m00 > config.min_pixel_threshold) {
             int local_x = static_cast<int>(wm.m10 / wm.m00);
             current_x = x_left + local_x;
-            result.points.emplace_back(current_x, y_center);
+            out.points.emplace_back(current_x, y_center);
         }
     }
 
-    if (result.points.size() >= 2) {
-        cv::fitLine(result.points, result.fitted_line, cv::DIST_L2, 0, 0.01, 0.01);
-        result.valid = true;
+    if (out.points.size() >= 2) {
+        cv::fitLine(out.points, out.fitted_line, cv::DIST_L2, 0, 0.01, 0.01);
+        out.valid = true;
     }
-
-    return result;
 }
 
-LineDetectionResult detect_horizontal_line(const cv::Mat& thresh, int start_y, const PipelineConfig& config) {
-    LineDetectionResult result;
+void detect_horizontal_line(const cv::Mat& thresh, int start_y, const PipelineConfig& config, LineDetectionResult& out) {
+    out.reset();
+
     int height = thresh.rows;
     int width = thresh.cols;
     int window_width = width / config.horiz_num_windows;
@@ -56,7 +56,7 @@ LineDetectionResult detect_horizontal_line(const cv::Mat& thresh, int start_y, c
     int search_bottom = std::min(height, start_y + config.horiz_window_height);
     int search_height = search_bottom - search_top;
 
-    if (search_height <= 0) return result;
+    if (search_height <= 0) return;
 
     int current_y = start_y;
 
@@ -77,25 +77,23 @@ LineDetectionResult detect_horizontal_line(const cv::Mat& thresh, int start_y, c
         if (wm.m00 > config.min_pixel_threshold) {
             int local_y = static_cast<int>(wm.m01 / wm.m00);
             current_y = y_top + local_y;
-            result.points.emplace_back(x_center, current_y);
+            out.points.emplace_back(x_center, current_y);
         }
     }
 
-    if (result.points.size() >= 3) {
-        cv::fitLine(result.points, result.fitted_line, cv::DIST_L2, 0, 0.01, 0.01);
+    if (out.points.size() >= 3) {
+        cv::fitLine(out.points, out.fitted_line, cv::DIST_L2, 0, 0.01, 0.01);
 
-        float vx = std::abs(result.fitted_line[0]);
-        float vy = std::abs(result.fitted_line[1]);
+        float vx = std::abs(out.fitted_line[0]);
+        float vy = std::abs(out.fitted_line[1]);
         bool is_horizontal = vx > vy * 2;
 
-        float min_x = result.points.front().x;
-        float max_x = result.points.back().x;
+        float min_x = out.points.front().x;
+        float max_x = out.points.back().x;
         bool has_span = (max_x - min_x) > 50;
 
-        result.valid = is_horizontal && has_span;
+        out.valid = is_horizontal && has_span;
     }
-
-    return result;
 }
 
 float get_line_center_offset(const LineDetectionResult& result, int frame_width) {

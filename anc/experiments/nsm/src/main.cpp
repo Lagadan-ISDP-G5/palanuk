@@ -37,7 +37,7 @@ int runBatchMode(nsm::ImageDirectorySource& source, nsm::Pipeline& pipeline,
         std::string filename = source.getCurrentFilename();
         std::cout << filename << ": " << frame.cols << "x" << frame.rows;
 
-        nsm::FrameResult result = pipeline.process(frame);
+        const nsm::FrameResult& result = pipeline.process(frame);
 
         float center_offset = nsm::get_line_center_offset(result.center_line, frame.cols);
         std::cout << " -> offset: " << center_offset;
@@ -80,7 +80,7 @@ int runLiveMode(nsm::FrameSource& source, nsm::Pipeline& pipeline) {
             break;
         }
 
-        nsm::FrameResult result = pipeline.process(frame);
+        const nsm::FrameResult& result = pipeline.process(frame);
 
         float center_offset = nsm::get_line_center_offset(result.center_line, frame.cols);
         std::cout << "Frame " << frame_count << " offset: " << center_offset << std::endl;
