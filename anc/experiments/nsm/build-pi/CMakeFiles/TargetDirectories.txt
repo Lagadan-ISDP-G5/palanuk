@@ -1,3 +1,0 @@
-/Users/ander/Documents/proj/palanuk/anc/experiments/nsm/build-pi/CMakeFiles/anc_nsm.dir
-/Users/ander/Documents/proj/palanuk/anc/experiments/nsm/build-pi/CMakeFiles/edit_cache.dir
-/Users/ander/Documents/proj/palanuk/anc/experiments/nsm/build-pi/CMakeFiles/rebuild_cache.dir
