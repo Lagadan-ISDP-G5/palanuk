@@ -45,27 +45,10 @@ mkdir -p ~/pi-sysroot
 
 # Sync required directories from Pi
 PI_HOST=pi@raspberrypi.local
-rsync -avz --rsync-path="sudo rsync" $PI_HOST:/usr/include ~/pi-sysroot/usr/
-rsync -avz --rsync-path="sudo rsync" $PI_HOST:/usr/lib/aarch64-linux-gnu ~/pi-sysroot/usr/lib/
-rsync -avz --rsync-path="sudo rsync" $PI_HOST:/lib/aarch64-linux-gnu ~/pi-sysroot/lib/
-
-# Fix absolute symlinks (important!)
-cd ~/pi-sysroot
-find . -type l | while read link; do
-    target=$(readlink "$link")
-    if [[ "$target" == /* ]]; then
-        ln -sf "$(echo "$link" | sed 's|[^/]*/|../|g' | sed 's|/[^/]*$||')$target" "$link"
-    fi
-done
-```
-
-### Option B: Mount Pi Filesystem via SSHFS
-
-```bash
-mkdir -p ~/pi-mount
-sshfs pi@raspberrypi.local:/ ~/pi-mount
-# Use ~/pi-mount as sysroot
-```
+rsync -e "ssh -i ~/gipop_plc" -avzL --rsync-path="sudo rsync" $PI_HOST:/usr/include ~/pi-sysroot/usr/
+rsync -e "ssh -i ~/gipop_plc" -avzL --rsync-path="sudo rsync" $PI_HOST:/usr/lib/aarch64-linux-gnu ~/pi-sysroot/usr/lib/
+rsync -e "ssh -i ~/gipop_plc" -avzL --rsync-path="sudo rsync" $PI_HOST:/lib/aarch64-linux-gnu ~/pi-sysroot/lib/
+rsync -e "ssh -i ~/gipop_plc" -avzL --rsync-path="sudo rsync" $PI_HOST:/usr/lib/gcc/ ~/pi-sysroot/usr/lib/gcc/
 
 ## Configuring the Toolchain
 
@@ -94,31 +77,6 @@ cmake --build --preset pi
 # Build for host (native)
 cmake --preset host
 cmake --build --preset host
-```
-
-### Manual CMake Commands
-
-```bash
-# Cross-compile for Pi
-mkdir build-pi && cd build-pi
-cmake -DCMAKE_TOOLCHAIN_FILE=../cmake/toolchain-aarch64-linux.cmake ..
-make
-
-# Native build
-mkdir build && cd build
-cmake ..
-make
-```
-
-## Deploying to Pi
-
-```bash
-# Copy binary to Pi
-scp build-pi/anc_nsm pi@raspberrypi.local:~/
-
-# SSH and run
-ssh pi@raspberrypi.local
-./anc_nsm 0  # Run with camera
 ```
 
 ## Runtime Dependencies
@@ -165,19 +123,3 @@ libcamera-hello --list-cameras
 # For OpenCV, you may need V4L2
 sudo modprobe bcm2835-v4l2
 ```
-
-## Alternative: Build Directly on Pi
-
-For simplicity during development, you can build natively on the Pi:
-
-```bash
-# On the Pi
-sudo apt install cmake build-essential libopencv-dev
-git clone <repo>
-cd nsm
-mkdir build && cd build
-cmake ..
-make
-```
-
-This avoids cross-compilation complexity but is slower (~10x build time).
