@@ -36,7 +36,7 @@ int runBatchMode(nsm::ImageDirectorySource& source, nsm::Pipeline& pipeline,
         std::string filename = source.getCurrentFilename();
         std::cout << filename << ": " << frame.cols << "x" << frame.rows;
 
-        nsm::FrameResult result = pipeline.process(frame);
+        const nsm::FrameResult& result = pipeline.process(frame);
 
         std::cout << " -> " << result.center_line.points.size() << " points";
         if (result.center_line.valid) {
@@ -77,7 +77,7 @@ int runLiveMode(nsm::FrameSource& source, nsm::Pipeline& pipeline) {
             break;
         }
 
-        nsm::FrameResult result = pipeline.process(frame);
+        const nsm::FrameResult& result = pipeline.process(frame);
 
         // Smooth FPS calculation
         double fps = 1000.0 / result.processing_time_ms;
