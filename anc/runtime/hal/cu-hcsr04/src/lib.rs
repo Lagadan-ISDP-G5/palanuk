@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use cu29::prelude::*;
 use bincode::{Decode, Encode};
 use hcsr04_gpio_cdev::*;

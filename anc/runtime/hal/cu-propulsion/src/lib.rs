@@ -53,7 +53,6 @@ pub struct PropulsionPayload {
     pub right_speed: f32,
     pub left_direction: WheelDirection,
     pub right_direction: WheelDirection,
-    // active_cfg: PropulsionPinAssignments,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Encode, Decode, Serialize, Deserialize)]

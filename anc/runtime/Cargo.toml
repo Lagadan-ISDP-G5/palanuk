@@ -1,6 +1,8 @@
 [workspace]
 resolver = "3"
-members = ["palanuk-runtime", "hal/cu-hcsr04", "hal/cu-propulsion", "hal/cu-cam-pan", "hal/cu-powermon", "hal/cu-zenoh-src", "hal/cu-zenoh-sink"]
+members = ["palanuk-runtime", "hal/cu-hcsr04", "hal/cu-propulsion",
+            "hal/cu-cam-pan", "hal/cu-powermon", "hal/cu-zenoh-src",
+            "hal/cu-zenoh-sink", "aux/commander", "aux/driver-seat", "aux/herald"]
 
 [workspace.package]
 publish = false
@@ -17,15 +19,16 @@ cu29-export = { version = "0.10.0" }
 cu29-helpers = "0.10.0"
 bincode = "2.0.1"
 serde = "1.0.228"
-# hcsr04-gpio-cdev = "0.1.3"
-hcsr04-gpio-cdev = { path = "/Users/ander/Documents/proj/hc-sr04-gpio-cdev" }
-# dumb-sysfs-pwm = { git = "https://github.com/andergisomon/dumb-sysfs-pwm.git" }
-dumb-sysfs-pwm = { path = "/Users/ander/Documents/proj/dumb-sysfs-pwm" }
+hcsr04-gpio-cdev = "0.1.4"
+# hcsr04-gpio-cdev = { path = "/Users/ander/Documents/proj/hc-sr04-gpio-cdev" }
+dumb-sysfs-pwm = { git = "https://github.com/andergisomon/dumb-sysfs-pwm.git" }
+# dumb-sysfs-pwm = { path = "/Users/ander/Documents/proj/dumb-sysfs-pwm" }
 gpio-cdev = "0.6.0"
 cu-propulsion = { path = "./hal/cu-propulsion" }
 cu-cam-pan = { path = "./hal/cu-cam-pan" }
 cu-hcsr04 = { path = "./hal/cu-hcsr04" }
 cu-powermon = { path = "./hal/cu-powermon" }
+cu-zenoh-src = { path = "./hal/cu-zenoh-src" }
 cu-consolemon = "0.10.0"
 ctrlc = "3.5.1"
 libc = "0.2.176"

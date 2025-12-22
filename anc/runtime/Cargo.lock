@@ -527,6 +527,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "commander"
+version = "0.1.0"
+dependencies = [
+ "bincode 2.0.1",
+ "cu-cam-pan",
+ "cu-hcsr04",
+ "cu-propulsion",
+ "cu-zenoh-src",
+ "cu29",
+ "serde",
+]
+
+[[package]]
 name = "compact_str"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1402,6 +1415,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1aaf95b3e5c8f23aa320147307562d361db0ae0d51242340f558153b4eb2439b"
 
 [[package]]
+name = "driver-seat"
+version = "0.1.0"
+
+[[package]]
 name = "dumb-ina219"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1413,6 +1430,7 @@ dependencies = [
 [[package]]
 name = "dumb-sysfs-pwm"
 version = "0.1.0"
+source = "git+https://github.com/andergisomon/dumb-sysfs-pwm.git#5483ac9ccffd9a8bad1e3daac2fd54d2d0ad739c"
 
 [[package]]
 name = "dyn-clone"
@@ -1884,7 +1902,9 @@ dependencies = [
 
 [[package]]
 name = "hcsr04-gpio-cdev"
-version = "0.1.3"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e3d71a3d92a340f0766eab64a2083ce4c9f35c2c1c96727ef2ef1635e245eeb7"
 dependencies = [
  "gpio-cdev",
  "libc",
@@ -1895,6 +1915,10 @@ name = "heck"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
+
+[[package]]
+name = "herald"
+version = "0.1.0"
 
 [[package]]
 name = "hermit-abi"
