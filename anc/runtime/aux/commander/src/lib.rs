@@ -3,6 +3,7 @@ use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use cu_cam_pan::{CameraPanningPayload, PositionCommand};
 use cu_propulsion::{PropulsionPayload, WheelDirection};
+use cu_hcsr04::{HcSr04Payload};
 
 #[derive(Debug, Clone, Copy, Default, Encode, Decode, PartialEq, Serialize, Deserialize)]
 pub enum LoopState {
@@ -45,7 +46,6 @@ pub struct CommanderInputPayload {
     right_direction: WheelDirection,
     steer_direction: SteerDirection,
     work_or_rest_state: WorkOrRestState,
-    distance_sensor: f64,
     camera_position: PositionCommand,
 }
 
@@ -66,7 +66,7 @@ impl Freezable for Commander {
 }
 
 impl CuTask for Commander {
-    type Input<'m> = input_msg!('m, CommanderInputPayload);
+    type Input<'m> = input_msg!('m, CommanderInputPayload, HcSr04Payload);
 
     type Output<'m> = output_msg!(CommanderOutputPayload);
 
@@ -88,7 +88,10 @@ impl CuTask for Commander {
     fn process(&mut self, _clock: &RobotClock, input: &Self::Input<'_>, output: &mut Self::Output<'_>,)
     -> CuResult<()>
     {
-        let msg = input.payload().map_or(Err(CuError::from(format!("none payload"))), |msg| {Ok(msg)})?;
+        let (cip_pair, hcsr04_pair) = input;
+        let msg = cip_pair.payload().map_or(Err(CuError::from(format!("none payload cip"))), |msg| {Ok(msg)})?;
+        let hcsr04_msg = hcsr04_pair.payload().map_or(Err(CuError::from(format!("none payload hcsr04"))), |msg| {Ok(msg)})?;
+
         let loop_state = msg.loop_state;
         let steer_direction = msg.steer_direction;
 
@@ -108,7 +111,7 @@ impl CuTask for Commander {
         let panner_payload = CameraPanningPayload { pos_cmd: msg.camera_position };
 
         let mut e_stop_condition = false;
-        if msg.distance_sensor < self.e_stop_threshold_cm {
+        if hcsr04_msg.distance < self.e_stop_threshold_cm {
             e_stop_condition = true;
         }
 
@@ -141,10 +144,12 @@ impl CuTask for Commander {
     }
 }
 
+// TODO: Refactor later to handle both corner handling and lanekeeping
 fn steering_handler(left_speed: &mut f32, right_speed: &mut f32, steer_direction: &SteerDirection) {
     let ref_speed = left_speed.max(*right_speed);
 
     match steer_direction {
+        // a hard right steer is all we need actually, other than the PID lanekeeping controller
         SteerDirection::HardRight => {
             *right_speed = ref_speed;
             *left_speed = 0.5 * ref_speed;
