@@ -81,7 +81,6 @@ impl CuSinkTask for CameraPanning {
             .into();
 
         let sg90_pos_cmd_instance = PwmBuilder::new(0, sg90_pos_cmd_pin_offset, PERIOD_NS).build().unwrap();
-        // let sg90_pos_cmd_instance = Pwm::new(0, sg90_pos_cmd_pin_offset).unwrap();
         let pin_controller_instances = CameraPanningControllerInstances {
             sg90_pos_cmd: sg90_pos_cmd_instance
         };

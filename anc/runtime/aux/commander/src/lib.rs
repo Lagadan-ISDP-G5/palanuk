@@ -1,64 +1,169 @@
 use cu29::prelude::*;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
-use cu_hcsr04::*;
-use cu_zenoh_src::*;
-use cu_cam_pan::*;
-use cu_propulsion::*;
+use cu_cam_pan::{CameraPanningPayload, PositionCommand};
+use cu_propulsion::{PropulsionPayload, WheelDirection};
 
-impl CuTask for Jogger {
-    type Input<'m> = input_msg!('m, HcSr04Payload);
-    type Output<'m> = output_msg!(PropulsionPayload);
+#[derive(Debug, Clone, Copy, Default, Encode, Decode, PartialEq, Serialize, Deserialize)]
+pub enum LoopState {
+    #[default]
+    Closed,
+    Open
+}
 
-    fn new(_config: Option<&ComponentConfig>) -> CuResult<Self>
-    where Self: Sized
-    {
-        Ok(Self {})
+#[derive(Debug, Clone, Copy, Default, Encode, Decode, PartialEq, Serialize, Deserialize)]
+pub enum WorkOrRestState {
+    #[default]
+    AtRest,
+    AtWork
+}
+
+#[derive(Debug, Clone, Copy, Default, Encode, Decode, PartialEq, Serialize, Deserialize)]
+pub enum SteerDirection {
+    #[default]
+    HardRight,
+    SlightRight,
+    HardLeft,
+    SlightLeft
+}
+
+#[derive(Debug, Clone, Copy, Default, Encode, Decode, PartialEq, Serialize, Deserialize)]
+pub struct CommanderOutputPayload {
+    pub loop_state: LoopState,
+    pub propulsion_payload: PropulsionPayload,
+    pub panner_payload: CameraPanningPayload
+}
+
+#[derive(Default, Debug, Clone, Copy, Encode, Decode, PartialEq, Serialize, Deserialize)]
+pub struct CommanderInputPayload {
+    loop_state: LoopState,
+    left_enable: bool,
+    right_enable: bool,
+    left_speed: f32,
+    right_speed: f32,
+    left_direction: WheelDirection,
+    right_direction: WheelDirection,
+    steer_direction: SteerDirection,
+    work_or_rest_state: WorkOrRestState,
+    distance_sensor: f64,
+    camera_position: PositionCommand,
+}
+
+pub struct Commander {
+    e_stop_threshold_cm: f64
+}
+
+impl Freezable for Commander {
+    fn freeze<E: bincode::enc::Encoder>(&self, encoder: &mut E) -> Result<(), bincode::error::EncodeError> {
+        Encode::encode(&self.e_stop_threshold_cm, encoder)?;
+        Ok(())
     }
 
-    // fn start(&mut self, _clock: &RobotClock) -> CuResult<()> {
-    //     // use this method to init iox2 sub
-    //     Ok(())
-    // }
+    fn thaw<D: bincode::de::Decoder>(&mut self, decoder: &mut D) -> Result<(), bincode::error::DecodeError> {
+        self.e_stop_threshold_cm = Decode::decode(decoder)?;
+        Ok(())
+    }
+}
+
+impl CuTask for Commander {
+    type Input<'m> = input_msg!('m, CommanderInputPayload);
+
+    type Output<'m> = output_msg!(CommanderOutputPayload);
+
+    fn new(config: Option<&ComponentConfig>) -> CuResult<Self>
+    where Self: Sized
+    {
+        let ComponentConfig(kv) =
+            config.ok_or("No ComponentConfig specified for Commander in RON")?;
+
+        let e_stop_threshold_cm: f64 = kv
+            .get("e_stop_threshold_cm")
+            .expect("e_stop_threshold_cm for Commander not set in RON config.")
+            .clone()
+            .into();
+
+        Ok(Self { e_stop_threshold_cm })
+    }
 
     fn process(&mut self, _clock: &RobotClock, input: &Self::Input<'_>, output: &mut Self::Output<'_>,)
     -> CuResult<()>
     {
-        let hcsr04_msg = input;
-        let mut dist: Option<f64> = None;
+        let msg = input.payload().map_or(Err(CuError::from(format!("none payload"))), |msg| {Ok(msg)})?;
+        let loop_state = msg.loop_state;
+        let steer_direction = msg.steer_direction;
 
-        match hcsr04_msg.payload() {
-            Some(payload) => dist = Some(payload.distance),
-            _ => {}
+        let mut left_speed = msg.left_speed;
+        let mut right_speed = msg.right_speed;
+
+        let mut propulsion_payload
+            = PropulsionPayload {
+                left_enable: msg.left_enable,
+                right_enable: msg.right_enable,
+                left_speed: msg.left_speed,
+                right_speed: msg.right_speed,
+                left_direction: msg.left_direction,
+                right_direction: msg.right_direction
+            };
+
+        let panner_payload = CameraPanningPayload { pos_cmd: msg.camera_position };
+
+        let mut e_stop_condition = false;
+        if msg.distance_sensor < self.e_stop_threshold_cm {
+            e_stop_condition = true;
         }
 
-        if dist < Some(10.0) {
-            output.set_payload(PropulsionPayload {
+        let is_at_rest = match msg.work_or_rest_state {
+            WorkOrRestState::AtRest => true,
+            _ => false
+        };
+
+        steering_handler(&mut left_speed, &mut right_speed, &steer_direction);
+
+        let stop_condition = e_stop_condition || is_at_rest;
+        if stop_condition {
+            propulsion_payload = PropulsionPayload {
                 left_enable: false,
                 right_enable: false,
+                left_speed: 0.0,
+                right_speed: 0.0,
                 left_direction: WheelDirection::Stop,
                 right_direction: WheelDirection::Stop,
-                left_speed: 0.0,
-                right_speed: 0.0
-            });
-
-            output.metadata.set_status(format!("Stopped. Obstacle detected."));
+            };
         }
 
-        if dist > Some(10.0) || dist == None {
-            output.set_payload(PropulsionPayload {
-                left_enable: true,
-                right_enable: true,
-                left_direction: WheelDirection::Forward,
-                right_direction: WheelDirection::Forward,
-                left_speed: 0.25/MOTOR_COMPENSATION,
-                right_speed: 0.25,
-            });
-
-            output.metadata.set_status(format!("Moving..."));
-        }
+        let output_payload = CommanderOutputPayload {
+            loop_state,
+            propulsion_payload,
+            panner_payload
+        };
+        output.set_payload(output_payload);
         Ok(())
     }
+}
+
+fn steering_handler(left_speed: &mut f32, right_speed: &mut f32, steer_direction: &SteerDirection) {
+    let ref_speed = left_speed.max(*right_speed);
+
+    match steer_direction {
+        SteerDirection::HardRight => {
+            *right_speed = ref_speed;
+            *left_speed = 0.5 * ref_speed;
+        },
+        SteerDirection::SlightRight => {
+            *right_speed = ref_speed;
+            *left_speed = 0.25 * ref_speed;
+        },
+        SteerDirection::HardLeft => {
+            *left_speed = ref_speed;
+            *right_speed = 0.5 * ref_speed;
+        },
+        SteerDirection::SlightLeft => {
+            *left_speed = ref_speed;
+            *right_speed = 0.25 * ref_speed;
+        }
+    }
+
+
 }
 
 #[cfg(test)]
