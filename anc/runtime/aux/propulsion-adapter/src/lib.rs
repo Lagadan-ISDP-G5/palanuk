@@ -33,7 +33,8 @@ pub struct PropulsionAdapterOutputPayload {
     pub loop_state: LoopState,
     pub propulsion_payload: PropulsionPayload,
     pub panner_payload: CameraPanningPayload,
-    pub weighted_error: f32
+    pub weighted_error: f32,
+    pub is_e_stop_triggered: bool
 }
 
 #[derive(Default, Debug, Clone, Copy, Encode, Decode, PartialEq, Serialize, Deserialize)]
@@ -114,9 +115,9 @@ impl CuTask for PropulsionAdapter {
 
         let weighted_error = msg.weighted_error;
 
-        let mut e_stop_condition = false;
+        let mut is_e_stop_triggered = false;
         if hcsr04_msg.distance < self.e_stop_threshold_cm {
-            e_stop_condition = true;
+            is_e_stop_triggered = true;
         }
 
         let is_at_rest = match msg.work_or_rest_state {
@@ -126,7 +127,7 @@ impl CuTask for PropulsionAdapter {
 
         steering_handler(&mut left_speed, &mut right_speed, &steer_direction);
 
-        let stop_condition = e_stop_condition || is_at_rest;
+        let stop_condition = is_e_stop_triggered || is_at_rest;
         if stop_condition {
             propulsion_payload = PropulsionPayload {
                 left_enable: false,
@@ -142,7 +143,8 @@ impl CuTask for PropulsionAdapter {
             loop_state,
             propulsion_payload,
             panner_payload,
-            weighted_error
+            weighted_error,
+            is_e_stop_triggered
         };
         output.set_payload(output_payload);
         Ok(())
