@@ -527,18 +527,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "commander"
-version = "0.1.0"
-dependencies = [
- "bincode 2.0.1",
- "cu-cam-pan",
- "cu-hcsr04",
- "cu-propulsion",
- "cu29",
- "serde",
-]
-
-[[package]]
 name = "compact_str"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2582,6 +2570,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "mtr-ctrlr"
+version = "0.1.0"
+dependencies = [
+ "bincode 2.0.1",
+ "cu29",
+ "propulsion-adapter",
+ "serde",
+]
+
+[[package]]
 name = "nanorand"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3299,6 +3297,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5ee95bc4ef87b8d5ba32e8b7714ccc834865276eab0aed5c9958d00ec45f49e8"
 dependencies = [
  "unicode-ident",
+]
+
+[[package]]
+name = "propulsion-adapter"
+version = "0.1.0"
+dependencies = [
+ "bincode 2.0.1",
+ "cu-cam-pan",
+ "cu-hcsr04",
+ "cu-propulsion",
+ "cu29",
+ "serde",
 ]
 
 [[package]]

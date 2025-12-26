@@ -29,14 +29,14 @@ pub enum SteerDirection {
 }
 
 #[derive(Debug, Clone, Copy, Default, Encode, Decode, PartialEq, Serialize, Deserialize)]
-pub struct CommanderOutputPayload {
+pub struct PropulsionAdapterOutputPayload {
     pub loop_state: LoopState,
     pub propulsion_payload: PropulsionPayload,
     pub panner_payload: CameraPanningPayload
 }
 
 #[derive(Default, Debug, Clone, Copy, Encode, Decode, PartialEq, Serialize, Deserialize)]
-pub struct CommanderInputPayload {
+pub struct PropulsionAdapterInputPayload {
     loop_state: LoopState,
     left_enable: bool,
     right_enable: bool,
@@ -49,11 +49,11 @@ pub struct CommanderInputPayload {
     camera_position: PositionCommand,
 }
 
-pub struct Commander {
+pub struct PropulsionAdapter {
     e_stop_threshold_cm: f64
 }
 
-impl Freezable for Commander {
+impl Freezable for PropulsionAdapter {
     fn freeze<E: bincode::enc::Encoder>(&self, encoder: &mut E) -> Result<(), bincode::error::EncodeError> {
         Encode::encode(&self.e_stop_threshold_cm, encoder)?;
         Ok(())
@@ -65,20 +65,20 @@ impl Freezable for Commander {
     }
 }
 
-impl CuTask for Commander {
-    type Input<'m> = input_msg!('m, CommanderInputPayload, HcSr04Payload);
+impl CuTask for PropulsionAdapter {
+    type Input<'m> = input_msg!('m, PropulsionAdapterInputPayload, HcSr04Payload);
 
-    type Output<'m> = output_msg!(CommanderOutputPayload);
+    type Output<'m> = output_msg!(PropulsionAdapterOutputPayload);
 
     fn new(config: Option<&ComponentConfig>) -> CuResult<Self>
     where Self: Sized
     {
         let ComponentConfig(kv) =
-            config.ok_or("No ComponentConfig specified for Commander in RON")?;
+            config.ok_or("No ComponentConfig specified for PropulsionAdapter in RON")?;
 
         let e_stop_threshold_cm: f64 = kv
             .get("e_stop_threshold_cm")
-            .expect("e_stop_threshold_cm for Commander not set in RON config.")
+            .expect("e_stop_threshold_cm for PropulsionAdapter not set in RON config.")
             .clone()
             .into();
 
@@ -88,8 +88,8 @@ impl CuTask for Commander {
     fn process(&mut self, _clock: &RobotClock, input: &Self::Input<'_>, output: &mut Self::Output<'_>,)
     -> CuResult<()>
     {
-        let (cip_pair, hcsr04_pair) = input;
-        let msg = cip_pair.payload().map_or(Err(CuError::from(format!("none payload cip"))), |msg| {Ok(msg)})?;
+        let (nsm_pair, hcsr04_pair) = input;
+        let msg = nsm_pair.payload().map_or(Err(CuError::from(format!("none pload PropulsionAdapter"))), |msg| {Ok(msg)})?;
         let hcsr04_msg = hcsr04_pair.payload().map_or(Err(CuError::from(format!("none payload hcsr04"))), |msg| {Ok(msg)})?;
 
         let loop_state = msg.loop_state;
@@ -134,7 +134,7 @@ impl CuTask for Commander {
             };
         }
 
-        let output_payload = CommanderOutputPayload {
+        let output_payload = PropulsionAdapterOutputPayload {
             loop_state,
             propulsion_payload,
             panner_payload

@@ -1,0 +1,16 @@
+[package]
+name = "propulsion-adapter"
+publish.workspace = true
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+keywords.workspace = true
+
+[dependencies]
+cu29 = { workspace = true }
+serde = { workspace = true }
+bincode = { workspace = true }
+cu-cam-pan = { workspace = true }
+cu-propulsion = { workspace = true }
+cu-hcsr04 = { workspace = true }
