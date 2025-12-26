@@ -888,6 +888,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "cu-pid"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5236d4043df1cea27eeeb07bcfdf2f2eb32c24cae7c2d2988f81bde628df06cb"
+dependencies = [
+ "bincode 2.0.1",
+ "cu29",
+ "serde",
+]
+
+[[package]]
 name = "cu-powermon"
 version = "0.1.0"
 dependencies = [
@@ -2425,6 +2436,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "lmtr-ctrlr"
+version = "0.1.0"
+dependencies = [
+ "mtr-ctrlr",
+]
+
+[[package]]
 name = "local-ip-address"
 version = "0.5.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2573,7 +2591,7 @@ dependencies = [
 name = "mtr-ctrlr"
 version = "0.1.0"
 dependencies = [
- "bincode 2.0.1",
+ "cu-pid",
  "cu29",
  "propulsion-adapter",
  "serde",

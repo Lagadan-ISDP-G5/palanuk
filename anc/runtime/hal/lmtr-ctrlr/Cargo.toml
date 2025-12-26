@@ -1,5 +1,5 @@
 [package]
-name = "mtr-ctrlr"
+name = "lmtr-ctrlr"
 publish.workspace = true
 version.workspace = true
 authors.workspace = true
@@ -8,7 +8,4 @@ license.workspace = true
 keywords.workspace = true
 
 [dependencies]
-cu29 = { workspace = true }
-cu-pid = { workspace = true }
-serde = { workspace = true }
-propulsion-adapter = { workspace = true }
+mtr-ctrlr = { workspace = true }

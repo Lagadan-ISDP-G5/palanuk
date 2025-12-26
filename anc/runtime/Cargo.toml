@@ -2,7 +2,7 @@
 resolver = "3"
 members = ["palanuk-runtime", "hal/cu-hcsr04", "hal/cu-propulsion",
             "hal/cu-cam-pan", "hal/cu-powermon", "hal/cu-zenoh-src",
-            "hal/cu-zenoh-sink", "aux/propulsion-adapter", "aux/driver-seat", "aux/herald", "hal/mtr-ctrlr"]
+            "hal/cu-zenoh-sink", "aux/propulsion-adapter", "aux/driver-seat", "aux/herald", "hal/mtr-ctrlr", "hal/lmtr-ctrlr"]
 
 [workspace.package]
 publish = false
@@ -17,6 +17,7 @@ cu29 = { version = "0.10.0", features = ["macro_debug"] }
 cu29-runtime = "0.10.0"
 cu29-export = { version = "0.10.0" }
 cu29-helpers = "0.10.0"
+cu-pid = "0.10.0"
 bincode = "2.0.1"
 serde = "1.0.228"
 hcsr04-gpio-cdev = "0.1.4"
@@ -36,6 +37,7 @@ core_affinity = "0.8.3"
 # iceoryx2 = "0.7.0"
 zenoh = "1.6.2"
 propulsion-adapter = { path = "./aux/propulsion-adapter" }
+mtr-ctrlr = { path = "./hal/mtr-ctrlr" }
 
 [build]
 target = "aarch64-unknown-linux-gnu"

@@ -32,7 +32,8 @@ pub enum SteerDirection {
 pub struct PropulsionAdapterOutputPayload {
     pub loop_state: LoopState,
     pub propulsion_payload: PropulsionPayload,
-    pub panner_payload: CameraPanningPayload
+    pub panner_payload: CameraPanningPayload,
+    pub weighted_error: f32
 }
 
 #[derive(Default, Debug, Clone, Copy, Encode, Decode, PartialEq, Serialize, Deserialize)]
@@ -47,6 +48,7 @@ pub struct PropulsionAdapterInputPayload {
     steer_direction: SteerDirection,
     work_or_rest_state: WorkOrRestState,
     camera_position: PositionCommand,
+    weighted_error: f32
 }
 
 pub struct PropulsionAdapter {
@@ -110,6 +112,8 @@ impl CuTask for PropulsionAdapter {
 
         let panner_payload = CameraPanningPayload { pos_cmd: msg.camera_position };
 
+        let weighted_error = msg.weighted_error;
+
         let mut e_stop_condition = false;
         if hcsr04_msg.distance < self.e_stop_threshold_cm {
             e_stop_condition = true;
@@ -137,7 +141,8 @@ impl CuTask for PropulsionAdapter {
         let output_payload = PropulsionAdapterOutputPayload {
             loop_state,
             propulsion_payload,
-            panner_payload
+            panner_payload,
+            weighted_error
         };
         output.set_payload(output_payload);
         Ok(())

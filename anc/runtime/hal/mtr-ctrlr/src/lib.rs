@@ -1,22 +1,22 @@
 use cu29::prelude::*;
 use core::marker::PhantomData;
-use bincode::{Decode, Encode};
-use propulsion_adapter::PropulsionAdapterOutputPayload;
+use cu_pid::GenericPIDTask;
+use propulsion_adapter::{PropulsionAdapterOutputPayload, LoopState};
 
-// pub struct MtrPayload<M> where M: CuMsgPayload + Into<f32> {
-//     _marker: PhantomData<M>,
-//     pub weighted_error: f32
-// }
+/// This generic task is meant to be as in the modules lmtr-ctrlr and rmtr-ctrlr, or any implementation of a PID-controlled motor
 
-pub trait MtrWeightedErrorPayload: CuMsgPayload + Into<f32> {}
+pub trait MtrCtrlrPayload: CuMsgPayload + Into<f32> + From<f32> {
+}
 
-pub struct MtrCtrlr<M> where M: MtrWeightedErrorPayload {
+pub type Mtr<M> = GenericPIDTask<MtrCtrlr<M>>;
+
+pub struct MtrCtrlr<M> where M: MtrCtrlrPayload {
     _marker: PhantomData<M>,
 }
 
-impl<M> Freezable for MtrCtrlr<M> where M: MtrWeightedErrorPayload {}
+impl<M> Freezable for MtrCtrlr<M> where M: MtrCtrlrPayload {}
 
-impl<M> CuTask for MtrCtrlr<M> where M: MtrWeightedErrorPayload {
+impl<M> CuTask for MtrCtrlr<M> where M: MtrCtrlrPayload {
     type Input<'m> = input_msg!('m, PropulsionAdapterOutputPayload);
     type Output<'m> = output_msg!(M);
 
@@ -33,7 +33,16 @@ impl<M> CuTask for MtrCtrlr<M> where M: MtrWeightedErrorPayload {
             output: &mut Self::Output<'o>,
         ) -> CuResult<()> {
         let input_msg = input.payload().map_or(Err(CuError::from(format!("none payload cip"))), |msg| {Ok(msg)})?;
+        let weighted_error = input_msg.weighted_error;
 
-        // let weighted_error = input_msg.
+        match input_msg.loop_state {
+            LoopState::Closed => {
+                output.set_payload(weighted_error.into());
+            },
+            LoopState::Open => {
+                return Ok(()) // no-op
+            }
+        }
+        Ok(())
     }
 }
