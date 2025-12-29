@@ -2,7 +2,7 @@
 resolver = "3"
 members = ["palanuk-runtime", "hal/cu-hcsr04", "hal/cu-propulsion",
             "hal/cu-cam-pan", "hal/cu-powermon", "hal/cu-zenoh-src",
-            "hal/cu-zenoh-sink", "aux/propulsion-adapter", "aux/driver-seat", "aux/herald", "hal/mtr-ctrlr", "hal/lmtr-ctrlr"]
+            "hal/cu-zenoh-sink", "aux/propulsion-adapter", "aux/driver-seat", "aux/herald", "hal/mtr-ctrlr", "hal/lmtr-ctrlr", "hal/rmtr-ctrlr"]
 
 [workspace.package]
 publish = false

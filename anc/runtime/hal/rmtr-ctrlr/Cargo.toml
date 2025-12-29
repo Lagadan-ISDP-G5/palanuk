@@ -1,0 +1,12 @@
+[package]
+name = "rmtr-ctrlr"
+publish.workspace = true
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+keywords.workspace = true
+
+[dependencies]
+mtr-ctrlr = { workspace = true }
+cu-pid = { workspace = true }
