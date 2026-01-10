@@ -85,12 +85,16 @@ where
             .as_mut()
             .ok_or_else(|| CuError::from("ZSrc: Context not found"))?;
 
-        let sample = ctx.subscriber.recv().map_err(
-            |_| -> CuError {CuError::from("failed to receive sample")}
-        )?;
+        let sample = match ctx.subscriber.try_recv() {
+            Ok(Some(ret)) => {
+              ret
+            },
+            Ok(None) => return Ok(()), // empty channel, no messages
+            Err(_) => return Err(CuError::from("msg recv failed"))
+        };
 
         let (msg, _) = decode_from_slice(
-            sample.payload().to_bytes().trim_ascii(),
+            sample.payload().to_bytes().as_ref(),
             bincode::config::standard())
             .map_err(
                 |_| -> CuError {CuError::from("decode failed")}
