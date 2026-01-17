@@ -38,7 +38,7 @@ pub struct PropulsionAdapterOutputPayload {
 }
 
 #[derive(Default, Debug, Clone, Copy, Encode, Decode, PartialEq, Serialize, Deserialize)]
-pub struct PropulsionAdapterInputPayload {
+pub struct ZenohTopicsAdapterInputPayload {
     loop_state: LoopState,
     left_enable: bool,
     right_enable: bool,
@@ -69,7 +69,7 @@ impl Freezable for PropulsionAdapter {
 }
 
 impl CuTask for PropulsionAdapter {
-    type Input<'m> = input_msg!('m, ZenohTopicsInputPayload, HcSr04Payload);
+    type Input<'m> = input_msg!('m, ZenohTopicsAdapterInputPayload, HcSr04Payload);
 
     type Output<'m> = output_msg!(PropulsionAdapterOutputPayload);
 

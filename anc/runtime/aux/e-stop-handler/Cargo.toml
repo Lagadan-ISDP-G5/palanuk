@@ -1,5 +1,5 @@
 [package]
-name = "driver-seat"
+name = "e-stop-handler"
 publish.workspace = true
 version.workspace = true
 authors.workspace = true

@@ -1,0 +1,10 @@
+[package]
+name = "arbitrator"
+publish.workspace = true
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+keywords.workspace = true
+
+[dependencies]

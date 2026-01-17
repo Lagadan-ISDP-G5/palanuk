@@ -1,0 +1,10 @@
+[package]
+name = "loop-mode-switch"
+publish.workspace = true
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+keywords.workspace = true
+
+[dependencies]
