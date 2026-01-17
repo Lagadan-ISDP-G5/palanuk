@@ -69,7 +69,7 @@ impl Freezable for PropulsionAdapter {
 }
 
 impl CuTask for PropulsionAdapter {
-    type Input<'m> = input_msg!('m, PropulsionAdapterInputPayload, HcSr04Payload);
+    type Input<'m> = input_msg!('m, ZenohTopicsInputPayload, HcSr04Payload);
 
     type Output<'m> = output_msg!(PropulsionAdapterOutputPayload);
 
