@@ -1,6 +1,6 @@
 use std::{str::FromStr, sync::{Arc, Mutex, atomic::{AtomicBool, AtomicU8, Ordering}}};
 use std::thread::{JoinHandle, Builder, sleep};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use libc::*;
 use dumb_sysfs_pwm::{Pwm, PwmBuilder};
 use cu29::prelude::*;

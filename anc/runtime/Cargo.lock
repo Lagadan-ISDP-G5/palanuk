@@ -3349,6 +3349,11 @@ dependencies = [
 [[package]]
 name = "propulsion-cleaver"
 version = "0.1.0"
+dependencies = [
+ "cu-propulsion",
+ "cu29",
+ "herald",
+]
 
 [[package]]
 name = "quick-xml"
