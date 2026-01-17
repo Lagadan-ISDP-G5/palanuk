@@ -12,5 +12,4 @@ cu29 = { workspace = true }
 bincode = { workspace = true }
 serde = { workspace = true }
 propulsion-adapter = { workspace = true }
-cu-propulsion = { workspace = true }
 cu-pid = { workspace = true }

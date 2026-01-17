@@ -1929,7 +1929,6 @@ version = "0.1.0"
 dependencies = [
  "bincode 2.0.1",
  "cu-pid",
- "cu-propulsion",
  "cu29",
  "propulsion-adapter",
  "serde",

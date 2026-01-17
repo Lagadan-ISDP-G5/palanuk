@@ -4,7 +4,6 @@ use cu29::prelude::*;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use propulsion_adapter::{LoopState, PropulsionAdapterOutputPayload};
-use cu_propulsion::PropulsionPayload;
 use cu_pid::PIDControlOutputPayload;
 
 #[derive(Default, Debug, Clone, Copy, Encode, Decode, PartialEq, Serialize, Deserialize)]
@@ -23,12 +22,17 @@ impl CuSinkTask for Herald {
     fn new(_config: Option<&ComponentConfig>) -> CuResult<Self>
     where Self: Sized
     {
-        Ok(Self::default())
+        Ok(Self {})
     }
 
-    fn process(&mut self, _clock: &RobotClock, input: &Self::Input<'_>, output: &mut Self::Output<'_>)
+    fn process(&mut self, _clock: &RobotClock, input: &Self::Input<'_>)
     -> CuResult<()>
     {
+        let (prop_adap_output, pid_ctrl) = input;
+        if let (Some(prop_adap_pload), Some(pid_ctrl_pload)) = (prop_adap_output.payload(), pid_ctrl.payload()) {
+            // TODO send telemetry data over mpsc channel to a thread that runs the zenoh publisher
+        }
+
         Ok(())
     }
 }
