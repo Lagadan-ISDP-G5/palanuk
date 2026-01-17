@@ -1,14 +1,34 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
+/// This task provides feedback to the base station. It runs the Zenoh publisher.
+
+use cu29::prelude::*;
+use bincode::{Decode, Encode};
+use serde::{Deserialize, Serialize};
+use propulsion_adapter::{LoopState, PropulsionAdapterOutputPayload};
+use cu_propulsion::PropulsionPayload;
+use cu_pid::PIDControlOutputPayload;
+
+#[derive(Default, Debug, Clone, Copy, Encode, Decode, PartialEq, Serialize, Deserialize)]
+pub struct HeraldNewsPayload {
+    e_stop_trig_fdbk: bool,
+    loop_mode_fdbk: LoopState,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+pub struct Herald {}
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
+impl Freezable for Herald {}
+
+impl CuSinkTask for Herald {
+    type Input<'m> = input_msg!('m, PropulsionAdapterOutputPayload, PIDControlOutputPayload);
+
+    fn new(_config: Option<&ComponentConfig>) -> CuResult<Self>
+    where Self: Sized
+    {
+        Ok(Self::default())
+    }
+
+    fn process(&mut self, _clock: &RobotClock, input: &Self::Input<'_>, output: &mut Self::Output<'_>)
+    -> CuResult<()>
+    {
+        Ok(())
     }
 }

@@ -13,7 +13,8 @@ members = [
     "aux/herald",
     "hal/mtr-ctrlr",
     "hal/lmtr-ctrlr",
-    "hal/rmtr-ctrlr"
+    "hal/rmtr-ctrlr",
+    "aux/propulsion-cleaver"
 ]
 
 [workspace.package]
@@ -50,6 +51,7 @@ core_affinity = "0.8.3"
 zenoh = "1.6.2"
 propulsion-adapter = { path = "./aux/propulsion-adapter" }
 mtr-ctrlr = { path = "./hal/mtr-ctrlr" }
+herald = { path = "./aux/herald" }
 
 [build]
 target = "aarch64-unknown-linux-gnu"
