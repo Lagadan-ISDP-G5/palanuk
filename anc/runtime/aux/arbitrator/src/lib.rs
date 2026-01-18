@@ -1,4 +1,3 @@
-use std::pin::Pin;
 
 /// This task consolidates the arbitration of permissives/interlocks from different inputs
 /// This is where it decides that an e-stop condition is correct, and also ultimately decides

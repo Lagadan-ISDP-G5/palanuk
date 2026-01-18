@@ -5,19 +5,43 @@ use cu29::prelude::*;
 use cu_propulsion::PropulsionPayload;
 use herald::HeraldNewsPayload;
 
-pub struct PropulsionCleaver {}
+enum WhichMotor {
+    Lmtr,
+    Rmtr
+}
+
+pub struct PropulsionCleaver {
+    which_motor: WhichMotor
+}
+
 impl Freezable for PropulsionCleaver {}
 
 impl CuTask for PropulsionCleaver {
     type Input<'m> = input_msg!((PropulsionPayload, PropulsionPayload, HeraldNewsPayload));
     type Output<'m> = output_msg!(PropulsionPayload);
 
-    fn new(_config: Option<&ComponentConfig>) -> CuResult<Self>
+    fn new(config: Option<&ComponentConfig>) -> CuResult<Self>
     where Self: Sized
     {
-        // TODO config should probably specify whether cleaver will cleave for left/right motor
+        // config should specify whether cleaver will cleave for left/right motor
         // config will then set some state value stored by PropulsionCleaver
-        Ok(Self {})
+        let config = config.ok_or("No ComponentConfig specified for PropulsionCleaver in RON")?;
+
+        let which_motor: String = config
+            .get::<String>("which_motor")
+            .expect("which_motor for PropulsionCleaver not set in RON config.")
+            .clone()
+            .into();
+
+        let which_motor = match which_motor.as_str() {
+            "lmtr" => WhichMotor::Lmtr,
+            "rmtr" => WhichMotor::Rmtr,
+            _ => {
+                return Err(CuError::from(format!("which_motor for PropulsionCleaver can only be either 'lmtr' or 'rmtr'")))
+            }
+        };
+
+        Ok(Self { which_motor})
     }
 
     fn process(&mut self, _clock: &RobotClock, input: &Self::Input<'_>, output: &mut Self::Output<'_>)
@@ -25,8 +49,12 @@ impl CuTask for PropulsionCleaver {
     {
         if let Some(cleaved) = input.payload() {
             let (propulsion_cleaved_lmtr, propulsion_cleaved_rmtr, _) = cleaved;
-            // TODO and then right here we'll read from Self to decide which left/right motor value to cleave for
-            output.set_payload(*propulsion_cleaved);
+            // and then right here we'll read from Self to decide which left/right motor value to cleave for
+            let cleaved = match self.which_motor {
+                WhichMotor::Lmtr => propulsion_cleaved_lmtr,
+                WhichMotor::Rmtr => propulsion_cleaved_rmtr,
+            };
+            output.set_payload(*cleaved);
         }
         Ok(())
     }
