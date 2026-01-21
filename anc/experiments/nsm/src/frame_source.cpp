@@ -121,8 +121,97 @@ std::string ImageDirectorySource::getCurrentFilename() const {
     return current_filename_;
 }
 
+// IceoryxSource implementation
+IceoryxSource::IceoryxSource(const std::string& service_name)
+    : service_name_(service_name) {}
+
+IceoryxSource::~IceoryxSource() {
+    release();
+}
+
+bool IceoryxSource::open() {
+    // TODO: Initialize iceoryx2 node and subscriber
+    // When iceoryx2-ffi-c is available, uncomment and implement:
+    //
+    // iox2_node_builder_h builder = iox2_node_builder_new(nullptr);
+    // if (iox2_node_builder_create(builder, nullptr, iox2_node_type_e_IPC, &node_)
+    //     != IOX2_OK) {
+    //     std::cerr << "Failed to create iceoryx2 node\n";
+    //     return false;
+    // }
+    //
+    // iox2_service_name_h svc_name = nullptr;
+    // iox2_service_name_new(nullptr, service_name_.c_str(), &svc_name);
+    //
+    // iox2_service_builder_h svc_builder = iox2_node_service_builder(node_, svc_name);
+    // iox2_port_factory_subscriber_builder_h sub_builder = ...;
+    // iox2_port_factory_subscriber_builder_create(sub_builder, &subscriber_);
+
+    std::cout << "IceoryxSource: would connect to service '" << service_name_ << "'\n";
+    std::cout << "  (iceoryx2-ffi-c not linked - using placeholder)\n";
+    opened_ = true;
+    return true;
+}
+
+bool IceoryxSource::read(cv::Mat& frame) {
+    if (!opened_) return false;
+
+    // TODO: Receive frame from iceoryx2
+    // When iceoryx2-ffi-c is available:
+    //
+    // iox2_sample_h sample = nullptr;
+    // if (iox2_subscriber_receive(subscriber_, &sample) != IOX2_OK || !sample) {
+    //     return false;  // No frame available
+    // }
+    //
+    // const IpcFrame* ipc_frame = static_cast<const IpcFrame*>(
+    //     iox2_sample_payload(sample));
+    //
+    // // Convert YUV420 to BGR for OpenCV
+    // cv::Mat yuv(ipc_frame->height + ipc_frame->height / 2,
+    //             ipc_frame->width, CV_8UC1,
+    //             const_cast<uint8_t*>(ipc_frame->data));
+    // cv::cvtColor(yuv, frame, cv::COLOR_YUV2BGR_I420);
+    //
+    // last_sequence_ = ipc_frame->sequence;
+    // last_timestamp_ns_ = ipc_frame->timestamp_ns;
+    //
+    // iox2_sample_release(sample);
+    // return true;
+
+    // Placeholder: return empty (signals no frame available)
+    return false;
+}
+
+bool IceoryxSource::isOpened() const {
+    return opened_;
+}
+
+void IceoryxSource::release() {
+    // TODO: Clean up iceoryx2 resources
+    // if (subscriber_) {
+    //     iox2_subscriber_drop(subscriber_);
+    //     subscriber_ = nullptr;
+    // }
+    // if (node_) {
+    //     iox2_node_drop(node_);
+    //     node_ = nullptr;
+    // }
+    opened_ = false;
+}
+
+std::string IceoryxSource::getName() const {
+    return "iox:" + service_name_;
+}
+
 // Factory function
 std::unique_ptr<FrameSource> createFrameSource(const std::string& source) {
+    // Check if it's an iceoryx2 service
+    if (source.find("iox:") == 0) {
+        std::string service_name = source.substr(4);
+        return std::make_unique<IceoryxSource>(service_name);
+    }
+
     // Check if it's a camera index
     if (source.find("camera:") == 0) {
         int id = std::stoi(source.substr(7));
