@@ -20,18 +20,19 @@ For each measurable, child topics may be additionally defined for alternate unit
 
 Data under `/palanuk/odd/**`:
 
-- `?`
-
-Data under `/palanuk/itp/**`:
-
-- `?`
-
-Data under `/palanuk/anc/**`:
-
+- `loopmode/<AppInteger>` - 0 - Open loop, 1 - Closed loop
+- `stop/<AppInteger>` - This is a boolean (1 - true, 0 - false)
 - `steer/left/<AppFloat>`
 - `steer/right/<AppFloat>`
 - `speed/<AppFloat>`
-- `stop/<AppInteger>` - This is a boolean (1 - true, 0 - false)
+- `drivestate/<AppInteger>` - This is NOT a boolean, but an enum (0 - At Rest, 1 - Forward, 2 - Reverse) 
+- `forcepan/<AppInteger>` - 0 - Center, 1 - Reference Left, 2 - Reference Right
+
+Data under `/palanuk/itp/**`:
+
+- `panner/<AppInteger>` - 0 - Center, 1 - Reference Left, 2 - Reference Right
+
+Data under `/palanuk/anc/**`:
+
 - `obstacle/<AppInteger>` - This is a boolean (1 - obstacle detected, 0 - no obstacle detected)
-- `mode/<AppInteger>` - This is NOT a boolean, but an enum (0 - At Rest, 1 - Forward, 2 - Reverse) 
 - `distance/<AppFloat>` - Extra feature, not part of 80% integration target

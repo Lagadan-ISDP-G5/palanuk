@@ -1,5 +1,7 @@
 use cu29::prelude::*;
 use bincode::encode_to_vec;
+use rmp_serde::{Serializer, to_vec_named};
+use serde::Serialize;
 use zenoh::{Session, Config, pubsub::Publisher, key_expr::{KeyExpr}, Wait};
 use core::marker::PhantomData;
 
@@ -26,7 +28,7 @@ impl<P> Freezable for ZSink<P> where P: CuMsgPayload {}
 
 impl<P> CuSinkTask for ZSink<P>
 where
-    P: CuMsgPayload + 'static,
+    P: CuMsgPayload + 'static + Serialize,
 {
     type Input<'m> = input_msg!(P);
 
@@ -83,8 +85,11 @@ where
             .as_mut()
             .ok_or_else(|| CuError::from("ZSink: Context not found"))?;
 
-        let encoded =
-            encode_to_vec(input, bincode::config::standard()).expect("Encoding failed");
+        let encoded = match to_vec_named(&input) {
+            Ok(ret) => ret,
+            Err(_) => return Err(CuError::from(format!("failed to encode")))
+        };
+
         Wait::wait(ctx.publisher.put(encoded))
             .map_err(
                 |_| -> CuError {CuError::from("failed to put sample")}
