@@ -36,12 +36,16 @@ impl Freezable for Arbitrator {
     fn freeze<E: bincode::enc::Encoder>(&self, encoder: &mut E) -> Result<(), bincode::error::EncodeError> {
         Encode::encode(&self.e_stop_trig_fdbk, encoder)?;
         Encode::encode(&self.loop_mode_fdbk, encoder)?;
+        Encode::encode(&self.current_left_speed, encoder)?;
+        Encode::encode(&self.current_right_speed, encoder)?;
         Ok(())
     }
 
     fn thaw<D: bincode::de::Decoder>(&mut self, decoder: &mut D) -> Result<(), bincode::error::DecodeError> {
         self.e_stop_trig_fdbk = Decode::decode(decoder)?;
         self.loop_mode_fdbk = Decode::decode(decoder)?;
+        self.current_left_speed = Decode::decode(decoder)?;
+        self.current_right_speed = Decode::decode(decoder)?;
         Ok(())
     }
 }
