@@ -1,5 +1,5 @@
 use cu29::prelude::*;
-use serde::{Deserialize, de::DeserializeOwned};
+use serde::de::DeserializeOwned;
 use rmp_serde::from_slice;
 use zenoh::{Config, Session, handlers::{FifoChannel, FifoChannelHandler}, key_expr::KeyExpr, pubsub::Subscriber, sample::Sample};
 use core::marker::PhantomData;
