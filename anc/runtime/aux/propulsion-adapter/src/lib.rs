@@ -96,21 +96,18 @@ impl CuTask for PropulsionAdapter {
         let hcsr04_msg = hcsr04_pair.payload().map_or(Err(CuError::from(format!("none payload hcsr04"))), |msg| {Ok(msg)})?;
 
         let loop_state = msg.loop_state;
-        let mut openloop_left_speed = msg.openloop_left_speed;
-        let mut openloop_right_speed = msg.openloop_right_speed;
 
         let mut propulsion_payload
             = PropulsionPayload {
                 left_enable: msg.left_enable,
                 right_enable: msg.right_enable,
-                left_speed: openloop_left_speed,
-                right_speed: openloop_right_speed,
+                left_speed: msg.openloop_left_speed,
+                right_speed: msg.openloop_right_speed,
                 left_direction: msg.left_direction,
                 right_direction: msg.right_direction
             };
 
         let panner_payload = CameraPanningPayload { pos_cmd: msg.camera_position };
-
         let weighted_error = msg.weighted_error;
 
         let mut is_e_stop_triggered = false;
