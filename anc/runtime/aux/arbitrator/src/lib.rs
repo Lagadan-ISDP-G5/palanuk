@@ -183,7 +183,6 @@ impl Arbitrator {
                 right_direction
             };
         }
-
         Ok(ret)
     }
 }
