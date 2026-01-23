@@ -14,8 +14,8 @@ members = [
     "hal/mtr-ctrlr",
     "hal/lmtr-ctrlr",
     "hal/rmtr-ctrlr",
-    "aux/propulsion-cleaver"
-]
+    "aux/propulsion-cleaver",
+    "hal/dual-mtr-ctrlr"]
 
 [workspace.package]
 publish = false
