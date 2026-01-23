@@ -160,12 +160,12 @@ impl Arbitrator {
             let signum = pid_output.signum();
             if !signum.is_nan() {
                 if signum == 1.0 {
-                    *closedloop_left_speed = *closedloop_left_speed + pid_output;
-                    *closedloop_right_speed = *closedloop_right_speed - pid_output;
-                }
-                if signum == -1.0 {
                     *closedloop_left_speed = *closedloop_left_speed - pid_output;
                     *closedloop_right_speed = *closedloop_right_speed + pid_output;
+                }
+                if signum == -1.0 {
+                    *closedloop_left_speed = *closedloop_left_speed + pid_output;
+                    *closedloop_right_speed = *closedloop_right_speed - pid_output;
                 }
 
                 if *closedloop_left_speed > 1.0 { return Err(CuError::from(format!("left speed oversaturated"))) }
