@@ -938,7 +938,6 @@ dependencies = [
 name = "cu-zenoh-sink"
 version = "0.1.0"
 dependencies = [
- "bincode 2.0.1",
  "cfg_aliases",
  "cu29",
  "rmp-serde",
@@ -950,10 +949,10 @@ dependencies = [
 name = "cu-zenoh-src"
 version = "0.1.0"
 dependencies = [
- "bincode 2.0.1",
  "cfg_aliases",
  "cu29",
  "rmp-serde",
+ "serde",
  "zenoh",
 ]
 

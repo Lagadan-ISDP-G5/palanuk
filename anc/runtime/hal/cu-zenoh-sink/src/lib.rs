@@ -1,6 +1,5 @@
 use cu29::prelude::*;
-use bincode::encode_to_vec;
-use rmp_serde::{Serializer, to_vec_named};
+use rmp_serde::to_vec_named;
 use serde::Serialize;
 use zenoh::{Session, Config, pubsub::Publisher, key_expr::{KeyExpr}, Wait};
 use core::marker::PhantomData;

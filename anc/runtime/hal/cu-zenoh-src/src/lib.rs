@@ -1,5 +1,6 @@
 use cu29::prelude::*;
-use bincode::decode_from_slice;
+use serde::{Deserialize, de::DeserializeOwned};
+use rmp_serde::from_slice;
 use zenoh::{Config, Session, handlers::{FifoChannel, FifoChannelHandler}, key_expr::KeyExpr, pubsub::Subscriber, sample::Sample};
 use core::marker::PhantomData;
 
@@ -28,7 +29,7 @@ impl<S> Freezable for ZSrc<S> where S: CuMsgPayload {}
 
 impl<S> CuSrcTask for ZSrc<S>
 where
-    S: CuMsgPayload + 'static,
+    S: CuMsgPayload + 'static + DeserializeOwned,
 {
     type Output<'m> = output_msg!(S);
 
@@ -93,12 +94,9 @@ where
             Err(_) => return Err(CuError::from("msg recv failed"))
         };
 
-        let (msg, _) = decode_from_slice(
-            sample.payload().to_bytes().as_ref(),
-            bincode::config::standard())
-            .map_err(
-                |_| -> CuError {CuError::from("decode failed")}
-            )?;
+        let msg = from_slice(&sample.payload().to_bytes()).map_err(
+            |_| -> CuError {CuError::from("decode failed")}
+        )?;
 
         output.set_payload(msg);
         Ok(())
