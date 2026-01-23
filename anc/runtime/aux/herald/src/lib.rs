@@ -8,8 +8,8 @@ use cu_pid::PIDControlOutputPayload;
 
 #[derive(Default, Debug, Clone, Copy, Encode, Decode, PartialEq, Serialize, Deserialize)]
 pub struct HeraldNewsPayload {
-    e_stop_trig_fdbk: bool,
-    loop_mode_fdbk: LoopState,
+    pub e_stop_trig_fdbk: bool,
+    pub loop_mode_fdbk: LoopState,
 }
 
 pub struct Herald {}

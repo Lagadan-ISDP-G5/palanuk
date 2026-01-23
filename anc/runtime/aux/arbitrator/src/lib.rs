@@ -46,14 +46,9 @@ impl Freezable for Arbitrator {
     }
 }
 
-type LmtrPIDControlOutputPayload = PIDControlOutputPayload;
-type RmtrPIDControlOutputPayload = PIDControlOutputPayload;
-type LmtrPropulsionPayload = PropulsionPayload;
-type RmtrPropulsionPayload = PropulsionPayload;
-
 impl CuTask for Arbitrator {
-    type Input<'m> = input_msg!('m, PropulsionAdapterOutputPayload, LmtrPIDControlOutputPayload, RmtrPIDControlOutputPayload);
-    type Output<'m> = output_msg!((LmtrPropulsionPayload, RmtrPropulsionPayload, HeraldNewsPayload));
+    type Input<'m> = input_msg!('m, PropulsionAdapterOutputPayload, PIDControlOutputPayload);
+    type Output<'m> = output_msg!((PropulsionPayload, HeraldNewsPayload));
 
     fn new(_config: Option<&ComponentConfig>) -> CuResult<Self>
     where Self: Sized
@@ -64,37 +59,34 @@ impl CuTask for Arbitrator {
     fn process(&mut self, _clock: &RobotClock, input: &Self::Input<'_>, output: &mut Self::Output<'_>)
     -> CuResult<()>
     {
-        let (prop_adap, lmtr_pid, rmtr_pid) = *input;
+        let (prop_adap, mtr_pid) = *input;
+        if let (Some(prop_adap_pload), Some(mtr_pid_pload)) = (prop_adap.payload(), mtr_pid.payload()) {
 
-        if let (Some(prop_adap_pload), Some(lmtr_pid_pload), Some(rmtr_pid_pload)) = (prop_adap.payload(), lmtr_pid.payload(), rmtr_pid.payload()) {
-
-            let is_e_stop_triggered = prop_adap_pload.is_e_stop_triggered;
+            let prop_payload;
             let loop_state = prop_adap_pload.loop_state;
-
-            match is_e_stop_triggered {
-                true => (),
-                false => ()
-            }
-
             match loop_state {
-                LoopState::Closed => (),
-                LoopState::Open => ()
+                LoopState::Closed => {
+                    prop_payload = self.closed_loop_handler(mtr_pid_pload, prop_adap_pload)?;
+                },
+                LoopState::Open => {
+                    prop_payload = self.open_loop_handler(prop_adap_pload)?;
+                }
             }
 
-            let lmtr_pid_output = lmtr_pid_pload.output;
-            let rmtr_pid_output = rmtr_pid_pload.output;
+            let herald_pload = HeraldNewsPayload {
+                e_stop_trig_fdbk: prop_adap_pload.is_e_stop_triggered,
+                loop_mode_fdbk: prop_adap_pload.loop_state,
+            };
 
-            // TODO: link these PID outputs into values in PropulsionPayload
-
-
+            let arbitrator_output_payload = (prop_payload, herald_pload);
+            output.set_payload(arbitrator_output_payload);
         }
-
         Ok(())
     }
 }
 
 impl Arbitrator {
-    fn open_loop_handler(prop_adap_payload: &PropulsionAdapterOutputPayload) -> CuResult<PropulsionPayload> {
+    fn open_loop_handler(&self, prop_adap_pload: &PropulsionAdapterOutputPayload) -> CuResult<PropulsionPayload> {
 
         // initialize to safe conditions
         let left_enable: bool = false;
@@ -113,26 +105,26 @@ impl Arbitrator {
                 right_direction
             };
 
-        if prop_adap_payload.is_e_stop_triggered {
+        if prop_adap_pload.is_e_stop_triggered {
             return Ok(ret)
         }
 
         else {
-            ret = prop_adap_payload.propulsion_payload;
+            ret = prop_adap_pload.propulsion_payload;
         }
 
         Ok(ret)
     }
 
-    fn closed_loop_handler(&mut self, pid_payload: &PIDControlOutputPayload, prop_adap_payload: &PropulsionAdapterOutputPayload) -> CuResult<PropulsionPayload> {
+    fn closed_loop_handler(&mut self, pid_pload: &PIDControlOutputPayload, prop_adap_pload: &PropulsionAdapterOutputPayload) -> CuResult<PropulsionPayload> {
 
-        let pid_output = pid_payload.output;
+        let pid_output = pid_pload.output;
 
         // initialize to safe conditions
         let mut left_enable: bool = false;
         let mut right_enable: bool = false;
-        let mut left_speed: f32 = 0.0;
-        let mut right_speed: f32 = 0.0;
+        let left_speed: f32 = 0.0;
+        let right_speed: f32 = 0.0;
         let mut left_direction: WheelDirection = WheelDirection::Stop;
         let mut right_direction: WheelDirection = WheelDirection::Stop;
         let mut ret
@@ -148,7 +140,7 @@ impl Arbitrator {
         let closedloop_left_speed = &mut self.current_left_speed;
         let closedloop_right_speed = &mut self.current_right_speed;
 
-        if prop_adap_payload.is_e_stop_triggered {
+        if prop_adap_pload.is_e_stop_triggered {
             return Ok(ret)
         }
 
