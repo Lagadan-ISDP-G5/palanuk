@@ -6,22 +6,28 @@
 
 use cu29::prelude::*;
 use bincode::{Decode, Encode};
-use serde::{Deserialize, Serialize};
+// use serde::{Deserialize, Serialize};
 use propulsion_adapter::{LoopState, PropulsionAdapterOutputPayload};
-use cu_propulsion::PropulsionPayload;
+use cu_propulsion::{PropulsionPayload, WheelDirection};
 use cu_pid::PIDControlOutputPayload;
 use herald::HeraldNewsPayload;
+
+pub const BASELINE_SPEED: f32 = 0.10;
 
 pub struct Arbitrator {
     e_stop_trig_fdbk: bool,
     loop_mode_fdbk: LoopState,
+    current_left_speed: f32,
+    current_right_speed: f32
 }
 
 impl Default for Arbitrator {
     fn default() -> Self {
         Self {
             e_stop_trig_fdbk: false,
-            loop_mode_fdbk: LoopState::Closed
+            loop_mode_fdbk: LoopState::Closed,
+            current_left_speed: BASELINE_SPEED,
+            current_right_speed: BASELINE_SPEED
         }
     }
 }
@@ -40,9 +46,14 @@ impl Freezable for Arbitrator {
     }
 }
 
+type LmtrPIDControlOutputPayload = PIDControlOutputPayload;
+type RmtrPIDControlOutputPayload = PIDControlOutputPayload;
+type LmtrPropulsionPayload = PropulsionPayload;
+type RmtrPropulsionPayload = PropulsionPayload;
+
 impl CuTask for Arbitrator {
-    type Input<'m> = input_msg!('m, PropulsionAdapterOutputPayload, PIDControlOutputPayload, PIDControlOutputPayload);
-    type Output<'m> = output_msg!((PropulsionPayload, PropulsionPayload, HeraldNewsPayload));
+    type Input<'m> = input_msg!('m, PropulsionAdapterOutputPayload, LmtrPIDControlOutputPayload, RmtrPIDControlOutputPayload);
+    type Output<'m> = output_msg!((LmtrPropulsionPayload, RmtrPropulsionPayload, HeraldNewsPayload));
 
     fn new(_config: Option<&ComponentConfig>) -> CuResult<Self>
     where Self: Sized
@@ -75,8 +86,112 @@ impl CuTask for Arbitrator {
 
             // TODO: link these PID outputs into values in PropulsionPayload
 
+
         }
 
         Ok(())
+    }
+}
+
+impl Arbitrator {
+    fn open_loop_handler(prop_adap_payload: &PropulsionAdapterOutputPayload) -> CuResult<PropulsionPayload> {
+
+        // initialize to safe conditions
+        let left_enable: bool = false;
+        let right_enable: bool = false;
+        let left_speed: f32 = 0.0;
+        let right_speed: f32 = 0.0;
+        let left_direction: WheelDirection = WheelDirection::Stop;
+        let right_direction: WheelDirection = WheelDirection::Stop;
+        let mut ret
+            = PropulsionPayload {
+                left_enable,
+                right_enable,
+                left_speed,
+                right_speed,
+                left_direction,
+                right_direction
+            };
+
+        if prop_adap_payload.is_e_stop_triggered {
+            return Ok(ret)
+        }
+
+        else {
+            ret = prop_adap_payload.propulsion_payload;
+        }
+
+        Ok(ret)
+    }
+
+    fn closed_loop_handler(&mut self, pid_payload: &PIDControlOutputPayload, prop_adap_payload: &PropulsionAdapterOutputPayload) -> CuResult<PropulsionPayload> {
+
+        let pid_output = pid_payload.output;
+
+        // initialize to safe conditions
+        let mut left_enable: bool = false;
+        let mut right_enable: bool = false;
+        let mut left_speed: f32 = 0.0;
+        let mut right_speed: f32 = 0.0;
+        let mut left_direction: WheelDirection = WheelDirection::Stop;
+        let mut right_direction: WheelDirection = WheelDirection::Stop;
+        let mut ret
+            = PropulsionPayload {
+                left_enable,
+                right_enable,
+                left_speed,
+                right_speed,
+                left_direction,
+                right_direction
+            };
+
+        let closedloop_left_speed = &mut self.current_left_speed;
+        let closedloop_right_speed = &mut self.current_right_speed;
+
+        if prop_adap_payload.is_e_stop_triggered {
+            return Ok(ret)
+        }
+
+        else {
+            left_enable = true;
+            right_enable = true;
+            left_direction = WheelDirection::Forward;
+            right_direction = WheelDirection::Forward;
+
+            if *closedloop_left_speed == 0.0 { *closedloop_left_speed = BASELINE_SPEED; }
+            if *closedloop_right_speed == 0.0 { *closedloop_right_speed = BASELINE_SPEED; }
+
+            let signum = pid_output.signum();
+            if !signum.is_nan() {
+                if signum == 1.0 {
+                    *closedloop_left_speed = *closedloop_left_speed + pid_output;
+                    *closedloop_right_speed = *closedloop_right_speed - pid_output;
+                }
+                if signum == -1.0 {
+                    *closedloop_left_speed = *closedloop_left_speed - pid_output;
+                    *closedloop_right_speed = *closedloop_right_speed + pid_output;
+                }
+
+                if *closedloop_left_speed > 1.0 { return Err(CuError::from(format!("left speed oversaturated"))) }
+                if *closedloop_left_speed < 0.0 { return Err(CuError::from(format!("left speed undersaturated"))) }
+
+                if *closedloop_right_speed > 1.0 { return Err(CuError::from(format!("right speed oversaturated"))) }
+                if *closedloop_right_speed < 0.0 { return Err(CuError::from(format!("right speed undersaturated"))) }
+            }
+            else {
+                return Err(CuError::from(format!("NaN encountered")))
+            }
+
+            ret = PropulsionPayload {
+                left_enable,
+                right_enable,
+                left_speed: *closedloop_left_speed,
+                right_speed: *closedloop_right_speed,
+                left_direction,
+                right_direction
+            };
+        }
+
+        Ok(ret)
     }
 }

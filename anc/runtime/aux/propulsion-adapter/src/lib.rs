@@ -42,8 +42,8 @@ pub struct ZenohTopicsAdapterInputPayload {
     loop_state: LoopState,
     left_enable: bool,
     right_enable: bool,
-    left_speed: f32,
-    right_speed: f32,
+    openloop_left_speed: f32,
+    openloop_right_speed: f32,
     left_direction: WheelDirection,
     right_direction: WheelDirection,
     steer_direction: SteerDirection,
@@ -96,17 +96,15 @@ impl CuTask for PropulsionAdapter {
         let hcsr04_msg = hcsr04_pair.payload().map_or(Err(CuError::from(format!("none payload hcsr04"))), |msg| {Ok(msg)})?;
 
         let loop_state = msg.loop_state;
-        let steer_direction = msg.steer_direction;
-
-        let mut left_speed = msg.left_speed;
-        let mut right_speed = msg.right_speed;
+        let mut openloop_left_speed = msg.openloop_left_speed;
+        let mut openloop_right_speed = msg.openloop_right_speed;
 
         let mut propulsion_payload
             = PropulsionPayload {
                 left_enable: msg.left_enable,
                 right_enable: msg.right_enable,
-                left_speed: msg.left_speed,
-                right_speed: msg.right_speed,
+                left_speed: openloop_left_speed,
+                right_speed: openloop_right_speed,
                 left_direction: msg.left_direction,
                 right_direction: msg.right_direction
             };
@@ -124,8 +122,6 @@ impl CuTask for PropulsionAdapter {
             WorkOrRestState::AtRest => true,
             _ => false
         };
-
-        steering_handler(&mut left_speed, &mut right_speed, &steer_direction);
 
         let stop_condition = is_e_stop_triggered || is_at_rest;
         if stop_condition {
@@ -149,42 +145,4 @@ impl CuTask for PropulsionAdapter {
         output.set_payload(output_payload);
         Ok(())
     }
-}
-
-// TODO: Refactor later to handle both corner handling and lanekeeping
-fn steering_handler(left_speed: &mut f32, right_speed: &mut f32, steer_direction: &SteerDirection) {
-    let ref_speed = left_speed.max(*right_speed);
-
-    match steer_direction {
-        // a hard right steer is all we need actually, other than the PID lanekeeping controller
-        SteerDirection::HardRight => {
-            *right_speed = ref_speed;
-            *left_speed = 0.5 * ref_speed;
-        },
-        SteerDirection::SlightRight => {
-            *right_speed = ref_speed;
-            *left_speed = 0.25 * ref_speed;
-        },
-        SteerDirection::HardLeft => {
-            *left_speed = ref_speed;
-            *right_speed = 0.5 * ref_speed;
-        },
-        SteerDirection::SlightLeft => {
-            *left_speed = ref_speed;
-            *right_speed = 0.25 * ref_speed;
-        }
-    }
-
-
-}
-
-#[cfg(test)]
-mod tests {
-    // use super::*;
-
-    // #[test]
-    // fn it_works() {
-    //     let result = add(2, 2);
-    //     assert_eq!(result, 4);
-    // }
 }
