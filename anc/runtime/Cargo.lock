@@ -3013,6 +3013,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "panner-adapter"
+version = "0.1.0"
+dependencies = [
+ "bincode 2.0.1",
+ "cu-cam-pan",
+ "cu29",
+ "propulsion-adapter",
+]
+
+[[package]]
 name = "parking"
 version = "2.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

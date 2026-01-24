@@ -15,7 +15,7 @@ members = [
     "hal/lmtr-ctrlr",
     "hal/rmtr-ctrlr",
     "aux/propulsion-cleaver",
-    "hal/dual-mtr-ctrlr"]
+    "hal/dual-mtr-ctrlr", "aux/panner-adapter"]
 
 [workspace.package]
 publish = false
