@@ -34,7 +34,8 @@ pub struct PropulsionAdapterOutputPayload {
     pub propulsion_payload: PropulsionPayload,
     pub panner_payload: CameraPanningPayload,
     pub weighted_error: f32,
-    pub is_e_stop_triggered: bool
+    pub is_e_stop_triggered: bool,
+    pub distance: f64,
 }
 
 #[derive(Default, Debug, Clone, Copy, Encode, Decode, PartialEq, Serialize, Deserialize)]
@@ -137,7 +138,8 @@ impl CuTask for PropulsionAdapter {
             propulsion_payload,
             panner_payload,
             weighted_error,
-            is_e_stop_triggered
+            is_e_stop_triggered,
+            distance: hcsr04_msg.distance
         };
         output.set_payload(output_payload);
         Ok(())
