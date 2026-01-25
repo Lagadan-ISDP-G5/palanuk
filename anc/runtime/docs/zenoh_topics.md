@@ -35,4 +35,4 @@ Data under `/palanuk/itp/**`:
 Data under `/palanuk/anc/**`:
 
 - `obstacle/<u8>` - This is a boolean (1 - obstacle detected, 0 - no obstacle detected)
-- `distance/<f64>` - Extra feature, not part of 80% integration target
+- `distance/<f64>` - Relayed distance sensor reading

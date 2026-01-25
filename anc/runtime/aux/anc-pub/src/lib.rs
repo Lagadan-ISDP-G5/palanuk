@@ -10,6 +10,7 @@ use cu_pid::PIDControlOutputPayload;
 pub struct AncPubPayload {
     pub e_stop_trig_fdbk: bool,
     pub loop_mode_fdbk: LoopState,
+    pub distance: f64
 }
 
 pub struct AncPub {}

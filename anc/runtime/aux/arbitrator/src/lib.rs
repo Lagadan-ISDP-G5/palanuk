@@ -80,6 +80,7 @@ impl CuTask for Arbitrator {
             let herald_pload = AncPubPayload {
                 e_stop_trig_fdbk: prop_adap_pload.is_e_stop_triggered,
                 loop_mode_fdbk: prop_adap_pload.loop_state,
+                distance: prop_adap_pload.distance
             };
 
             let arbitrator_output_payload = (prop_payload, herald_pload);
