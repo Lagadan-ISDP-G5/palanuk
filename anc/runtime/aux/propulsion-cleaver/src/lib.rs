@@ -3,7 +3,7 @@
 
 use cu29::prelude::*;
 use cu_propulsion::PropulsionPayload;
-use herald::HeraldNewsPayload;
+use anc_pub::AncPubPayload;
 
 // enum WhichMotor {
 //     Lmtr,
@@ -17,7 +17,7 @@ pub struct PropulsionCleaver {
 impl Freezable for PropulsionCleaver {}
 
 impl CuTask for PropulsionCleaver {
-    type Input<'m> = input_msg!((PropulsionPayload, HeraldNewsPayload));
+    type Input<'m> = input_msg!((PropulsionPayload, AncPubPayload));
     type Output<'m> = output_msg!(PropulsionPayload);
 
     fn new(_config: Option<&ComponentConfig>) -> CuResult<Self>

@@ -10,4 +10,4 @@ keywords.workspace = true
 [dependencies]
 cu29 = { workspace = true }
 cu-propulsion = { workspace = true }
-herald = { workspace = true }
+anc-pub = { workspace = true }

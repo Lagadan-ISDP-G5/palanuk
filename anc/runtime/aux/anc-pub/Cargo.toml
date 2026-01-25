@@ -1,5 +1,5 @@
 [package]
-name = "herald"
+name = "anc-pub"
 publish.workspace = true
 version.workspace = true
 authors.workspace = true

@@ -14,4 +14,4 @@ serde = { workspace = true }
 propulsion-adapter = { workspace = true }
 cu-propulsion = { workspace = true }
 cu-pid = { workspace = true }
-herald = { workspace = true }
+anc-pub = { workspace = true }

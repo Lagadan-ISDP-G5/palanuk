@@ -7,16 +7,16 @@ use propulsion_adapter::{LoopState, PropulsionAdapterOutputPayload};
 use cu_pid::PIDControlOutputPayload;
 
 #[derive(Default, Debug, Clone, Copy, Encode, Decode, PartialEq, Serialize, Deserialize)]
-pub struct HeraldNewsPayload {
+pub struct AncPubPayload {
     pub e_stop_trig_fdbk: bool,
     pub loop_mode_fdbk: LoopState,
 }
 
-pub struct Herald {}
+pub struct AncPub {}
 
-impl Freezable for Herald {}
+impl Freezable for AncPub {}
 
-impl CuSinkTask for Herald {
+impl CuSinkTask for AncPub {
     type Input<'m> = input_msg!('m, PropulsionAdapterOutputPayload, PIDControlOutputPayload);
 
     fn new(_config: Option<&ComponentConfig>) -> CuResult<Self>

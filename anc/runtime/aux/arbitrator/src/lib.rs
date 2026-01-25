@@ -10,7 +10,7 @@ use bincode::{Decode, Encode};
 use propulsion_adapter::{LoopState, PropulsionAdapterOutputPayload};
 use cu_propulsion::{PropulsionPayload, WheelDirection};
 use cu_pid::PIDControlOutputPayload;
-use herald::HeraldNewsPayload;
+use anc_pub::AncPubPayload;
 
 pub const BASELINE_SPEED: f32 = 0.10;
 
@@ -52,7 +52,7 @@ impl Freezable for Arbitrator {
 
 impl CuTask for Arbitrator {
     type Input<'m> = input_msg!('m, PropulsionAdapterOutputPayload, PIDControlOutputPayload);
-    type Output<'m> = output_msg!((PropulsionPayload, HeraldNewsPayload));
+    type Output<'m> = output_msg!((PropulsionPayload, AncPubPayload));
 
     fn new(_config: Option<&ComponentConfig>) -> CuResult<Self>
     where Self: Sized
@@ -77,7 +77,7 @@ impl CuTask for Arbitrator {
                 }
             }
 
-            let herald_pload = HeraldNewsPayload {
+            let herald_pload = AncPubPayload {
                 e_stop_trig_fdbk: prop_adap_pload.is_e_stop_triggered,
                 loop_mode_fdbk: prop_adap_pload.loop_state,
             };

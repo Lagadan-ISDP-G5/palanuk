@@ -10,7 +10,7 @@ members = [
     "hal/cu-zenoh-sink",
     "aux/propulsion-adapter",
     "aux/arbitrator",
-    "aux/herald",
+    "aux/anc-pub",
     "hal/mtr-ctrlr",
     "hal/lmtr-ctrlr",
     "hal/rmtr-ctrlr",
@@ -51,7 +51,7 @@ core_affinity = "0.8.3"
 zenoh = "1.6.2"
 propulsion-adapter = { path = "./aux/propulsion-adapter" }
 mtr-ctrlr = { path = "./hal/mtr-ctrlr" }
-herald = { path = "./aux/herald" }
+anc-pub = { path = "./aux/anc-pub" }
 rmp-serde = { version = "1.3.1" }
 
 [build]
