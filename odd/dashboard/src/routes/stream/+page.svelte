@@ -1,18 +1,29 @@
 <script>
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
+  import { 
+    initWebSocket, 
+    telemetryData, 
+    connectionStatus,
+    vehicleState,
+    commandFeedback,
+    messageLog
+  } from '$lib/stores/zenohStore';
  
   // Pi's IP address
   const PI_IP = '169.254.219.175';
   const CAMERA_URL = `http://${PI_IP}:8889/cam/`;
  
-  // Mock data
-  let robotData = {
-    totalEnergy: 120,
+  let wsClient;
+
+  // REPLACE the static mock data with this REACTIVE statement
+  // The $: makes it update automatically when $telemetryData changes
+  $: robotData = {
+    totalEnergy: $telemetryData.battery || 120,
     efficiency: 85,
-    averageSpeed: 65,
+    averageSpeed: Math.round($telemetryData.speed) || 65,
     distance: 120,
     travelTime: '2h 15m',
-    battery: 78
+    battery: Math.round($telemetryData.battery) || 78
   };
  
   let recordedImages = [
@@ -31,15 +42,41 @@
  
   let isStreaming = true;
 
+  // Initialize WebSocket on mount
+  onMount(() => {
+    wsClient = initWebSocket('ws://localhost:8081');
+  });
+
+  onDestroy(() => {
+    if (wsClient) {
+      wsClient.disconnect();
+    }
+  });
 
   function startMovement(direction) {
     carControls[direction] = true;
     console.log(`Moving ${direction}`);
+    
+    // Send command to WebSocket
+    if (wsClient) {
+      wsClient.send({
+        type: 'command',
+        payload: direction
+      });
+    }
   }
  
   function stopMovement(direction) {
     carControls[direction] = false;
     console.log(`Stopped ${direction}`);
+    
+    // Send stop command to WebSocket
+    if (wsClient) {
+      wsClient.send({
+        type: 'command',
+        payload: 'stop'
+      });
+    }
   }
  
   function getImageColor(type) {
@@ -149,6 +186,32 @@
       </div>
 
 
+
+        <div class="bg-gradient-to-br from-indigo-900/50 to-purple-900/50 rounded-2xl p-6 border border-indigo-500/30 shadow-lg">
+          <h2 class="text-2xl font-bold text-white mb-4 flex items-center">
+            <span class="mr-3 text-3xl">📜</span>
+            <span class="bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
+              Message Log
+            </span>
+          </h2>
+          <div class="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl p-4 border border-indigo-400/30">
+            <div class="max-h-64 overflow-y-auto space-y-2">
+              {#each $messageLog.slice(-10).reverse() as msg}
+                <div class="bg-gradient-to-r from-indigo-500/10 to-purple-500/10 rounded-lg p-3 border border-indigo-400/20">
+                  <div class="flex items-start justify-between">
+                    <span class="text-indigo-300 text-xs font-mono">{msg.time}</span>
+                    <span class="text-purple-300 text-xs">{msg.data.type || 'unknown'}</span>
+                  </div>
+                  <pre class="text-indigo-100 text-xs mt-2 overflow-x-auto">{JSON.stringify(msg.data, null, 2)}</pre>
+                </div>
+              {:else}
+                <p class="text-indigo-300 text-center py-4">No messages yet...</p>
+              {/each}
+            </div>
+          </div>
+        </div>
+
+      </div>
       <!-- Right Column -->
       <div class="space-y-8">
        
@@ -278,4 +341,3 @@
       </p>
     </div>
   </div>
-</div>

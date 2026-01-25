@@ -1,0 +1,21 @@
+{
+  "name": "zenoh-example",
+  "type": "module",
+  "scripts": {
+    "pub-ws": "tsx --experimental-wasm-modules pub-websocket.ts",
+    "sub-ws": "tsx --experimental-wasm-modules sub-websocket.ts",
+    "pub-tcp": "tsx --experimental-wasm-modules pub-tcp.ts",
+    "sub-tcp": "tsx --experimental-wasm-modules sub-tcp.ts",
+    "pub": "node --experimental-wasm-modules pub.js",
+    "sub": "node --experimental-wasm-modules sub.js",
+    "compile": "tsc"
+  },
+  "dependencies": {
+    "@eclipse-zenoh/zenoh-ts": "^1.7.2",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "typescript": "^5.0.0"
+  }
+}

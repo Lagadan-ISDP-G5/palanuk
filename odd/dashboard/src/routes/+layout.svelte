@@ -1,11 +1,11 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { connectToZenoh, disconnectFromZenoh } from '../lib/stores/zenohStore';
+  // import { connectToZenoh, disconnectFromZenoh } from '../lib/stores/zenohStore';
   import '../app.css';
 
   onMount(() => {
     // Connect to Zenoh WebSocket bridge
-    connectToZenoh('ws://localhost:8080/ws');
+    connectToZenoh('ws://localhost:8081/ws');
   });
 
   onDestroy(() => {
