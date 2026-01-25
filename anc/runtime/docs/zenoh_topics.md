@@ -1,6 +1,6 @@
 ## Zenoh topics
 
-Root topic: `/palanuk`
+Root topic: `/palanuk`. Topic value types refer to Rust primitive types. Floats are `f64` to correspond with Python floats, which is 64 bits on almost all platforms.
 
 Namespaces:
 
@@ -11,28 +11,28 @@ Namespaces:
 
 Data under `ec` (`/palanuk/ec/**`):
 
-- `power/mwatts/<AppFloat>`
-- `load_current/mamps/<AppFloat>`
-- `shunt_voltage/mvolts/<AppFloat>`
-- `bus_voltage/mvolts/<AppFloat>`
+- `power/mwatts/<f64>`
+- `load_current/mamps/<f64>`
+- `shunt_voltage/mvolts/<f64>`
+- `bus_voltage/mvolts/<f64>`
 
 For each measurable, child topics may be additionally defined for alternate units.
 
 Data under `/palanuk/odd/**`:
 
-- `loopmode/<AppInteger>` - 0 - Open loop, 1 - Closed loop
-- `stop/<AppInteger>` - This is a boolean (1 - true, 0 - false)
-- `steer/left/<AppFloat>`
-- `steer/right/<AppFloat>`
-- `speed/<AppFloat>`
-- `drivestate/<AppInteger>` - This is NOT a boolean, but an enum (0 - At Rest, 1 - Forward, 2 - Reverse) 
-- `forcepan/<AppInteger>` - 0 - Center, 1 - Reference Left, 2 - Reference Right
+- `loopmode/<u8>` - 0 - Open loop, 1 - Closed loop
+- `stop/<u8>` - This is a boolean (1 - true, 0 - false)
+- `steer/left/<f64>`
+- `steer/right/<f64>`
+- `speed/<f64>`
+- `drivestate/<u8>` - This is NOT a boolean, but an enum (0 - At Rest, 1 - Forward, 2 - Reverse) 
+- `forcepan/<u8>` - 0 - Center, 1 - Reference Left, 2 - Reference Right
 
 Data under `/palanuk/itp/**`:
 
-- `panner/<AppInteger>` - 0 - Center, 1 - Reference Left, 2 - Reference Right
+- `panner/<u8>` - 0 - Center, 1 - Reference Left, 2 - Reference Right
 
 Data under `/palanuk/anc/**`:
 
-- `obstacle/<AppInteger>` - This is a boolean (1 - obstacle detected, 0 - no obstacle detected)
-- `distance/<AppFloat>` - Extra feature, not part of 80% integration target
+- `obstacle/<u8>` - This is a boolean (1 - obstacle detected, 0 - no obstacle detected)
+- `distance/<f64>` - Extra feature, not part of 80% integration target
