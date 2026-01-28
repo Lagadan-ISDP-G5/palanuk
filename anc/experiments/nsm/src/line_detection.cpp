@@ -86,7 +86,7 @@ void detect_horizontal_line(const cv::Mat& thresh, int start_y, const PipelineCo
 
         float vx = std::abs(out.fitted_line[0]);
         float vy = std::abs(out.fitted_line[1]);
-        bool is_horizontal = vx > vy * 2;
+        bool is_horizontal = vx > vy * 2; // fitted line twice as long as it is wide ~= it's horizontal
 
         float min_x = out.points.front().x;
         float max_x = out.points.back().x;

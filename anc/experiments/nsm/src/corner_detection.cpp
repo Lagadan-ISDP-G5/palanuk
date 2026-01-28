@@ -14,6 +14,7 @@ void detect_harris_corners(const cv::Mat& thresh, const PipelineConfig& config, 
     cv::Mat corners_norm;
     cv::normalize(corners_response, corners_norm, 0, 255, cv::NORM_MINMAX);
 
+    // TODO: these hardcoded integers should probably match the config.max_corners field value
     for (int y = 10; y < corners_norm.rows - 10; y++) {
         for (int x = 10; x < corners_norm.cols - 10; x++) {
             float val = corners_norm.at<float>(y, x);
@@ -67,6 +68,9 @@ void detect_L_corner(const cv::Mat& thresh, const LineDetectionResult& center_li
         out.detected = true;
 
         out.horizontal_direction = cv::Point2f(horiz_scratch.fitted_line[0], horiz_scratch.fitted_line[1]);
+        // this removes corner direction info by assuming everything is rightwards
+        // which is not a bad assertion, because you can literally only turn right in the track,
+        // but still important to document
         if (out.horizontal_direction.x < 0) {
             out.horizontal_direction = -out.horizontal_direction;
         }
