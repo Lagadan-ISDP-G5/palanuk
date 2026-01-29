@@ -7,7 +7,6 @@
 #include "pipeline.h"
 #include "frame_source.h"
 #include "visualization.h"
-#include "line_detection.h"
 #include <optional>
 #include "bridge.h"
 
