@@ -39,7 +39,7 @@ void detect_line_sliding_window(const cv::Mat& thresh, const PipelineConfig& con
         }
     }
 
-    if (out.points.size() >= 2) {
+    if (out.points.size() >= 3) {
         cv::fitLine(out.points, out.fitted_line, cv::DIST_L2, 0, 0.01, 0.01);
         out.valid = true;
     }
