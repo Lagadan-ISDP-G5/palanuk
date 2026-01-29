@@ -42,6 +42,7 @@ int runBatchMode(nsm::ImageDirectorySource& source, nsm::Pipeline& pipeline,
 
         const nsm::FrameResult& result = pipeline.process(frame);
         nsm::process(result, frame.cols, bridge_result);
+        nsm::publish(bridge_result);
 
         if (bridge_result.heading_error.has_value()) {
             std::cout << " -> offset: " << *bridge_result.heading_error;
@@ -89,6 +90,7 @@ int runLiveMode(nsm::FrameSource& source, nsm::Pipeline& pipeline) {
 
         const nsm::FrameResult& result = pipeline.process(frame);
         nsm::process(result, frame.cols, bridge_result);
+        nsm::publish(bridge_result);
 
         if (bridge_result.heading_error.has_value()) {
             std::cout << "Frame " << frame_count << " offset: " << *bridge_result.heading_error << std::endl;
@@ -149,6 +151,11 @@ int main(int argc, char** argv) {
 
     std::cout << "OpenCV version: " << CV_VERSION << std::endl;
 
+    // Initialize iceoryx2 publishers
+    if (!nsm::init_publishers()) {
+        std::cerr << "Warning: Failed to initialize iceoryx2 publishers" << std::endl;
+    }
+
     // Create pipeline with default config
     nsm::PipelineConfig config;
     nsm::Pipeline pipeline(config);
@@ -166,12 +173,16 @@ int main(int argc, char** argv) {
     }
 
     // Determine mode based on source type
+    int result;
     if (auto* img_source = dynamic_cast<nsm::ImageDirectorySource*>(source.get())) {
-        return runBatchMode(*img_source, pipeline, output_dir, headless);
+        result = runBatchMode(*img_source, pipeline, output_dir, headless);
     } else {
         if (headless) {
             std::cerr << "Warning: --headless only supported for image directory mode" << std::endl;
         }
-        return runLiveMode(*source, pipeline);
+        result = runLiveMode(*source, pipeline);
     }
+
+    nsm::shutdown_publishers();
+    return result;
 }
