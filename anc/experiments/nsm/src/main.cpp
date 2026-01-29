@@ -8,6 +8,7 @@
 #include "frame_source.h"
 #include "visualization.h"
 #include "line_detection.h"
+#include <optional>
 
 namespace fs = std::filesystem;
 
@@ -39,8 +40,11 @@ int runBatchMode(nsm::ImageDirectorySource& source, nsm::Pipeline& pipeline,
 
         const nsm::FrameResult& result = pipeline.process(frame);
 
-        float center_offset = nsm::calculate_heading_error(result.center_line, frame.cols);
-        std::cout << " -> offset: " << center_offset;
+        std::optional<float> center_offset = nsm::calculate_heading_error(result.center_line, frame.cols);
+        if (center_offset.has_value()) {
+            std::cout << " -> offset: " << *center_offset;
+        }
+
         std::cout << " -> " << result.center_line.points.size() << " points";
         if (result.center_line.valid) {
             std::cout << ", line fitted";

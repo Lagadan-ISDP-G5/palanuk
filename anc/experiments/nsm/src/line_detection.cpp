@@ -1,6 +1,7 @@
 #include "line_detection.h"
 #include <opencv2/imgproc.hpp>
 #include <algorithm>
+#include <optional>
 
 namespace nsm {
 
@@ -96,9 +97,9 @@ void detect_horizontal_line(const cv::Mat& thresh, int start_y, const PipelineCo
     }
 }
 
-float calculate_heading_error(const LineDetectionResult& result, int frame_width) {
+std::optional<float> calculate_heading_error(const LineDetectionResult& result, int frame_width) {
     if (result.points.empty() || frame_width <= 0) {
-        return 0.0f;
+        return std::nullopt;
     }
 
     // Points are ordered bottom-to-top, so first points are closest to bottom
@@ -112,6 +113,22 @@ float calculate_heading_error(const LineDetectionResult& result, int frame_width
     // Normalize: 0 = center, -1 = left edge, +1 = right edge
     float center = frame_width / 2.0f;
     return (avg_x - center) / center;
+}
+
+std::optional<float> get_line_gradient_abs(const LineDetectionResult& result) {
+    if (!result.valid) {
+        return std::nullopt;
+    }
+
+    float vx = result.fitted_line[0];
+    float vy = result.fitted_line[1];
+
+    // Avoid division by zero for near-horizontal lines
+    if (std::abs(vy) < 1e-6f) {
+        return 0.0f;
+    }
+
+    return std::abs(vx / vy);
 }
 
 }  // namespace nsm
