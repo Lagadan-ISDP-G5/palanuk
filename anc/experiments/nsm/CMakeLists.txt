@@ -6,7 +6,13 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Cross-compiled dependencies live in deps/
+# For host builds, you can set IOX2_PREFIX_PATH to a different location
+set(IOX2_PREFIX_PATH "${CMAKE_SOURCE_DIR}/deps" CACHE PATH "Path to iceoryx2 installation")
+list(APPEND CMAKE_PREFIX_PATH "${IOX2_PREFIX_PATH}")
+
 find_package(OpenCV REQUIRED)
+find_package(iceoryx2-cxx REQUIRED)
 
 include_directories(${OpenCV_INCLUDE_DIRS})
 include_directories(${CMAKE_SOURCE_DIR}/src)
@@ -35,7 +41,10 @@ set(NSM_HEADERS
 
 add_executable(${PROJECT_NAME} ${NSM_SOURCES} ${NSM_HEADERS})
 
-target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS})
+target_link_libraries(${PROJECT_NAME}
+    ${OpenCV_LIBS}
+    iceoryx2-cxx::static-lib-cxx
+)
 
 # Optional: build as library for integration
 option(BUILD_NSM_LIB "Build nsm as a static library" OFF)
@@ -50,5 +59,8 @@ if(BUILD_NSM_LIB)
         src/bridge.cpp
     )
     add_library(nsm_lib STATIC ${NSM_LIB_SOURCES})
-    target_link_libraries(nsm_lib ${OpenCV_LIBS})
+    target_link_libraries(nsm_lib
+        ${OpenCV_LIBS}
+        iceoryx2-cxx::static-lib-cxx
+    )
 endif()

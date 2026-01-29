@@ -79,6 +79,9 @@ cmake --preset host
 cmake --build --preset host
 ```
 
+For future host builds: Override the deps path:
+  cmake -DIOX2_PREFIX_PATH=/path/to/host/iceoryx2 ..
+
 ## Runtime Dependencies
 
 On the Pi, ensure OpenCV is installed:
