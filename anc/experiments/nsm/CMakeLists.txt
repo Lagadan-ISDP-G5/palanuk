@@ -19,6 +19,7 @@ set(NSM_SOURCES
     src/visualization.cpp
     src/frame_source.cpp
     src/pipeline.cpp
+    src/bridge.cpp
 )
 
 set(NSM_HEADERS
@@ -29,6 +30,7 @@ set(NSM_HEADERS
     src/visualization.h
     src/frame_source.h
     src/pipeline.h
+    src/bridge.h
 )
 
 add_executable(${PROJECT_NAME} ${NSM_SOURCES} ${NSM_HEADERS})
@@ -45,6 +47,7 @@ if(BUILD_NSM_LIB)
         src/visualization.cpp
         src/frame_source.cpp
         src/pipeline.cpp
+        src/bridge.cpp
     )
     add_library(nsm_lib STATIC ${NSM_LIB_SOURCES})
     target_link_libraries(nsm_lib ${OpenCV_LIBS})
