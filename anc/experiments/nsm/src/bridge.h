@@ -55,7 +55,7 @@ bool init_publishers();
 void shutdown_publishers();
 
 void process(const FrameResult& frame_result, int frame_width, BridgeResult& out);
-void publish(const BridgeResult& result);
+bool publish_control_vars(const BridgeResult& result);
 
 }  // namespace nsm
 

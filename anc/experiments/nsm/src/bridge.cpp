@@ -178,39 +178,58 @@ void process(const FrameResult& frame_result, int frame_width, BridgeResult& out
     out.corner_point = frame_result.corner.corner_point;
 }
 
-void publish(const BridgeResult& result) {
+bool publish_control_vars(const BridgeResult& result) {
     if (!g_initialized) {
-        return;
+        return false;
     }
 
-    // Publish heading error using send_copy (simpler than loan + write + send)
-    g_pub_heading_error->send_copy(HeadingErrorMsg{
+    bool all_ok = true; // lol, how primitive
+
+    auto heading_result = g_pub_heading_error->send_copy(HeadingErrorMsg{
         .valid = result.heading_error.has_value(),
         .value = result.heading_error.value_or(0.0f)
     });
+    if (!heading_result.has_value()) {
+        std::cerr << "Failed to publish heading_error" << std::endl;
+        all_ok = false;
+    }
 
-    // Publish abs line gradient
-    g_pub_abs_line_gradient->send_copy(AbsLineGradientMsg{
+    auto gradient_result = g_pub_abs_line_gradient->send_copy(AbsLineGradientMsg{
         .valid = result.abs_line_gradient.has_value(),
         .value = result.abs_line_gradient.value_or(0.0f)
     });
+    if (!gradient_result.has_value()) {
+        std::cerr << "Failed to publish abs_line_gradient" << std::endl;
+        all_ok = false;
+    }
 
-    // Publish corner detected
-    g_pub_corner_detected->send_copy(CornerDetectedMsg{
+    auto corner_detected_result = g_pub_corner_detected->send_copy(CornerDetectedMsg{
         .detected = result.corner_detected
     });
+    if (!corner_detected_result.has_value()) {
+        std::cerr << "Failed to publish corner_detected" << std::endl;
+        all_ok = false;
+    }
 
-    // Publish corner direction
-    g_pub_corner_direction->send_copy(CornerDirectionMsg{
+    auto corner_direction_result = g_pub_corner_direction->send_copy(CornerDirectionMsg{
         .x = result.corner_direction.x,
         .y = result.corner_direction.y
     });
+    if (!corner_direction_result.has_value()) {
+        std::cerr << "Failed to publish corner_direction" << std::endl;
+        all_ok = false;
+    }
 
-    // Publish corner point
-    g_pub_corner_point->send_copy(CornerPointMsg{
+    auto corner_point_result = g_pub_corner_point->send_copy(CornerPointMsg{
         .x = result.corner_point.x,
         .y = result.corner_point.y
     });
+    if (!corner_point_result.has_value()) {
+        std::cerr << "Failed to publish corner_point" << std::endl;
+        all_ok = false;
+    }
+
+    return all_ok;
 }
 
 }  // namespace nsm

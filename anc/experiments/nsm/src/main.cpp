@@ -42,7 +42,7 @@ int runBatchMode(nsm::ImageDirectorySource& source, nsm::Pipeline& pipeline,
 
         const nsm::FrameResult& result = pipeline.process(frame);
         nsm::process(result, frame.cols, bridge_result);
-        nsm::publish(bridge_result);
+        nsm::publish_control_vars(bridge_result);
 
         if (bridge_result.heading_error.has_value()) {
             std::cout << " -> offset: " << *bridge_result.heading_error;
@@ -90,7 +90,7 @@ int runLiveMode(nsm::FrameSource& source, nsm::Pipeline& pipeline) {
 
         const nsm::FrameResult& result = pipeline.process(frame);
         nsm::process(result, frame.cols, bridge_result);
-        nsm::publish(bridge_result);
+        nsm::publish_control_vars(bridge_result);
 
         if (bridge_result.heading_error.has_value()) {
             std::cout << "Frame " << frame_count << " offset: " << *bridge_result.heading_error << std::endl;
