@@ -18,7 +18,7 @@ std::optional<float> calculate_heading_error(const LineDetectionResult& result, 
 // Returns the absolute value of the gradient (dx/dy) of the fitted line.
 // A value of 0 means perfectly vertical; larger values indicate more tilt.
 // Returns 0 if the line is not valid.
-std::optional<float> get_line_gradient_abs(const LineDetectionResult& result);
+std::optional<float> calculate_abs_line_gradient(const LineDetectionResult& result);
 
 }  // namespace nsm
 

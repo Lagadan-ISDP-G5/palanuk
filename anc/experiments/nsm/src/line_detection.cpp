@@ -115,7 +115,7 @@ std::optional<float> calculate_heading_error(const LineDetectionResult& result, 
     return (avg_x - center) / center;
 }
 
-std::optional<float> get_line_gradient_abs(const LineDetectionResult& result) {
+std::optional<float> calculate_abs_line_gradient(const LineDetectionResult& result) {
     if (!result.valid) {
         return std::nullopt;
     }
