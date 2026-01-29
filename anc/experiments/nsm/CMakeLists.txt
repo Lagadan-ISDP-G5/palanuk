@@ -9,6 +9,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Cross-compiled dependencies live in deps/
 # For host builds, you can set IOX2_PREFIX_PATH to a different location
 set(IOX2_PREFIX_PATH "${CMAKE_SOURCE_DIR}/deps" CACHE PATH "Path to iceoryx2 installation")
+set(iceoryx2-cxx_DIR "${IOX2_PREFIX_PATH}/lib/cmake/iceoryx2-cxx")
+set(iceoryx2-bb-cxx_DIR "${IOX2_PREFIX_PATH}/lib/cmake/iceoryx2-bb-cxx")
+set(iceoryx2-c_DIR "${IOX2_PREFIX_PATH}/lib/cmake/iceoryx2-c")
+
 list(APPEND CMAKE_PREFIX_PATH "${IOX2_PREFIX_PATH}")
 
 find_package(OpenCV REQUIRED)
