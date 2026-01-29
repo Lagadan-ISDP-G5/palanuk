@@ -9,6 +9,7 @@
 #include "visualization.h"
 #include "line_detection.h"
 #include <optional>
+#include "bridge.h"
 
 namespace fs = std::filesystem;
 
@@ -34,24 +35,26 @@ int runBatchMode(nsm::ImageDirectorySource& source, nsm::Pipeline& pipeline,
     fs::create_directories(output_dir);
 
     cv::Mat frame;
+    nsm::BridgeResult bridge_result;
+
     while (source.read(frame)) {
         std::string filename = source.getCurrentFilename();
         std::cout << filename << ": " << frame.cols << "x" << frame.rows;
 
         const nsm::FrameResult& result = pipeline.process(frame);
+        nsm::process(result, frame.cols, bridge_result);
 
-        std::optional<float> center_offset = nsm::calculate_heading_error(result.center_line, frame.cols);
-        if (center_offset.has_value()) {
-            std::cout << " -> offset: " << *center_offset;
+        if (bridge_result.heading_error.has_value()) {
+            std::cout << " -> offset: " << *bridge_result.heading_error;
         }
 
         std::cout << " -> " << result.center_line.points.size() << " points";
         if (result.center_line.valid) {
             std::cout << ", line fitted";
         }
-        if (result.corner.detected) {
-            std::cout << ", CORNER at (" << static_cast<int>(result.corner.corner_point.x)
-                      << "," << static_cast<int>(result.corner.corner_point.y) << ")";
+        if (bridge_result.corner_detected) {
+            std::cout << ", CORNER at (" << static_cast<int>(bridge_result.corner_point.x)
+                      << "," << static_cast<int>(bridge_result.corner_point.y) << ")";
         }
         std::cout << " [" << result.processing_time_ms << " ms]" << std::endl;
 
@@ -86,8 +89,10 @@ int runLiveMode(nsm::FrameSource& source, nsm::Pipeline& pipeline) {
 
         const nsm::FrameResult& result = pipeline.process(frame);
 
-        float center_offset = nsm::calculate_heading_error(result.center_line, frame.cols);
-        std::cout << "Frame " << frame_count << " offset: " << center_offset << std::endl;
+        std::optional<float> center_offset = nsm::calculate_heading_error(result.center_line, frame.cols);
+        if (center_offset.has_value()) {
+            std::cout << " -> offset: " << *center_offset;
+        }
 
         // Smooth FPS calculation
         double fps = 1000.0 / result.processing_time_ms;
