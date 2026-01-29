@@ -96,7 +96,7 @@ void detect_horizontal_line(const cv::Mat& thresh, int start_y, const PipelineCo
     }
 }
 
-float get_line_center_offset(const LineDetectionResult& result, int frame_width) {
+float calculate_heading_error(const LineDetectionResult& result, int frame_width) {
     if (result.points.empty() || frame_width <= 0) {
         return 0.0f;
     }
