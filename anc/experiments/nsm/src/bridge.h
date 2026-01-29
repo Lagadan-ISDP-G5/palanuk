@@ -23,9 +23,38 @@ struct BridgeResult {
     }
 };
 
-void process(const FrameResult& frame_result, int frame_width, BridgeResult& out);
+// IPC message types (POD structs for zero-copy transfer)
+struct HeadingErrorMsg {
+    bool valid;
+    float value;
+};
 
-// TODO: implement
+struct AbsLineGradientMsg {
+    bool valid;
+    float value;
+};
+
+struct CornerDetectedMsg {
+    bool detected;
+};
+
+struct CornerDirectionMsg {
+    float x;
+    float y;
+};
+
+struct CornerPointMsg {
+    float x;
+    float y;
+};
+
+// Initialize iceoryx2 publishers. Call once at startup.
+bool init_publishers();
+
+// Cleanup iceoryx2 publishers. Call at shutdown.
+void shutdown_publishers();
+
+void process(const FrameResult& frame_result, int frame_width, BridgeResult& out);
 void publish(const BridgeResult& result);
 
 }  // namespace nsm
