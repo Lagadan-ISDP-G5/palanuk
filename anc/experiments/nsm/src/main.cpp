@@ -78,6 +78,7 @@ int runLiveMode(nsm::FrameSource& source, nsm::Pipeline& pipeline) {
     std::cout << "Press 'q' or ESC to quit\n" << std::endl;
 
     cv::Mat frame;
+    nsm::BridgeResult bridge_result;
     double fps_smoothed = 0.0;
     int frame_count = 0;
 
@@ -88,10 +89,10 @@ int runLiveMode(nsm::FrameSource& source, nsm::Pipeline& pipeline) {
         }
 
         const nsm::FrameResult& result = pipeline.process(frame);
+        nsm::process(result, frame.cols, bridge_result);
 
-        std::optional<float> center_offset = nsm::calculate_heading_error(result.center_line, frame.cols);
-        if (center_offset.has_value()) {
-            std::cout << " -> offset: " << *center_offset;
+        if (bridge_result.heading_error.has_value()) {
+            std::cout << "Frame " << frame_count << " offset: " << *bridge_result.heading_error << std::endl;
         }
 
         // Smooth FPS calculation
@@ -105,7 +106,7 @@ int runLiveMode(nsm::FrameSource& source, nsm::Pipeline& pipeline) {
         if (result.center_line.valid) {
             info += " | Line detected";
         }
-        if (result.corner.detected) {
+        if (bridge_result.corner_detected) {
             info += " | CORNER";
         }
         cv::putText(vis, info, cv::Point(10, 30),
