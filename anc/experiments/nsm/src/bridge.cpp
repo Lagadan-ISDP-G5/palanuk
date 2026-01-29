@@ -3,9 +3,10 @@
 
 #include <iox2/node.hpp>
 #include <iox2/service_type.hpp>
+#include <iox2/service_name.hpp>
 #include <iox2/publisher.hpp>
 #include <iostream>
-#include <memory>
+#include <optional>
 
 namespace nsm {
 
@@ -19,12 +20,12 @@ constexpr auto SERVICE_NAME_CORNER_DETECTED = "nsm/corner_detected";
 constexpr auto SERVICE_NAME_CORNER_DIRECTION = "nsm/corner_direction";
 constexpr auto SERVICE_NAME_CORNER_POINT = "nsm/corner_point";
 
-std::unique_ptr<Node<ServiceType::Ipc>> g_node;
-std::unique_ptr<Publisher<ServiceType::Ipc, HeadingErrorMsg, void>> g_pub_heading_error;
-std::unique_ptr<Publisher<ServiceType::Ipc, AbsLineGradientMsg, void>> g_pub_abs_line_gradient;
-std::unique_ptr<Publisher<ServiceType::Ipc, CornerDetectedMsg, void>> g_pub_corner_detected;
-std::unique_ptr<Publisher<ServiceType::Ipc, CornerDirectionMsg, void>> g_pub_corner_direction;
-std::unique_ptr<Publisher<ServiceType::Ipc, CornerPointMsg, void>> g_pub_corner_point;
+std::optional<Node<ServiceType::Ipc>> g_node;
+std::optional<Publisher<ServiceType::Ipc, HeadingErrorMsg, void>> g_pub_heading_error;
+std::optional<Publisher<ServiceType::Ipc, AbsLineGradientMsg, void>> g_pub_abs_line_gradient;
+std::optional<Publisher<ServiceType::Ipc, CornerDetectedMsg, void>> g_pub_corner_detected;
+std::optional<Publisher<ServiceType::Ipc, CornerDirectionMsg, void>> g_pub_corner_direction;
+std::optional<Publisher<ServiceType::Ipc, CornerPointMsg, void>> g_pub_corner_point;
 
 bool g_initialized = false;
 
@@ -36,91 +37,121 @@ bool init_publishers() {
     }
 
     auto node_result = NodeBuilder().create<ServiceType::Ipc>();
-    if (node_result.has_error()) {
+    if (!node_result.has_value()) {
         std::cerr << "Failed to create iceoryx2 node" << std::endl;
         return false;
     }
-    g_node = std::make_unique<Node<ServiceType::Ipc>>(std::move(node_result.value()));
+    g_node.emplace(std::move(node_result.value()));
 
     // Heading error publisher
-    auto heading_error_service = g_node->service_builder(ServiceName::create(SERVICE_NAME_HEADING_ERROR).value())
-        .publish_subscribe<HeadingErrorMsg>()
-        .open_or_create();
-    if (heading_error_service.has_error()) {
-        std::cerr << "Failed to create heading_error service" << std::endl;
-        return false;
+    {
+        auto service_name = ServiceName::create(SERVICE_NAME_HEADING_ERROR);
+        if (!service_name.has_value()) {
+            std::cerr << "Failed to create service name" << std::endl;
+            return false;
+        }
+        auto service = g_node->service_builder(service_name.value())
+            .publish_subscribe<HeadingErrorMsg>()
+            .open_or_create();
+        if (!service.has_value()) {
+            std::cerr << "Failed to create heading_error service" << std::endl;
+            return false;
+        }
+        auto pub = service.value().publisher_builder().create();
+        if (!pub.has_value()) {
+            std::cerr << "Failed to create heading_error publisher" << std::endl;
+            return false;
+        }
+        g_pub_heading_error.emplace(std::move(pub.value()));
     }
-    auto heading_error_pub = heading_error_service.value().publisher_builder().create();
-    if (heading_error_pub.has_error()) {
-        std::cerr << "Failed to create heading_error publisher" << std::endl;
-        return false;
-    }
-    g_pub_heading_error = std::make_unique<Publisher<ServiceType::Ipc, HeadingErrorMsg, void>>(
-        std::move(heading_error_pub.value()));
 
     // Abs line gradient publisher
-    auto abs_line_gradient_service = g_node->service_builder(ServiceName::create(SERVICE_NAME_ABS_LINE_GRADIENT).value())
-        .publish_subscribe<AbsLineGradientMsg>()
-        .open_or_create();
-    if (abs_line_gradient_service.has_error()) {
-        std::cerr << "Failed to create abs_line_gradient service" << std::endl;
-        return false;
+    {
+        auto service_name = ServiceName::create(SERVICE_NAME_ABS_LINE_GRADIENT);
+        if (!service_name.has_value()) {
+            std::cerr << "Failed to create service name" << std::endl;
+            return false;
+        }
+        auto service = g_node->service_builder(service_name.value())
+            .publish_subscribe<AbsLineGradientMsg>()
+            .open_or_create();
+        if (!service.has_value()) {
+            std::cerr << "Failed to create abs_line_gradient service" << std::endl;
+            return false;
+        }
+        auto pub = service.value().publisher_builder().create();
+        if (!pub.has_value()) {
+            std::cerr << "Failed to create abs_line_gradient publisher" << std::endl;
+            return false;
+        }
+        g_pub_abs_line_gradient.emplace(std::move(pub.value()));
     }
-    auto abs_line_gradient_pub = abs_line_gradient_service.value().publisher_builder().create();
-    if (abs_line_gradient_pub.has_error()) {
-        std::cerr << "Failed to create abs_line_gradient publisher" << std::endl;
-        return false;
-    }
-    g_pub_abs_line_gradient = std::make_unique<Publisher<ServiceType::Ipc, AbsLineGradientMsg, void>>(
-        std::move(abs_line_gradient_pub.value()));
 
     // Corner detected publisher
-    auto corner_detected_service = g_node->service_builder(ServiceName::create(SERVICE_NAME_CORNER_DETECTED).value())
-        .publish_subscribe<CornerDetectedMsg>()
-        .open_or_create();
-    if (corner_detected_service.has_error()) {
-        std::cerr << "Failed to create corner_detected service" << std::endl;
-        return false;
+    {
+        auto service_name = ServiceName::create(SERVICE_NAME_CORNER_DETECTED);
+        if (!service_name.has_value()) {
+            std::cerr << "Failed to create service name" << std::endl;
+            return false;
+        }
+        auto service = g_node->service_builder(service_name.value())
+            .publish_subscribe<CornerDetectedMsg>()
+            .open_or_create();
+        if (!service.has_value()) {
+            std::cerr << "Failed to create corner_detected service" << std::endl;
+            return false;
+        }
+        auto pub = service.value().publisher_builder().create();
+        if (!pub.has_value()) {
+            std::cerr << "Failed to create corner_detected publisher" << std::endl;
+            return false;
+        }
+        g_pub_corner_detected.emplace(std::move(pub.value()));
     }
-    auto corner_detected_pub = corner_detected_service.value().publisher_builder().create();
-    if (corner_detected_pub.has_error()) {
-        std::cerr << "Failed to create corner_detected publisher" << std::endl;
-        return false;
-    }
-    g_pub_corner_detected = std::make_unique<Publisher<ServiceType::Ipc, CornerDetectedMsg, void>>(
-        std::move(corner_detected_pub.value()));
 
     // Corner direction publisher
-    auto corner_direction_service = g_node->service_builder(ServiceName::create(SERVICE_NAME_CORNER_DIRECTION).value())
-        .publish_subscribe<CornerDirectionMsg>()
-        .open_or_create();
-    if (corner_direction_service.has_error()) {
-        std::cerr << "Failed to create corner_direction service" << std::endl;
-        return false;
+    {
+        auto service_name = ServiceName::create(SERVICE_NAME_CORNER_DIRECTION);
+        if (!service_name.has_value()) {
+            std::cerr << "Failed to create service name" << std::endl;
+            return false;
+        }
+        auto service = g_node->service_builder(service_name.value())
+            .publish_subscribe<CornerDirectionMsg>()
+            .open_or_create();
+        if (!service.has_value()) {
+            std::cerr << "Failed to create corner_direction service" << std::endl;
+            return false;
+        }
+        auto pub = service.value().publisher_builder().create();
+        if (!pub.has_value()) {
+            std::cerr << "Failed to create corner_direction publisher" << std::endl;
+            return false;
+        }
+        g_pub_corner_direction.emplace(std::move(pub.value()));
     }
-    auto corner_direction_pub = corner_direction_service.value().publisher_builder().create();
-    if (corner_direction_pub.has_error()) {
-        std::cerr << "Failed to create corner_direction publisher" << std::endl;
-        return false;
-    }
-    g_pub_corner_direction = std::make_unique<Publisher<ServiceType::Ipc, CornerDirectionMsg, void>>(
-        std::move(corner_direction_pub.value()));
 
     // Corner point publisher
-    auto corner_point_service = g_node->service_builder(ServiceName::create(SERVICE_NAME_CORNER_POINT).value())
-        .publish_subscribe<CornerPointMsg>()
-        .open_or_create();
-    if (corner_point_service.has_error()) {
-        std::cerr << "Failed to create corner_point service" << std::endl;
-        return false;
+    {
+        auto service_name = ServiceName::create(SERVICE_NAME_CORNER_POINT);
+        if (!service_name.has_value()) {
+            std::cerr << "Failed to create service name" << std::endl;
+            return false;
+        }
+        auto service = g_node->service_builder(service_name.value())
+            .publish_subscribe<CornerPointMsg>()
+            .open_or_create();
+        if (!service.has_value()) {
+            std::cerr << "Failed to create corner_point service" << std::endl;
+            return false;
+        }
+        auto pub = service.value().publisher_builder().create();
+        if (!pub.has_value()) {
+            std::cerr << "Failed to create corner_point publisher" << std::endl;
+            return false;
+        }
+        g_pub_corner_point.emplace(std::move(pub.value()));
     }
-    auto corner_point_pub = corner_point_service.value().publisher_builder().create();
-    if (corner_point_pub.has_error()) {
-        std::cerr << "Failed to create corner_point publisher" << std::endl;
-        return false;
-    }
-    g_pub_corner_point = std::make_unique<Publisher<ServiceType::Ipc, CornerPointMsg, void>>(
-        std::move(corner_point_pub.value()));
 
     g_initialized = true;
     std::cout << "iceoryx2 publishers initialized" << std::endl;
@@ -152,54 +183,34 @@ void publish(const BridgeResult& result) {
         return;
     }
 
-    // Publish heading error
-    auto heading_sample = g_pub_heading_error->loan_uninit();
-    if (heading_sample.has_value()) {
-        auto& payload = heading_sample.value().write_payload(HeadingErrorMsg{
-            .valid = result.heading_error.has_value(),
-            .value = result.heading_error.value_or(0.0f)
-        });
-        send(std::move(heading_sample).value());
-    }
+    // Publish heading error using send_copy (simpler than loan + write + send)
+    g_pub_heading_error->send_copy(HeadingErrorMsg{
+        .valid = result.heading_error.has_value(),
+        .value = result.heading_error.value_or(0.0f)
+    });
 
     // Publish abs line gradient
-    auto gradient_sample = g_pub_abs_line_gradient->loan_uninit();
-    if (gradient_sample.has_value()) {
-        auto& payload = gradient_sample.value().write_payload(AbsLineGradientMsg{
-            .valid = result.abs_line_gradient.has_value(),
-            .value = result.abs_line_gradient.value_or(0.0f)
-        });
-        send(std::move(gradient_sample).value());
-    }
+    g_pub_abs_line_gradient->send_copy(AbsLineGradientMsg{
+        .valid = result.abs_line_gradient.has_value(),
+        .value = result.abs_line_gradient.value_or(0.0f)
+    });
 
     // Publish corner detected
-    auto corner_detected_sample = g_pub_corner_detected->loan_uninit();
-    if (corner_detected_sample.has_value()) {
-        auto& payload = corner_detected_sample.value().write_payload(CornerDetectedMsg{
-            .detected = result.corner_detected
-        });
-        send(std::move(corner_detected_sample).value());
-    }
+    g_pub_corner_detected->send_copy(CornerDetectedMsg{
+        .detected = result.corner_detected
+    });
 
     // Publish corner direction
-    auto corner_direction_sample = g_pub_corner_direction->loan_uninit();
-    if (corner_direction_sample.has_value()) {
-        auto& payload = corner_direction_sample.value().write_payload(CornerDirectionMsg{
-            .x = result.corner_direction.x,
-            .y = result.corner_direction.y
-        });
-        send(std::move(corner_direction_sample).value());
-    }
+    g_pub_corner_direction->send_copy(CornerDirectionMsg{
+        .x = result.corner_direction.x,
+        .y = result.corner_direction.y
+    });
 
     // Publish corner point
-    auto corner_point_sample = g_pub_corner_point->loan_uninit();
-    if (corner_point_sample.has_value()) {
-        auto& payload = corner_point_sample.value().write_payload(CornerPointMsg{
-            .x = result.corner_point.x,
-            .y = result.corner_point.y
-        });
-        send(std::move(corner_point_sample).value());
-    }
+    g_pub_corner_point->send_copy(CornerPointMsg{
+        .x = result.corner_point.x,
+        .y = result.corner_point.y
+    });
 }
 
 }  // namespace nsm
