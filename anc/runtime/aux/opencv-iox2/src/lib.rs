@@ -1,14 +1,10 @@
 use cu29::prelude::*;
-use iceoryx2::{config::Node, port::subscriber::Subscriber, prelude::*, service::ipc::Service};
+use iceoryx2::{port::subscriber::Subscriber, prelude::*};
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
-pub const SERVICE_NAME_HEADING_ERROR: &str = "nsm/heading_error";
-pub const SERVICE_NAME_ABS_LINE_GRADIENT: &str = "nsm/abs_line_gradient";
-pub const SERVICE_NAME_CORNER_DETECTED: &str = "nsm/corner_detected";
-pub const SERVICE_NAME_CORNER_DIRECTION: &str = "nsm/corner_direction";
-pub const SERVICE_NAME_CORNER_POINT: &str = "nsm/corner_point";
-
+use crate::ipc::{AbsLineGradientMsg, CornerDetectedMsg, CornerDirectionMsg, CornerPointMsg, HeadingErrorMsg, SERVICE_NAME_ABS_LINE_GRADIENT, SERVICE_NAME_CORNER_DETECTED, SERVICE_NAME_CORNER_DIRECTION, SERVICE_NAME_CORNER_POINT, SERVICE_NAME_HEADING_ERROR};
+mod ipc;
 
 #[derive(Default, Debug, Clone, Copy, Encode, Decode, PartialEq, Serialize, Deserialize)]
 pub enum CornerDirection {
@@ -26,9 +22,11 @@ pub struct OpenCViox2Payload {
 }
 
 pub struct OpenCViox2 {
-    node: Node,
-    service: Service,
-    subscriber: Subscriber<Service, >
+    heading_error_sub: Subscriber<_, HeadingErrorMsg, ()>,
+    abs_line_gradient_sub: Subscriber<_, AbsLineGradientMsg, ()>,
+    corner_detected_sub: Subscriber<_, CornerDetectedMsg, ()>,
+    corner_direction_sub: Subscriber<_, CornerDirectionMsg, ()>,
+    corner_point_sub: Subscriber<_, CornerPointMsg, ()>
 }
 
 impl Freezable for OpenCViox2 {}
@@ -40,8 +38,44 @@ impl CuSrcTask for OpenCViox2 {
     where
         Self: Sized,
     {
-        
-        Ok(Self {})
+        let heading_error_node = NodeBuilder::new().create::<ipc::Service>()?;
+        let heading_error_service = heading_error_node.service_builder(SERVICE_NAME_HEADING_ERROR.try_into()?)
+            .publish_subscribe::<HeadingErrorMsg>()
+            .open_or_create()?;
+        let heading_error_sub = heading_error_service.subscriber_builder().create()?;
+
+        let abs_line_gradient_node = NodeBuilder::new().create::<ipc::Service>()?;
+        let abs_line_gradient_service = abs_line_gradient_node.service_builder(SERVICE_NAME_ABS_LINE_GRADIENT.try_into()?)
+            .publish_subscribe::<AbsLineGradientMsg>()
+            .open_or_create()?;
+        let abs_line_gradient_sub = abs_line_gradient_service.subscriber_builder().create()?;
+
+        let corner_detected_node = NodeBuilder::new().create::<ipc::Service>()?;
+        let corner_detected_service = corner_detected_node.service_builder(SERVICE_NAME_CORNER_DETECTED.try_into()?)
+            .publish_subscribe::<CornerDetectedMsg>()
+            .open_or_create()?;
+        let corner_detected_sub = corner_detected_service.subscriber_builder().create()?;
+
+        let corner_direction_node = NodeBuilder::new().create::<ipc::Service>()?;
+        let corner_direction_service = corner_direction_node.service_builder(SERVICE_NAME_CORNER_DIRECTION.try_into()?)
+            .publish_subscribe::<CornerDirection>()
+            .open_or_create()?;
+        let corner_direction_sub = corner_direction_service.subscriber_builder().create()?;
+
+        let corner_point_node = NodeBuilder::new().create::<ipc::Service>()?;
+        let corner_point_service = corner_point_node.service_builder(SERVICE_NAME_CORNER_POINT.try_into()?)
+            .publish_subscribe::<CornerPointMsg>()
+            .open_or_create()?;
+        let corner_point_sub = corner_point_service.subscriber_builder().create()?;
+
+
+        Ok(Self {
+            heading_error_sub,
+            abs_line_gradient_sub,
+            corner_detected_sub,
+            corner_direction_sub,
+            corner_point_sub
+        })
     }
 
     fn start(&mut self, _clock: &RobotClock) -> CuResult<()> {
@@ -55,6 +89,7 @@ impl CuSrcTask for OpenCViox2 {
     }
 
     fn stop(&mut self, _clock: &RobotClock) -> CuResult<()> {
+        // TODO
         Ok(())
     }
 }
