@@ -1,6 +1,7 @@
 #ifndef NSM_BRIDGE_H
 #define NSM_BRIDGE_H
 
+#include <cstdint>
 #include <opencv2/core.hpp>
 #include "types.h"
 #include <optional>
@@ -25,17 +26,17 @@ struct BridgeResult {
 
 // IPC message types (POD structs for zero-copy transfer)
 struct HeadingErrorMsg {
-    bool valid;
+    uint8_t valid;
     float value;
 };
 
 struct AbsLineGradientMsg {
-    bool valid;
+    uint8_t valid;
     float value;
 };
 
 struct CornerDetectedMsg {
-    bool detected;
+    uint8_t detected;
 };
 
 struct CornerDirectionMsg {

@@ -186,7 +186,7 @@ bool publish_control_vars(const BridgeResult& result) {
     bool all_ok = true; // lol, how primitive
 
     auto heading_result = g_pub_heading_error->send_copy(HeadingErrorMsg{
-        .valid = result.heading_error.has_value(),
+        .valid = static_cast<uint8_t>(result.heading_error.has_value()),
         .value = result.heading_error.value_or(0.0f)
     });
     if (!heading_result.has_value()) {
@@ -195,7 +195,7 @@ bool publish_control_vars(const BridgeResult& result) {
     }
 
     auto gradient_result = g_pub_abs_line_gradient->send_copy(AbsLineGradientMsg{
-        .valid = result.abs_line_gradient.has_value(),
+        .valid = static_cast<uint8_t>(result.abs_line_gradient.has_value()),
         .value = result.abs_line_gradient.value_or(0.0f)
     });
     if (!gradient_result.has_value()) {
@@ -204,7 +204,7 @@ bool publish_control_vars(const BridgeResult& result) {
     }
 
     auto corner_detected_result = g_pub_corner_detected->send_copy(CornerDetectedMsg{
-        .detected = result.corner_detected
+        .detected = static_cast<uint8_t>(result.corner_detected)
     });
     if (!corner_detected_result.has_value()) {
         std::cerr << "Failed to publish corner_detected" << std::endl;
