@@ -37,7 +37,7 @@ impl Freezable for OpenCViox2 {}
 impl CuSrcTask for OpenCViox2 {
     type Output<'m> = output_msg!(OpenCViox2Payload);
 
-    fn new(config: Option<&ComponentConfig>) -> CuResult<Self>
+    fn new(_config: Option<&ComponentConfig>) -> CuResult<Self>
     where
         Self: Sized,
     {
@@ -85,13 +85,44 @@ impl CuSrcTask for OpenCViox2 {
     }
 
     fn process(&mut self, _clock: &RobotClock, output: &mut Self::Output<'_>) -> CuResult<()> {
-        // TODO
-        // let sub = self.abs_line_gradient_sub.receive().map_err();
+        if let (
+            Some(heading_error_sub),
+            Some(abs_line_gradient_sub),
+            Some(corner_detected_sub),
+            Some(corner_direction_sub),
+            Some(corner_point_sub)
+        )
+        = (
+            self.heading_error_sub.receive().map_err(|_| -> CuError {CuError::from("iox2 recv failed")})?,
+            self.abs_line_gradient_sub.receive().map_err(|_| -> CuError {CuError::from("iox2 recv failed")})?,
+            self.corner_detected_sub.receive().map_err(|_| -> CuError {CuError::from("iox2 recv failed")})?,
+            self.corner_direction_sub.receive().map_err(|_| -> CuError {CuError::from("iox2 recv failed")})?,
+            self.corner_point_sub.receive().map_err(|_| -> CuError {CuError::from("iox2 recv failed")})?
+        )
+
+        {
+            let abs_line_gradient = *&abs_line_gradient_sub.payload().value;
+            let heading_error = *&heading_error_sub.payload().value;
+
+            let corner_detected = match corner_detected_sub.payload().detected {
+                0 => false,
+                1 => true,
+                _ => false
+            };
+
+            let corner_coords = (corner_point_sub.payload().x, corner_point_sub.payload().y);
+
+            let corner_direction;
+            if corner_direction_sub.payload().x.signum() == 1.0 {
+                corner_direction = CornerDirection::Right;
+            }
+            else {
+                corner_direction = CornerDirection::Left; // basically unreachable
+            }
+            output.set_payload(OpenCViox2Payload { abs_line_gradient, heading_error, corner_detected, corner_coords, corner_direction });
+        }
+
         Ok(())
     }
 
-    fn stop(&mut self, _clock: &RobotClock) -> CuResult<()> {
-        // TODO
-        Ok(())
-    }
 }

@@ -71,6 +71,8 @@ void detect_L_corner(const cv::Mat& thresh, const LineDetectionResult& center_li
         // this removes corner direction info by assuming everything is rightwards
         // which is not a bad assertion, because you can literally only turn right in the track,
         // but still important to document
+        // e.g. (1.0, 0.0) -> perfectly right
+        // (-1.0, 0.0) -> perfectly left
         if (out.horizontal_direction.x < 0) {
             out.horizontal_direction = -out.horizontal_direction;
         }
