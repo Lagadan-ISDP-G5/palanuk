@@ -9,11 +9,11 @@
 #include <string>
 #include <vector>
 #include <cstdint>
+#include <optional>
 
-// Uncomment when iceoryx2-ffi-c is available
-// extern "C" {
-// #include <iox2/iceoryx2.h>
-// }
+#include <iox2/node.hpp>
+#include <iox2/service_type.hpp>
+#include <iox2/subscriber.hpp>
 
 namespace nsm {
 
@@ -104,13 +104,11 @@ public:
 
 private:
     std::string service_name_;
-    bool opened_ = false;
     uint64_t last_sequence_ = 0;
     uint64_t last_timestamp_ns_ = 0;
 
-    // iceoryx2 handles (uncomment when iceoryx2-ffi-c is available)
-    // iox2_node_h node_ = nullptr;
-    // iox2_subscriber_h subscriber_ = nullptr;
+    std::optional<iox2::Node<iox2::ServiceType::Ipc>> node_;
+    std::optional<iox2::Subscriber<iox2::ServiceType::Ipc, IpcFrame, void>> subscriber_;
 };
 
 std::unique_ptr<FrameSource> createFrameSource(const std::string& source);

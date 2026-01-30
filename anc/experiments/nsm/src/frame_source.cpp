@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <iostream>
 
+#include <iox2/service_name.hpp>
+
 namespace fs = std::filesystem;
 
 namespace nsm {
@@ -130,74 +132,86 @@ IceoryxSource::~IceoryxSource() {
 }
 
 bool IceoryxSource::open() {
-    // TODO: Initialize iceoryx2 node and subscriber
-    // When iceoryx2-ffi-c is available, uncomment and implement:
-    //
-    // iox2_node_builder_h builder = iox2_node_builder_new(nullptr);
-    // if (iox2_node_builder_create(builder, nullptr, iox2_node_type_e_IPC, &node_)
-    //     != IOX2_OK) {
-    //     std::cerr << "Failed to create iceoryx2 node\n";
-    //     return false;
-    // }
-    //
-    // iox2_service_name_h svc_name = nullptr;
-    // iox2_service_name_new(nullptr, service_name_.c_str(), &svc_name);
-    //
-    // iox2_service_builder_h svc_builder = iox2_node_service_builder(node_, svc_name);
-    // iox2_port_factory_subscriber_builder_h sub_builder = ...;
-    // iox2_port_factory_subscriber_builder_create(sub_builder, &subscriber_);
+    using namespace iox2;
 
-    std::cout << "IceoryxSource: would connect to service '" << service_name_ << "'\n";
-    std::cout << "  (iceoryx2-ffi-c not linked - using placeholder)\n";
-    opened_ = true;
+    auto node_result = NodeBuilder().create<ServiceType::Ipc>();
+    if (!node_result.has_value()) {
+        std::cerr << "IceoryxSource: Failed to create iceoryx2 node" << std::endl;
+        return false;
+    }
+    node_.emplace(std::move(node_result.value()));
+
+    auto service_name = ServiceName::create(service_name_.c_str());
+    if (!service_name.has_value()) {
+        std::cerr << "IceoryxSource: Failed to create service name '" << service_name_ << "'" << std::endl;
+        node_.reset();
+        return false;
+    }
+
+    auto service = node_->service_builder(service_name.value())
+        .publish_subscribe<IpcFrame>()
+        .open_or_create();
+    if (!service.has_value()) {
+        std::cerr << "IceoryxSource: Failed to open/create service '" << service_name_ << "'" << std::endl;
+        node_.reset();
+        return false;
+    }
+
+    auto sub = service.value().subscriber_builder().create();
+    if (!sub.has_value()) {
+        std::cerr << "IceoryxSource: Failed to create subscriber for '" << service_name_ << "'" << std::endl;
+        node_.reset();
+        return false;
+    }
+    subscriber_.emplace(std::move(sub.value()));
+
+    std::cout << "IceoryxSource: Connected to service '" << service_name_ << "'" << std::endl;
     return true;
 }
 
 bool IceoryxSource::read(cv::Mat& frame) {
-    if (!opened_) return false;
+    if (!subscriber_.has_value()) {
+        return false;
+    }
 
-    // TODO: Receive frame from iceoryx2
-    // When iceoryx2-ffi-c is available:
-    //
-    // iox2_sample_h sample = nullptr;
-    // if (iox2_subscriber_receive(subscriber_, &sample) != IOX2_OK || !sample) {
-    //     return false;  // No frame available
-    // }
-    //
-    // const IpcFrame* ipc_frame = static_cast<const IpcFrame*>(
-    //     iox2_sample_payload(sample));
-    //
-    // // Convert YUV420 to BGR for OpenCV
-    // cv::Mat yuv(ipc_frame->height + ipc_frame->height / 2,
-    //             ipc_frame->width, CV_8UC1,
-    //             const_cast<uint8_t*>(ipc_frame->data));
-    // cv::cvtColor(yuv, frame, cv::COLOR_YUV2BGR_I420);
-    //
-    // last_sequence_ = ipc_frame->sequence;
-    // last_timestamp_ns_ = ipc_frame->timestamp_ns;
-    //
-    // iox2_sample_release(sample);
-    // return true;
+    auto receive_result = subscriber_->receive();
+    if (!receive_result.has_value()) {
+        std::cerr << "IceoryxSource: receive error" << std::endl;
+        return false;
+    }
 
-    // Placeholder: return empty (signals no frame available)
-    return false;
+    auto& sample_opt = receive_result.value();
+    if (!sample_opt.has_value()) {
+        // No sample available (not an error, just no data yet)
+        return false;
+    }
+
+    const IpcFrame& ipc_frame = sample_opt.value().payload();
+
+    // Validate frame data
+    if (ipc_frame.len == 0 || ipc_frame.width == 0 || ipc_frame.height == 0) {
+        return false;
+    }
+
+    // Convert YUV420 to BGR for OpenCV
+    cv::Mat yuv(static_cast<int>(ipc_frame.height + ipc_frame.height / 2),
+                static_cast<int>(ipc_frame.width), CV_8UC1,
+                const_cast<uint8_t*>(ipc_frame.data));
+    cv::cvtColor(yuv, frame, cv::COLOR_YUV2BGR_I420);
+
+    last_sequence_ = ipc_frame.sequence;
+    last_timestamp_ns_ = ipc_frame.timestamp_ns;
+
+    return true;
 }
 
 bool IceoryxSource::isOpened() const {
-    return opened_;
+    return subscriber_.has_value();
 }
 
 void IceoryxSource::release() {
-    // TODO: Clean up iceoryx2 resources
-    // if (subscriber_) {
-    //     iox2_subscriber_drop(subscriber_);
-    //     subscriber_ = nullptr;
-    // }
-    // if (node_) {
-    //     iox2_node_drop(node_);
-    //     node_ = nullptr;
-    // }
-    opened_ = false;
+    subscriber_.reset();
+    node_.reset();
 }
 
 std::string IceoryxSource::getName() const {
