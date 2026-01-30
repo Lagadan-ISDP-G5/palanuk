@@ -11,6 +11,7 @@ use propulsion_adapter::{LoopState, PropulsionAdapterOutputPayload};
 use cu_propulsion::{PropulsionPayload, WheelDirection};
 use cu_pid::PIDControlOutputPayload;
 use anc_pub::AncPubPayload;
+use opencv_iox2::OpenCViox2Payload;
 
 pub const BASELINE_SPEED: f32 = 0.10;
 
@@ -51,7 +52,7 @@ impl Freezable for Arbitrator {
 }
 
 impl CuTask for Arbitrator {
-    type Input<'m> = input_msg!('m, PropulsionAdapterOutputPayload, PIDControlOutputPayload);
+    type Input<'m> = input_msg!('m, PropulsionAdapterOutputPayload, PIDControlOutputPayload, OpenCViox2Payload);
     type Output<'m> = output_msg!((PropulsionPayload, AncPubPayload));
 
     fn new(_config: Option<&ComponentConfig>) -> CuResult<Self>
@@ -63,8 +64,8 @@ impl CuTask for Arbitrator {
     fn process(&mut self, _clock: &RobotClock, input: &Self::Input<'_>, output: &mut Self::Output<'_>)
     -> CuResult<()>
     {
-        let (prop_adap, mtr_pid) = *input;
-        if let (Some(prop_adap_pload), Some(mtr_pid_pload)) = (prop_adap.payload(), mtr_pid.payload()) {
+        let (prop_adap, mtr_pid, opencviox2) = *input;
+        if let (Some(prop_adap_pload), Some(mtr_pid_pload), Some(opencviox2_payload)) = (prop_adap.payload(), mtr_pid.payload(), opencviox2.payload()) {
 
             let prop_payload;
             let loop_state = prop_adap_pload.loop_state;
@@ -76,6 +77,9 @@ impl CuTask for Arbitrator {
                     prop_payload = self.open_loop_handler(prop_adap_pload)?;
                 }
             }
+
+            // let steering_msg = opencviox2_payload;
+            // self.steering_handler(*steering_msg)?; // impl TODO
 
             let herald_pload = AncPubPayload {
                 e_stop_trig_fdbk: prop_adap_pload.is_e_stop_triggered,
@@ -189,5 +193,9 @@ impl Arbitrator {
             };
         }
         Ok(ret)
+    }
+
+    fn steering_handler(&mut self, steering_msg: OpenCViox2Payload) -> CuResult<PropulsionPayload> {
+        todo!()
     }
 }

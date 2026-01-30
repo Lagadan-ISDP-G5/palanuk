@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use cu_cam_pan::{CameraPanningPayload, PositionCommand};
 use cu_propulsion::{PropulsionPayload, WheelDirection};
 use cu_hcsr04::{HcSr04Payload};
+use opencv_iox2::OpenCViox2Payload;
 
 #[derive(Debug, Clone, Copy, Default, Encode, Decode, PartialEq, Serialize, Deserialize)]
 pub enum LoopState {
@@ -22,6 +23,7 @@ pub enum WorkOrRestState {
 #[derive(Debug, Clone, Copy, Default, Encode, Decode, PartialEq, Serialize, Deserialize)]
 pub enum SteerDirection {
     #[default]
+    Center,
     HardRight,
     SlightRight,
     HardLeft,
@@ -40,17 +42,16 @@ pub struct PropulsionAdapterOutputPayload {
 
 #[derive(Default, Debug, Clone, Copy, Encode, Decode, PartialEq, Serialize, Deserialize)]
 pub struct ZenohTopicsAdapterOutputPayload {
-    loop_state: LoopState,
-    left_enable: bool,
-    right_enable: bool,
-    openloop_left_speed: f32,
-    openloop_right_speed: f32,
-    left_direction: WheelDirection,
-    right_direction: WheelDirection,
-    steer_direction: SteerDirection,
-    work_or_rest_state: WorkOrRestState,
-    camera_position: PositionCommand,
-    weighted_error: f32
+    pub loop_state: LoopState,
+    pub left_enable: bool,
+    pub right_enable: bool,
+    pub openloop_left_speed: f32,
+    pub openloop_right_speed: f32,
+    pub left_direction: WheelDirection,
+    pub right_direction: WheelDirection,
+    pub steer_direction: SteerDirection,
+    pub work_or_rest_state: WorkOrRestState,
+    pub camera_position: PositionCommand,
 }
 
 pub struct PropulsionAdapter {
@@ -70,7 +71,7 @@ impl Freezable for PropulsionAdapter {
 }
 
 impl CuTask for PropulsionAdapter {
-    type Input<'m> = input_msg!('m, ZenohTopicsAdapterOutputPayload, HcSr04Payload);
+    type Input<'m> = input_msg!('m, ZenohTopicsAdapterOutputPayload, HcSr04Payload, OpenCViox2Payload);
 
     type Output<'m> = output_msg!(PropulsionAdapterOutputPayload);
 
@@ -92,31 +93,33 @@ impl CuTask for PropulsionAdapter {
     fn process(&mut self, _clock: &RobotClock, input: &Self::Input<'_>, output: &mut Self::Output<'_>,)
     -> CuResult<()>
     {
-        let (nsm_pair, hcsr04_pair) = input;
-        let msg = nsm_pair.payload().map_or(Err(CuError::from(format!("none pload PropulsionAdapter"))), |msg| {Ok(msg)})?;
-        let hcsr04_msg = hcsr04_pair.payload().map_or(Err(CuError::from(format!("none payload hcsr04"))), |msg| {Ok(msg)})?;
+        let (get_nsm, get_hcsr04, get_opencviox2) = input;
 
-        let loop_state = msg.loop_state;
+        let nsm_msg = get_nsm.payload().map_or(Err(CuError::from(format!("none pload PropulsionAdapter"))), |msg| {Ok(msg)})?;
+        let hcsr04_msg = get_hcsr04.payload().map_or(Err(CuError::from(format!("none payload hcsr04"))), |msg| {Ok(msg)})?;
+        let opencviox2_msg = get_opencviox2.payload().map_or(Err(CuError::from(format!("none payload opencviox2"))), |msg| {Ok(msg)})?;
+
+        let loop_state = nsm_msg.loop_state;
 
         let mut propulsion_payload
             = PropulsionPayload {
-                left_enable: msg.left_enable,
-                right_enable: msg.right_enable,
-                left_speed: msg.openloop_left_speed,
-                right_speed: msg.openloop_right_speed,
-                left_direction: msg.left_direction,
-                right_direction: msg.right_direction
+                left_enable: nsm_msg.left_enable,
+                right_enable: nsm_msg.right_enable,
+                left_speed: nsm_msg.openloop_left_speed,
+                right_speed: nsm_msg.openloop_right_speed,
+                left_direction: nsm_msg.left_direction,
+                right_direction: nsm_msg.right_direction
             };
 
-        let panner_payload = CameraPanningPayload { pos_cmd: msg.camera_position };
-        let weighted_error = msg.weighted_error;
+        let panner_payload = CameraPanningPayload { pos_cmd: nsm_msg.camera_position };
+        let weighted_error = opencviox2_msg.heading_error;
 
         let mut is_e_stop_triggered = false;
         if hcsr04_msg.distance < self.e_stop_threshold_cm {
             is_e_stop_triggered = true;
         }
 
-        let is_at_rest = match msg.work_or_rest_state {
+        let is_at_rest = match nsm_msg.work_or_rest_state {
             WorkOrRestState::AtRest => true,
             _ => false
         };

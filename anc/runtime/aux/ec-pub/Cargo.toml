@@ -1,5 +1,5 @@
 [package]
-name = "opencv-iox2"
+name = "ec-pub"
 publish.workspace = true
 version.workspace = true
 authors.workspace = true
@@ -9,6 +9,4 @@ keywords.workspace = true
 
 [dependencies]
 cu29 = { workspace = true }
-iceoryx2 = { workspace = true }
-serde = { workspace = true }
-bincode = { workspace = true }
+cu-powermon = { workspace = true }

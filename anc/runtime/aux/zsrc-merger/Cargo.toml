@@ -1,5 +1,5 @@
 [package]
-name = "arbitrator"
+name = "zsrc-merger"
 publish.workspace = true
 version.workspace = true
 authors.workspace = true
@@ -13,6 +13,4 @@ bincode = { workspace = true }
 serde = { workspace = true }
 propulsion-adapter = { workspace = true }
 cu-propulsion = { workspace = true }
-cu-pid = { workspace = true }
-anc-pub = { workspace = true }
-opencv-iox2 = { workspace = true }
+cu-cam-pan = { workspace = true }
