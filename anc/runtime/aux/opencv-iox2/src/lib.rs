@@ -1,5 +1,7 @@
 use cu29::prelude::*;
-use iceoryx2::{port::subscriber::Subscriber, prelude::*};
+use iceoryx2::prelude::*;
+use iceoryx2::prelude::ipc::Service;
+use iceoryx2::port::subscriber::*;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
@@ -9,6 +11,7 @@ mod ipc;
 #[derive(Default, Debug, Clone, Copy, Encode, Decode, PartialEq, Serialize, Deserialize)]
 pub enum CornerDirection {
     Left,
+    #[default]
     Right // only Right corners exist in the track
 }
 
@@ -22,11 +25,11 @@ pub struct OpenCViox2Payload {
 }
 
 pub struct OpenCViox2 {
-    heading_error_sub: Subscriber<_, HeadingErrorMsg, ()>,
-    abs_line_gradient_sub: Subscriber<_, AbsLineGradientMsg, ()>,
-    corner_detected_sub: Subscriber<_, CornerDetectedMsg, ()>,
-    corner_direction_sub: Subscriber<_, CornerDirectionMsg, ()>,
-    corner_point_sub: Subscriber<_, CornerPointMsg, ()>
+    heading_error_sub: Subscriber<Service, HeadingErrorMsg, ()>,
+    abs_line_gradient_sub: Subscriber<Service, AbsLineGradientMsg, ()>,
+    corner_detected_sub: Subscriber<Service, CornerDetectedMsg, ()>,
+    corner_direction_sub: Subscriber<Service, CornerDirectionMsg, ()>,
+    corner_point_sub: Subscriber<Service, CornerPointMsg, ()>
 }
 
 impl Freezable for OpenCViox2 {}
@@ -38,36 +41,39 @@ impl CuSrcTask for OpenCViox2 {
     where
         Self: Sized,
     {
-        let heading_error_node = NodeBuilder::new().create::<ipc::Service>()?;
-        let heading_error_service = heading_error_node.service_builder(SERVICE_NAME_HEADING_ERROR.try_into()?)
+        let heading_error_node = NodeBuilder::new().create::<Service>().map_err(|_| -> CuError {CuError::from("build node failed")})?;
+        let heading_error_service = heading_error_node.service_builder(&ServiceName::new(SERVICE_NAME_HEADING_ERROR).unwrap())
             .publish_subscribe::<HeadingErrorMsg>()
-            .open_or_create()?;
-        let heading_error_sub = heading_error_service.subscriber_builder().create()?;
+            .open_or_create().map_err(|_| -> CuError {CuError::from("build service failed")})?;
+        let heading_error_sub = heading_error_service.subscriber_builder().create().map_err(|_| -> CuError {CuError::from("build sub failed")})?;
 
-        let abs_line_gradient_node = NodeBuilder::new().create::<ipc::Service>()?;
-        let abs_line_gradient_service = abs_line_gradient_node.service_builder(SERVICE_NAME_ABS_LINE_GRADIENT.try_into()?)
+
+        let abs_line_gradient_node = NodeBuilder::new().create::<Service>().map_err(|_| -> CuError {CuError::from("build node failed")})?;
+        let abs_line_gradient_service = abs_line_gradient_node.service_builder(&ServiceName::new(SERVICE_NAME_ABS_LINE_GRADIENT).unwrap())
             .publish_subscribe::<AbsLineGradientMsg>()
-            .open_or_create()?;
-        let abs_line_gradient_sub = abs_line_gradient_service.subscriber_builder().create()?;
+            .open_or_create().map_err(|_| -> CuError {CuError::from("build service failed")})?;
+        let abs_line_gradient_sub = abs_line_gradient_service.subscriber_builder().create().map_err(|_| -> CuError {CuError::from("build sub failed")})?;
 
-        let corner_detected_node = NodeBuilder::new().create::<ipc::Service>()?;
-        let corner_detected_service = corner_detected_node.service_builder(SERVICE_NAME_CORNER_DETECTED.try_into()?)
+
+        let corner_detected_node = NodeBuilder::new().create::<Service>().map_err(|_| -> CuError {CuError::from("build node failed")})?;
+        let corner_detected_service = corner_detected_node.service_builder(&ServiceName::new(SERVICE_NAME_CORNER_DETECTED).unwrap())
             .publish_subscribe::<CornerDetectedMsg>()
-            .open_or_create()?;
-        let corner_detected_sub = corner_detected_service.subscriber_builder().create()?;
+            .open_or_create().map_err(|_| -> CuError {CuError::from("build service failed")})?;
+        let corner_detected_sub = corner_detected_service.subscriber_builder().create().map_err(|_| -> CuError {CuError::from("build sub failed")})?;
 
-        let corner_direction_node = NodeBuilder::new().create::<ipc::Service>()?;
-        let corner_direction_service = corner_direction_node.service_builder(SERVICE_NAME_CORNER_DIRECTION.try_into()?)
-            .publish_subscribe::<CornerDirection>()
-            .open_or_create()?;
-        let corner_direction_sub = corner_direction_service.subscriber_builder().create()?;
 
-        let corner_point_node = NodeBuilder::new().create::<ipc::Service>()?;
-        let corner_point_service = corner_point_node.service_builder(SERVICE_NAME_CORNER_POINT.try_into()?)
+        let corner_direction_node = NodeBuilder::new().create::<Service>().map_err(|_| -> CuError {CuError::from("build node failed")})?;
+        let corner_direction_service = corner_direction_node.service_builder(&ServiceName::new(SERVICE_NAME_CORNER_DIRECTION).unwrap())
+            .publish_subscribe::<CornerDirectionMsg>()
+            .open_or_create().map_err(|_| -> CuError {CuError::from("build service failed")})?;
+        let corner_direction_sub = corner_direction_service.subscriber_builder().create().map_err(|_| -> CuError {CuError::from("build sub failed")})?;
+
+
+        let corner_point_node = NodeBuilder::new().create::<Service>().map_err(|_| -> CuError {CuError::from("build node failed")})?;
+        let corner_point_service = corner_point_node.service_builder(&ServiceName::new(SERVICE_NAME_CORNER_POINT).unwrap())
             .publish_subscribe::<CornerPointMsg>()
-            .open_or_create()?;
-        let corner_point_sub = corner_point_service.subscriber_builder().create()?;
-
+            .open_or_create().map_err(|_| -> CuError {CuError::from("build service failed")})?;
+        let corner_point_sub = corner_point_service.subscriber_builder().create().map_err(|_| -> CuError {CuError::from("build sub failed")})?;
 
         Ok(Self {
             heading_error_sub,
@@ -78,13 +84,9 @@ impl CuSrcTask for OpenCViox2 {
         })
     }
 
-    fn start(&mut self, _clock: &RobotClock) -> CuResult<()> {
-        // TODO
-        Ok(())
-    }
-
     fn process(&mut self, _clock: &RobotClock, output: &mut Self::Output<'_>) -> CuResult<()> {
         // TODO
+        // let sub = self.abs_line_gradient_sub.receive().map_err();
         Ok(())
     }
 

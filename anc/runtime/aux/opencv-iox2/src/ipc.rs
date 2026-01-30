@@ -1,3 +1,4 @@
+use iceoryx2::prelude::ZeroCopySend;
 
 pub const SERVICE_NAME_HEADING_ERROR: &str = "nsm/heading_error";
 pub const SERVICE_NAME_ABS_LINE_GRADIENT: &str = "nsm/abs_line_gradient";
