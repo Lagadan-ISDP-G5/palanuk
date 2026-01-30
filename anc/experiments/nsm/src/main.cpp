@@ -15,18 +15,20 @@ namespace fs = std::filesystem;
 void printUsage(const char* program) {
     std::cout << "Usage: " << program << " [OPTIONS] [SOURCE]\n"
               << "\nSOURCE can be:\n"
-              << "  <directory>    Process all images in directory\n"
-              << "  <video_file>   Process video file\n"
-              << "  <camera_id>    Use camera (0, 1, etc.)\n"
-              << "  camera:<id>    Use camera explicitly\n"
+              << "  <directory>      Process all images in directory\n"
+              << "  <video_file>     Process video file\n"
+              << "  <camera_id>      Use camera (0, 1, etc.)\n"
+              << "  camera:<id>      Use camera explicitly\n"
+              << "  iox:<service>    Subscribe to iceoryx2 shared memory frames\n"
               << "\nOPTIONS:\n"
-              << "  --headless     Run without display (batch mode only)\n"
-              << "  --output DIR   Output directory for processed images\n"
-              << "  --help         Show this help\n"
+              << "  --headless       Run without display (batch mode only)\n"
+              << "  --output DIR     Output directory for processed images\n"
+              << "  --help           Show this help\n"
               << "\nExamples:\n"
               << "  " << program << " ../data/stills\n"
               << "  " << program << " 0\n"
-              << "  " << program << " recording.mp4\n";
+              << "  " << program << " recording.mp4\n"
+              << "  " << program << " iox:camera/frames\n";
 }
 
 int runBatchMode(nsm::ImageDirectorySource& source, nsm::Pipeline& pipeline,
