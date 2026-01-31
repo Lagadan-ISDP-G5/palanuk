@@ -7,18 +7,19 @@ use cu_propulsion::{PropulsionPayload, WheelDirection};
 use cu_cam_pan::{CameraPanningPayload, PositionCommand};
 use cu_hcsr04::{HcSr04Payload};
 use cu_powermon::{Ina219Payload};
-use ec_pub::EcPub;
+use ec_pub::*;
 
 use core_affinity::*;
 use libc::*;
 
 pub mod ec_5vrail_pubs {
     use cu_zenoh_sink::ZSink;
+    use ec_pub::*;
 
-    pub type PowerMwatts        = ZSink<f64>;
-    pub type LoadCurrentMamps   = ZSink<f64>;
-    pub type BusVoltageMvolts   = ZSink<f64>;
-    pub type ShuntVoltageMvolts = ZSink<f64>;
+    pub type PowerMwattsSink        = ZSink<PowerMwatts>;
+    pub type LoadCurrentMampsSink   = ZSink<LoadCurrentMamps>;
+    pub type BusVoltageMvoltsSink   = ZSink<BusVoltageMvolts>;
+    pub type ShuntVoltageMvoltsSink = ZSink<ShuntVoltageMvolts>;
 }
 
 // pub mod ec_lmtr_pubs {

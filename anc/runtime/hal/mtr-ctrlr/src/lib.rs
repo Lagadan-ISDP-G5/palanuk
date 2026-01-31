@@ -19,8 +19,9 @@ impl<M> Freezable for MtrCtrlr<M> where M: MtrCtrlrPayload {}
 impl<M> CuTask for MtrCtrlr<M> where M: MtrCtrlrPayload {
     type Input<'m> = input_msg!('m, PropulsionAdapterOutputPayload);
     type Output<'m> = output_msg!(M);
+    type Resources<'r> = ();
 
-    fn new(_config: Option<&ComponentConfig>) -> CuResult<Self>
+    fn new(_config: Option<&ComponentConfig>, _resources: Self::Resources<'_>) -> CuResult<Self>
         where
             Self: Sized, {
         Ok(Self { _marker: PhantomData })

@@ -1,5 +1,6 @@
+extern crate cu_bincode as bincode;
 use cu29::prelude::*;
-use cu_bincode::{Decode, Encode};
+use bincode::{Decode, Encode};
 use cu_cam_pan::{CameraPanningPayload, PositionCommand};
 use propulsion_adapter::PropulsionAdapterOutputPayload;
 
@@ -24,7 +25,7 @@ impl CuTask for PannerAdapter {
     type Output<'m> = output_msg!(CameraPanningPayload);
     type Resources<'r> = ();
 
-    fn new(_config: Option<&ComponentConfig>) -> CuResult<Self>
+    fn new(_config: Option<&ComponentConfig>, _resources: Self::Resources<'_>) -> CuResult<Self>
     where Self: Sized
     {
         Ok(Self { cmd: PositionCommand::default() })

@@ -1,5 +1,6 @@
+extern crate cu_bincode as bincode;
 use cu29::prelude::*;
-use cu_bincode::{Decode, Encode};
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use cu_cam_pan::{CameraPanningPayload, PositionCommand};
 use cu_propulsion::{PropulsionPayload, WheelDirection};
@@ -72,10 +73,10 @@ impl Freezable for PropulsionAdapter {
 
 impl CuTask for PropulsionAdapter {
     type Input<'m> = input_msg!('m, ZenohTopicsAdapterOutputPayload, HcSr04Payload, OpenCViox2Payload);
-
     type Output<'m> = output_msg!(PropulsionAdapterOutputPayload);
+    type Resources<'r> = ();
 
-    fn new(config: Option<&ComponentConfig>) -> CuResult<Self>
+    fn new(config: Option<&ComponentConfig>, _resources: Self::Resources<'_>) -> CuResult<Self>
     where Self: Sized
     {
         let ComponentConfig(kv) =

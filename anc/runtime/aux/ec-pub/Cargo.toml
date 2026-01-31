@@ -10,3 +10,5 @@ keywords.workspace = true
 [dependencies]
 cu29 = { workspace = true }
 cu-powermon = { workspace = true }
+cu-bincode = { workspace = true }
+serde = { workspace = true }

@@ -1,5 +1,6 @@
+extern crate cu_bincode as bincode;
 use cu29::prelude::*;
-use cu_bincode::{Decode, Encode};
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use propulsion_adapter::{LoopState, SteerDirection, WorkOrRestState, ZenohTopicsAdapterOutputPayload};
 use cu_propulsion::WheelDirection;
@@ -18,8 +19,9 @@ impl CuTask for ZSrcMerger {
 
     type Input<'m> = input_msg!('m, f64, u8, u8, u8, u8);
     type Output<'m> = output_msg!(ZenohTopicsAdapterOutputPayload);
+    type Resources<'r> = ();
 
-    fn new(_config: Option<&ComponentConfig>) -> CuResult<Self>
+    fn new(_config: Option<&ComponentConfig>, _resources: Self::Resources<'_>) -> CuResult<Self>
         where
             Self: Sized {
         Ok(Self {})

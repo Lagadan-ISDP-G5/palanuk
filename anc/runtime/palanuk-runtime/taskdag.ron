@@ -31,7 +31,7 @@
 
        (
            id: "5vrail-power-mwatts",
-           type: "ec_5vrail_pubs::PowerMwatts",
+           type: "ec_5vrail_pubs::PowerMwattsSink",
            config: {
                "topic": "/palanuk/ec/power/mwatts",
            },
@@ -39,7 +39,7 @@
 
        (
            id: "5vrail-load-current-mamps",
-           type: "ec_5vrail_pubs::LoadCurrentMamps",
+           type: "ec_5vrail_pubs::LoadCurrentMampsSink",
            config: {
                "topic": "/palanuk/ec/load_current/mamps",
            },
@@ -47,7 +47,7 @@
 
        (
            id: "5vrail-bus-voltage-mvolts",
-           type: "ec_5vrail_pubs::BusVoltageMvolts",
+           type: "ec_5vrail_pubs::BusVoltageMvoltsSink",
            config: {
                "topic": "/palanuk/ec/bus_voltage/mvolts",
            },
@@ -55,7 +55,7 @@
 
        (
            id: "5vrail-shunt-voltage-mvolts",
-           type: "ec_5vrail_pubs::ShuntVoltageMvolts",
+           type: "ec_5vrail_pubs::ShuntVoltageMvoltsSink",
            config: {
                "topic": "/palanuk/ec/shunt_voltage/mvolts",
            },
@@ -112,10 +112,10 @@
             msg: "cu_powermon::Ina219Payload"
         ),
 
-        (src: "ec-pub-5vrail", dst: "5vrail-power-mwatts",         msg: "f64"),
-        (src: "ec-pub-5vrail", dst: "5vrail-load-current-mamps",   msg: "f64"),
-        (src: "ec-pub-5vrail", dst: "5vrail-bus-voltage-mvolts",   msg: "f64"),
-        (src: "ec-pub-5vrail", dst: "5vrail-shunt-voltage-mvolts", msg: "f64"),
+        (src: "ec-pub-5vrail", dst: "5vrail-power-mwatts",         msg: "ec_pub::PowerMwatts"),
+        (src: "ec-pub-5vrail", dst: "5vrail-load-current-mamps",   msg: "ec_pub::LoadCurrentMamps"),
+        (src: "ec-pub-5vrail", dst: "5vrail-bus-voltage-mvolts",   msg: "ec_pub::BusVoltageMvolts"),
+        (src: "ec-pub-5vrail", dst: "5vrail-shunt-voltage-mvolts", msg: "ec_pub::ShuntVoltageMvolts"),
 
     ],
     monitor: (

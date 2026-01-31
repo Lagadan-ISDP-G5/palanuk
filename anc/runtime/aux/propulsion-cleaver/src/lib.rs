@@ -19,8 +19,9 @@ impl Freezable for PropulsionCleaver {}
 impl CuTask for PropulsionCleaver {
     type Input<'m> = input_msg!((PropulsionPayload, AncPubPayload));
     type Output<'m> = output_msg!(PropulsionPayload);
+    type Resources<'r> = ();
 
-    fn new(_config: Option<&ComponentConfig>) -> CuResult<Self>
+    fn new(_config: Option<&ComponentConfig>, _resources: Self::Resources<'_>) -> CuResult<Self>
     where Self: Sized
     {
         // config should specify whether cleaver will cleave for left/right motor

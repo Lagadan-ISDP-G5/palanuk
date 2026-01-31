@@ -1,7 +1,8 @@
 /// This task provides feedback to the base station. It runs the Zenoh publisher.
 
+extern crate cu_bincode as bincode;
 use cu29::prelude::*;
-use cu_bincode::{Decode, Encode};
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use propulsion_adapter::{LoopState, PropulsionAdapterOutputPayload};
 use cu_pid::PIDControlOutputPayload;
@@ -22,10 +23,10 @@ impl CuTask for AncPub {
     // u8 - anc_obstacle
     // f64 - anc_distance
 
-    type Output<'m> = output_msg!((u8, f64));
+    type Output<'m> = output_msg!(u8, f64);
     type Resources<'r> = ();
 
-    fn new(_config: Option<&ComponentConfig>) -> CuResult<Self>
+    fn new(_config: Option<&ComponentConfig>, _resources: Self::Resources<'_>) -> CuResult<Self>
     where Self: Sized
     {
         Ok(Self {})
@@ -44,8 +45,8 @@ impl CuTask for AncPub {
                 false => 0,
                 true => 1
             };
-
-            output.set_payload((obstacle_detected, distance_reading));
+            output.0.set_payload(obstacle_detected);
+            output.1.set_payload(distance_reading);
         }
 
         Ok(())
