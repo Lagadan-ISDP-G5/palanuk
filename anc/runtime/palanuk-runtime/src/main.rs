@@ -14,12 +14,12 @@ use libc::*;
 
 pub mod ec_5vrail_pubs {
     use cu_zenoh_sink::ZSink;
-    use ec_pub::*;
+    use ec_pub::{PowerMwatts, LoadCurrentMamps, BusVoltageMvolts, ShuntVoltageMvolts};
 
-    pub type PowerMwattsSink        = ZSink<PowerMwatts>;
-    pub type LoadCurrentMampsSink   = ZSink<LoadCurrentMamps>;
-    pub type BusVoltageMvoltsSink   = ZSink<BusVoltageMvolts>;
-    pub type ShuntVoltageMvoltsSink = ZSink<ShuntVoltageMvolts>;
+    pub type PowerMwattsSink        = ZSink<ec_pub::PowerMwatts>;
+    pub type LoadCurrentMampsSink   = ZSink<ec_pub::LoadCurrentMamps>;
+    pub type BusVoltageMvoltsSink   = ZSink<ec_pub::BusVoltageMvolts>;
+    pub type ShuntVoltageMvoltsSink = ZSink<ec_pub::ShuntVoltageMvolts>;
 }
 
 // pub mod ec_lmtr_pubs {
@@ -50,9 +50,12 @@ fn main() {
         }
     }
 
+    #[cfg(target_os = "linux")]
     let _ = core_affinity::set_for_current(CoreId {id: 2}); // Cores 2-3 isolated
+    #[cfg(target_os = "linux")]
     let thread_param = sched_param {sched_priority: 92};
     let sched_res = unsafe {
+        #[cfg(target_os = "linux")]
         sched_setscheduler(0, SCHED_RR, &thread_param)
     };
     match sched_res {
@@ -90,5 +93,6 @@ fn main() {
     ).expect("Failed to create runtime.");
 
     application.run().expect("Failed to run application."); // blocks indefinitely
+
     debug!("End of app: final clock: {}.", clock.now());
 }

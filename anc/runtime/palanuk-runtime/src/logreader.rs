@@ -1,6 +1,6 @@
 use cu29::prelude::*;
 use cu29_export::run_cli;
-use ec_pub::*;
+use ec_pub::{PowerMwatts, LoadCurrentMamps, BusVoltageMvolts, ShuntVoltageMvolts};
 
 gen_cumsgs!("taskdag.ron");
 

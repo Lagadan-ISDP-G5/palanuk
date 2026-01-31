@@ -97,6 +97,7 @@ impl CuSinkTask for CameraPanning {
     }
 
     fn start(&mut self, _clock: &RobotClock) -> CuResult<()> {
+
         let task_running = Arc::clone(&self.task_running);
         let pos_cmd = Arc::clone(&self.recvd_pos_cmd);
         let controller = Arc::clone(&self.pin_controller_instances);
@@ -105,10 +106,13 @@ impl CuSinkTask for CameraPanning {
             .name(String::from_str("cu-cam-pan-ipolate-thread").unwrap())
             .stack_size(8 * 1024 * 1024)
             .spawn(move || -> CuResult<()> {
+            #[cfg(target_os = "linux")]
             let thread_param = sched_param {sched_priority: 70};
             let sched_res = unsafe {
+                #[cfg(target_os = "linux")]
                 sched_setscheduler(0, SCHED_RR, &thread_param)
             };
+            #[cfg(target_os = "linux")]
             match sched_res {
                 0 => {
                     info!("cu-cam-pan ipolate thread: sched_setscheduler call returned 0");
