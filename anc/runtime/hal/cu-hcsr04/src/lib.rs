@@ -1,3 +1,4 @@
+extern crate cu_bincode as bincode;
 use cu29::prelude::*;
 use bincode::{Decode, Encode};
 use hcsr04_gpio_cdev::*;
@@ -18,8 +19,9 @@ impl Freezable for CuHcSr04 {}
 
 impl CuSrcTask for CuHcSr04 {
     type Output<'m> = output_msg!(HcSr04Payload);
+    type Resources<'r> = ();
 
-    fn new(config: Option<&ComponentConfig>) -> CuResult<Self>
+    fn new(config: Option<&ComponentConfig>,  _resources: Self::Resources<'_>) -> CuResult<Self>
     where Self:Sized
     {
         let ComponentConfig(kv) =

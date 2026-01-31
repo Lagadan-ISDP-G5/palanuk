@@ -1,5 +1,6 @@
 use std::panic;
 
+extern crate cu_bincode as bincode;
 use dumb_ina219::{units::{CurrentUnit, Gettable, ResistanceUnit}, *};
 use cu29::prelude::*;
 use bincode::{Decode, Encode};
@@ -24,7 +25,9 @@ impl Freezable for CuIna219 {}
 
 impl CuSrcTask for CuIna219 {
     type Output<'m> = output_msg!(Ina219Payload);
-    fn new(config: Option<&ComponentConfig>) -> CuResult<Self>
+    type Resources<'r> = ();
+
+    fn new(config: Option<&ComponentConfig>, _resources: Self::Resources<'_>) -> CuResult<Self>
     where Self: Sized
     {
         let ComponentConfig(kv) =

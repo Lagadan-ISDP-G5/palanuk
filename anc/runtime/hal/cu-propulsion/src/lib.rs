@@ -1,3 +1,4 @@
+extern crate cu_bincode as bincode;
 use dumb_sysfs_pwm::{Pwm, PwmBuilder};
 use gpio_cdev::*;
 use cu29::prelude::*;
@@ -83,13 +84,13 @@ pub struct Propulsion {
 }
 
 impl Freezable for Propulsion {
-    fn freeze<E: bincode::enc::Encoder>(&self, encoder: &mut E) -> Result<(), bincode::error::EncodeError> {
+    fn freeze<E: cu_bincode::enc::Encoder>(&self, encoder: &mut E) -> Result<(), cu_bincode::error::EncodeError> {
         Encode::encode(&self.left_wheel, encoder)?;
         Encode::encode(&self.right_wheel, encoder)?;
         Ok(())
     }
 
-    fn thaw<D: bincode::de::Decoder>(&mut self, decoder: &mut D) -> Result<(), bincode::error::DecodeError> {
+    fn thaw<D: cu_bincode::de::Decoder>(&mut self, decoder: &mut D) -> Result<(), cu_bincode::error::DecodeError> {
         self.left_wheel = Decode::decode(decoder)?;
         self.right_wheel = Decode::decode(decoder)?;
         Ok(())
@@ -98,8 +99,9 @@ impl Freezable for Propulsion {
 
 impl CuSinkTask for Propulsion {
     type Input<'m> = input_msg!(PropulsionPayload);
+    type Resources<'r> = ();
 
-    fn new(config: Option<&ComponentConfig>) -> Result<Self, CuError>
+    fn new(config: Option<&ComponentConfig>, _resources: Self::Resources<'_>) -> Result<Self, CuError>
     where Self: Sized
     {
         let ComponentConfig(kv) =

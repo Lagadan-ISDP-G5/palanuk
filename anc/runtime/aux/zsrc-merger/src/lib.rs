@@ -1,5 +1,5 @@
 use cu29::prelude::*;
-use bincode::{Decode, Encode};
+use cu_bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use propulsion_adapter::{LoopState, SteerDirection, WorkOrRestState, ZenohTopicsAdapterOutputPayload};
 use cu_propulsion::WheelDirection;

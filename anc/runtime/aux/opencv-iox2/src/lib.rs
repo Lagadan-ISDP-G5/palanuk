@@ -2,7 +2,7 @@ use cu29::prelude::*;
 use iceoryx2::prelude::*;
 use iceoryx2::prelude::ipc::Service;
 use iceoryx2::port::subscriber::*;
-use bincode::{Decode, Encode};
+use cu_bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
 use crate::ipc::{AbsLineGradientMsg, CornerDetectedMsg, CornerDirectionMsg, CornerPointMsg, HeadingErrorMsg, SERVICE_NAME_ABS_LINE_GRADIENT, SERVICE_NAME_CORNER_DETECTED, SERVICE_NAME_CORNER_DIRECTION, SERVICE_NAME_CORNER_POINT, SERVICE_NAME_HEADING_ERROR};

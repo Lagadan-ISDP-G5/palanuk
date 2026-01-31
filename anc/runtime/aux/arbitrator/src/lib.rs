@@ -5,8 +5,7 @@
 /// and loop mode.
 
 use cu29::prelude::*;
-use bincode::{Decode, Encode};
-// use serde::{Deserialize, Serialize};
+use cu_bincode::{Decode, Encode};
 use propulsion_adapter::{LoopState, PropulsionAdapterOutputPayload};
 use cu_propulsion::{PropulsionPayload, WheelDirection};
 use cu_pid::PIDControlOutputPayload;

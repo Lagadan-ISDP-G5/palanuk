@@ -1,5 +1,5 @@
 use cu29::prelude::*;
-use bincode::{Decode, Encode};
+use cu_bincode::{Decode, Encode};
 use cu_cam_pan::{CameraPanningPayload, PositionCommand};
 use propulsion_adapter::PropulsionAdapterOutputPayload;
 
@@ -22,6 +22,7 @@ impl Freezable for PannerAdapter {
 impl CuTask for PannerAdapter {
     type Input<'m> = input_msg!('m, PropulsionAdapterOutputPayload);
     type Output<'m> = output_msg!(CameraPanningPayload);
+    type Resources<'r> = ();
 
     fn new(_config: Option<&ComponentConfig>) -> CuResult<Self>
     where Self: Sized

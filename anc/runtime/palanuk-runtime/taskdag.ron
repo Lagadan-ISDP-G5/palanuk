@@ -1,0 +1,125 @@
+(
+    runtime: (
+        rate_target_hz: 4, // 250ms cycle time
+    ),
+
+    tasks: [
+
+        // (
+        //     id: "distance-sensor",
+        //     type: "cu_hcsr04::CuHcSr04",
+        //     config: {
+        //         "trig_pin": 21,
+        //         "echo_pin": 20,
+        //         "dist_threshold_cm": 2,
+        //     },
+        //     logging: (enabled: true)
+        // ),
+
+       (
+           id: "5vrail-power-monitoring",
+           type: "cu_powermon::CuIna219",
+           config: {
+               "target_addr": 0x44,
+           },
+       ),
+
+       (
+           id: "ec-pub-5vrail",
+           type: "ec_pub::EcPub",
+       ),
+
+       (
+           id: "5vrail-power-mwatts",
+           type: "ec_5vrail_pubs::PowerMwatts",
+           config: {
+               "topic": "/palanuk/ec/power/mwatts",
+           },
+       ),
+
+       (
+           id: "5vrail-load-current-mamps",
+           type: "ec_5vrail_pubs::LoadCurrentMamps",
+           config: {
+               "topic": "/palanuk/ec/load_current/mamps",
+           },
+       ),
+
+       (
+           id: "5vrail-bus-voltage-mvolts",
+           type: "ec_5vrail_pubs::BusVoltageMvolts",
+           config: {
+               "topic": "/palanuk/ec/bus_voltage/mvolts",
+           },
+       ),
+
+       (
+           id: "5vrail-shunt-voltage-mvolts",
+           type: "ec_5vrail_pubs::ShuntVoltageMvolts",
+           config: {
+               "topic": "/palanuk/ec/shunt_voltage/mvolts",
+           },
+       ),
+
+
+       // (
+       //     id: "lmtr-power-monitoring",
+       //     type: "cu_powermon::CuIna219",
+       //     config: {
+       //         "target_addr": 0x40,
+       //     },
+       // ),
+
+       // (
+       //     id: "rmtr-power-monitoring",
+       //     type: "cu_powermon::CuIna219",
+       //     config: {
+       //         "target_addr": 0x41,
+       //     },
+       // ),
+
+       // (
+       //     id: "camera-panning",
+       //     type: "cu_cam_pan::CameraPanning",
+       //     config: {
+       //         "sg90_pos_cmd_pin": 0 // PWM_CHAN0 = GPIO12
+       //     },
+       //     logging: (enabled: false)
+       // ),
+
+        // (
+        //     id: "propulsion",
+        //     type: "cu_propulsion::Propulsion",
+        //     config: {
+        //         "l298n_en_a": 2, // PWM_CHAN2 = GPIO18
+        //         "l298n_en_b": 3, // PWM_CHAN1 = GPIO13, PWM_CHAN1 is somehow faulty, using PWM_CHAN3 = GPIO15, PIN10
+        //         "l298n_in_1": 23,
+        //         "l298n_in_2": 24,
+        //         "l298n_in_3": 26,
+        //         "l298n_in_4": 19,
+        //     },
+        //     logging: (enabled: true)
+        // ),
+
+
+
+
+     ],
+    cnx: [
+        (
+            src: "5vrail-power-monitoring",
+            dst: "ec-pub-5vrail",
+            msg: "cu_powermon::Ina219Payload"
+        ),
+
+        (src: "ec-pub-5vrail", dst: "5vrail-power-mwatts",         msg: "f64"),
+        (src: "ec-pub-5vrail", dst: "5vrail-load-current-mamps",   msg: "f64"),
+        (src: "ec-pub-5vrail", dst: "5vrail-bus-voltage-mvolts",   msg: "f64"),
+        (src: "ec-pub-5vrail", dst: "5vrail-shunt-voltage-mvolts", msg: "f64"),
+
+    ],
+    monitor: (
+          type: "cu_consolemon::CuConsoleMon",
+    ),
+    logging: ( file: "palanuk.copper", level: "debug" ),
+)

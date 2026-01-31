@@ -30,8 +30,9 @@ where
     P: CuMsgPayload + 'static + Serialize,
 {
     type Input<'m> = input_msg!(P);
+    type Resources<'r> = ();
 
-    fn new(config: Option<&ComponentConfig>) -> CuResult<Self>
+    fn new(config: Option<&ComponentConfig>, _resources: Self::Resources<'_>) -> CuResult<Self>
     where
         Self: Sized,
     {

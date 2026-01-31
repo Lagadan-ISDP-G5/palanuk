@@ -32,8 +32,9 @@ where
     S: CuMsgPayload + 'static + DeserializeOwned,
 {
     type Output<'m> = output_msg!(S);
+    type Resources<'r> = ();
 
-    fn new(config: Option<&ComponentConfig>) -> CuResult<Self>
+    fn new(config: Option<&ComponentConfig>, _resources: Self::Resources<'_>) -> CuResult<Self>
     where
         Self: Sized,
     {

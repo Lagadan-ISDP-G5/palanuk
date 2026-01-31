@@ -14,7 +14,8 @@ impl CuTask for EcPub {
     // f64 - ec_bus_voltage_mvolts
     // f64 - ec_shunt_voltage_mvolts
 
-    type Output<'m> = output_msg!((f64, f64, f64, f64));
+    type Output<'m> = output_msg!(f64, f64, f64, f64);
+    type Resources<'r> = ();
 
     fn new(_config: Option<&ComponentConfig>) -> CuResult<Self>
     where Self: Sized
@@ -31,12 +32,12 @@ impl CuTask for EcPub {
             let bus_voltage = ina219_payload.bus_voltage * 1000.0;
             let shunt_voltage = ina219_payload.shunt_voltage;
 
-            output.set_payload((
+            output.set_payload(
                 power,
                 load_current,
                 bus_voltage,
                 shunt_voltage
-            ));
+            );
         }
 
         Ok(())

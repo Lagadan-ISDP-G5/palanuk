@@ -7,8 +7,8 @@
     "rust-analyzer": {
       "initialization_options": {
         "cargo": {
-          "target": "aarch64-apple-darwin"
-          // "target": "aarch64-unknown-linux-gnu" // Needed to get rust-analyzer to analyze the code for the intended target instead of host arch. this is for the Pi
+          // "target": "aarch64-apple-darwin"
+          "target": "aarch64-unknown-linux-gnu" // Needed to get rust-analyzer to analyze the code for the intended target instead of host arch. this is for the Pi
         }
       }
     }

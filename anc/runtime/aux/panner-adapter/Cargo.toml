@@ -9,6 +9,6 @@ keywords.workspace = true
 
 [dependencies]
 cu29 = { workspace = true }
-bincode = { workspace= true }
+cu-bincode = { workspace = true }
 cu-cam-pan = { workspace = true }
 propulsion-adapter = { workspace = true }

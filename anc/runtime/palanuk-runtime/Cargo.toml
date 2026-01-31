@@ -17,6 +17,8 @@ serde = { workspace = true }
 ctrlc = { workspace = true }
 libc = { workspace = true }
 core_affinity = { workspace = true }
+ec-pub = { workspace = true }
+cu-zenoh-sink = { workspace = true }
 # iceoryx2 = { workspace = true }
 
 [[bin]]

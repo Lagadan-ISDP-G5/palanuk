@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 cu29 = { workspace = true }
-bincode = { workspace = true }
+cu-bincode = { workspace = true }
 serde = { workspace = true }
 hcsr04-gpio-cdev = { workspace = true }
 

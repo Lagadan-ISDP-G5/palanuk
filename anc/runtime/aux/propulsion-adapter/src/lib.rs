@@ -1,5 +1,5 @@
 use cu29::prelude::*;
-use bincode::{Decode, Encode};
+use cu_bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use cu_cam_pan::{CameraPanningPayload, PositionCommand};
 use cu_propulsion::{PropulsionPayload, WheelDirection};

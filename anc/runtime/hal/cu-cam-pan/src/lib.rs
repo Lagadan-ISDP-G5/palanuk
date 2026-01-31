@@ -1,3 +1,4 @@
+extern crate cu_bincode as bincode;
 use std::{str::FromStr, sync::{Arc, Mutex, atomic::{AtomicBool, AtomicU8, Ordering}}};
 use std::thread::{JoinHandle, Builder, sleep};
 use std::time::Duration;
@@ -68,7 +69,9 @@ impl Freezable for CameraPanning {}
 
 impl CuSinkTask for CameraPanning {
     type Input<'m> = input_msg!(CameraPanningPayload);
-    fn new(config: Option<&ComponentConfig>) -> Result<Self, CuError>
+    type Resources<'r> = ();
+
+    fn new(config: Option<&ComponentConfig>,  _resources: Self::Resources<'_>) -> Result<Self, CuError>
     where Self: Sized
     {
         let ComponentConfig(kv) =
