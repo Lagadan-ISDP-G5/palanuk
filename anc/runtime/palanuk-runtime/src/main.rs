@@ -9,6 +9,15 @@ use cu_hcsr04::{HcSr04Payload};
 use cu_powermon::{Ina219Payload};
 use ec_pub::*;
 use zsrc_merger::*;
+use opencv_iox2::*;
+use propulsion_adapter::*;
+use panner_adapter::*;
+use dual_mtr_ctrlr::*;
+use arbitrator::*;
+use anc_pub::*;
+use propulsion_cleaver::*;
+use dual_mtr_ctrlr::*;
+use cu_pid::*;
 
 use core_affinity::*;
 use libc::*;
@@ -23,6 +32,15 @@ pub mod odd_subs {
     pub type OddOpenLoopDriveStateSrc = ZSrc<zsrc_merger::OddOpenLoopDriveState>;
     pub type OddOpenLoopForcepanSrc   = ZSrc<zsrc_merger::OddOpenLoopForcepan>;
 }
+
+pub mod anc_pubs {
+    use cu_zenoh_sink::ZSink;
+    use anc_pub::{ObstacleDetected, Distance};
+
+    pub type ObstacleDetectedSink = ZSink<anc_pub::ObstacleDetected>;
+    pub type DistanceSink         = ZSink<anc_pub::Distance>;
+}
+
 
 pub mod ec_5vrail_pubs {
     use cu_zenoh_sink::ZSink;

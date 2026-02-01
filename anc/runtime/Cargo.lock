@@ -61,7 +61,7 @@ name = "anc-pub"
 version = "0.1.0"
 dependencies = [
  "cu-bincode",
- "cu-pid",
+ "cu-propulsion",
  "cu29",
  "propulsion-adapter",
  "serde",
@@ -154,6 +154,7 @@ dependencies = [
  "cu-pid",
  "cu-propulsion",
  "cu29",
+ "dual-mtr-ctrlr",
  "opencv-iox2",
  "propulsion-adapter",
  "serde",
@@ -1578,7 +1579,9 @@ checksum = "1aaf95b3e5c8f23aa320147307562d361db0ae0d51242340f558153b4eb2439b"
 name = "dual-mtr-ctrlr"
 version = "0.1.0"
 dependencies = [
- "mtr-ctrlr",
+ "cu-bincode",
+ "cu-pid",
+ "serde",
 ]
 
 [[package]]
@@ -3517,11 +3520,14 @@ dependencies = [
 name = "palanuk-runtime"
 version = "0.1.0"
 dependencies = [
+ "anc-pub",
+ "arbitrator",
  "core_affinity",
  "ctrlc",
  "cu-cam-pan",
  "cu-consolemon",
  "cu-hcsr04",
+ "cu-pid",
  "cu-powermon",
  "cu-propulsion",
  "cu-zenoh-sink",
@@ -3530,8 +3536,13 @@ dependencies = [
  "cu29-export",
  "cu29-helpers",
  "cu29-runtime",
+ "dual-mtr-ctrlr",
  "ec-pub",
  "libc",
+ "opencv-iox2",
+ "panner-adapter",
+ "propulsion-adapter",
+ "propulsion-cleaver",
  "serde",
  "zsrc-merger",
 ]
@@ -3961,6 +3972,7 @@ dependencies = [
  "cu-hcsr04",
  "cu-propulsion",
  "cu29",
+ "dual-mtr-ctrlr",
  "opencv-iox2",
  "serde",
 ]

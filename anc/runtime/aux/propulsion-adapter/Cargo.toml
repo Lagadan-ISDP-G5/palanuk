@@ -15,3 +15,4 @@ cu-cam-pan = { workspace = true }
 cu-propulsion = { workspace = true }
 cu-hcsr04 = { workspace = true }
 opencv-iox2 = { workspace = true }
+dual-mtr-ctrlr = { workspace = true }

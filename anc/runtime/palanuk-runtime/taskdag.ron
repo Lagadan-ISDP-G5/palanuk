@@ -5,149 +5,223 @@
 
     tasks: [
 
+        (
+            id: "distance-sensor",
+            type: "cu_hcsr04::CuHcSr04",
+            config: {
+                "trig_pin": 21,
+                "echo_pin": 20,
+                "dist_threshold_cm": 2,
+            },
+            logging: (enabled: true)
+        ),
+
+        (
+            id: "opencv-iox2",
+            type: "opencv_iox2::OpenCViox2",
+        ),
+
+        (
+            id: "propulsion-adapter",
+            type: "propulsion_adapter::PropulsionAdapter",
+            config: {
+                "e_stop_threshold_cm": 5,
+            }
+        ),
+
+        (
+            id: "panner-adapter",
+            type: "panner_adapter::PannerAdapter",
+        ),
+
+        (
+            id: "camera-panning",
+            type: "cu_cam_pan::CameraPanning",
+            config: {
+                "sg90_pos_cmd_pin": 0 // PWM_CHAN0 = GPIO12
+            },
+            logging: (enabled: false)
+        ),
+
+        (
+            id: "dual-mtr-ctrlr",
+            type: "dual_mtr_ctrlr::DualMtrCtrlr",
+            config: {
+                "kp": 0.01,
+                "kd": 0.00,
+                "ki": 0.00005,
+                "setpoint": 0.0,
+                "cutoff": 0.9,
+            }
+        ),
+
+        (
+            id: "arbitrator",
+            type: "arbitrator::Arbitrator",
+            // config: {
+
+            // }
+        ),
+
         // (
-        //     id: "distance-sensor",
-        //     type: "cu_hcsr04::CuHcSr04",
-        //     config: {
-        //         "trig_pin": 21,
-        //         "echo_pin": 20,
-        //         "dist_threshold_cm": 2,
-        //     },
-        //     logging: (enabled: true)
+        //     id: "propulsion-cleaver",
+        //     type: "propulsion_cleaver::PropulsionCleaver",
         // ),
 
-       (
-           id: "5vrail-power-monitoring",
-           type: "cu_powermon::CuIna219",
-           config: {
-               "target_addr": 0x44,
-           },
-       ),
 
-       (
-           id: "ec-pub-5vrail",
-           type: "ec_pub::EcPub",
-       ),
+        // BEGIN: 5V rail supply power monitoring
 
-       (
-           id: "5vrail-power-mwatts",
-           type: "ec_5vrail_pubs::PowerMwattsSink",
-           config: {
-               "topic": "/palanuk/ec/power/mwatts",
-           },
-       ),
+        (
+            id: "5vrail-power-monitoring",
+            type: "cu_powermon::CuIna219",
+            config: {
+                "target_addr": 0x44,
+            },
+        ),
 
-       (
-           id: "5vrail-load-current-mamps",
-           type: "ec_5vrail_pubs::LoadCurrentMampsSink",
-           config: {
-               "topic": "/palanuk/ec/load_current/mamps",
-           },
-       ),
+        (
+            id: "ec-pub-5vrail",
+            type: "ec_pub::EcPub",
+        ),
 
-       (
-           id: "5vrail-bus-voltage-mvolts",
-           type: "ec_5vrail_pubs::BusVoltageMvoltsSink",
-           config: {
-               "topic": "/palanuk/ec/bus_voltage/mvolts",
-           },
-       ),
+        (
+            id: "5vrail-power-mwatts",
+            type: "ec_5vrail_pubs::PowerMwattsSink",
+            config: {
+                "topic": "/palanuk/ec/power/mwatts",
+            },
+        ),
 
-       (
-           id: "5vrail-shunt-voltage-mvolts",
-           type: "ec_5vrail_pubs::ShuntVoltageMvoltsSink",
-           config: {
-               "topic": "/palanuk/ec/shunt_voltage/mvolts",
-           },
-       ),
+        (
+            id: "5vrail-load-current-mamps",
+            type: "ec_5vrail_pubs::LoadCurrentMampsSink",
+            config: {
+                "topic": "/palanuk/ec/load_current/mamps",
+            },
+        ),
+
+        (
+            id: "5vrail-bus-voltage-mvolts",
+            type: "ec_5vrail_pubs::BusVoltageMvoltsSink",
+            config: {
+                "topic": "/palanuk/ec/bus_voltage/mvolts",
+            },
+        ),
+
+        (
+            id: "5vrail-shunt-voltage-mvolts",
+            type: "ec_5vrail_pubs::ShuntVoltageMvoltsSink",
+            config: {
+                "topic": "/palanuk/ec/shunt_voltage/mvolts",
+            },
+        ),
+
+        // END: 5V rail supply power monitoring
 
 
-       // (
-       //     id: "lmtr-power-monitoring",
-       //     type: "cu_powermon::CuIna219",
-       //     config: {
-       //         "target_addr": 0x40,
-       //     },
-       // ),
+        // (
+        //     id: "lmtr-power-monitoring",
+        //     type: "cu_powermon::CuIna219",
+        //     config: {
+        //         "target_addr": 0x40,
+        //     },
+        // ),
 
-       // (
-       //     id: "rmtr-power-monitoring",
-       //     type: "cu_powermon::CuIna219",
-       //     config: {
-       //         "target_addr": 0x41,
-       //     },
-       // ),
+        // (
+        //     id: "rmtr-power-monitoring",
+        //     type: "cu_powermon::CuIna219",
+        //     config: {
+        //         "target_addr": 0x41,
+        //     },
+        // ),
 
-       (
+        // BEGIN: Subscribers to ODD
+
+        (
             id: "zsrc-merger",
             type: "zsrc_merger::ZSrcMerger"
-       ),
+        ),
 
-       (
-           id: "odd-openloop-speed",
-           type: "odd_subs::OddOpenLoopSpeedSrc",
-           config: {
-               "topic": "/palanuk/odd/speed",
-           },
-       ),
+        (
+            id: "odd-openloop-speed",
+            type: "odd_subs::OddOpenLoopSpeedSrc",
+            config: {
+                "topic": "/palanuk/odd/speed",
+            },
+        ),
 
-       (
-           id: "odd-openloop-stop",
-           type: "odd_subs::OddOpenLoopStopSrc",
-           config: {
-               "topic": "/palanuk/odd/stop",
-           },
-       ),
+        (
+            id: "odd-openloop-stop",
+            type: "odd_subs::OddOpenLoopStopSrc",
+            config: {
+                "topic": "/palanuk/odd/stop",
+            },
+        ),
 
-       (
-           id: "odd-loopmode",
-           type: "odd_subs::OddOpenLoopModeSrc",
-           config: {
-               "topic": "/palanuk/odd/loopmode",
-           },
-       ),
+        (
+            id: "odd-loopmode",
+            type: "odd_subs::OddOpenLoopModeSrc",
+            config: {
+                "topic": "/palanuk/odd/loopmode",
+            },
+        ),
 
-       (
-           id: "odd-openloop-drivestate",
-           type: "odd_subs::OddOpenLoopDriveStateSrc",
-           config: {
-               "topic": "/palanuk/odd/drivestate",
-           },
-       ),
+        (
+            id: "odd-openloop-drivestate",
+            type: "odd_subs::OddOpenLoopDriveStateSrc",
+            config: {
+                "topic": "/palanuk/odd/drivestate",
+            },
+        ),
 
-       (
-           id: "odd-openloop-forcepan",
-           type: "odd_subs::OddOpenLoopForcepanSrc",
-           config: {
-               "topic": "/palanuk/odd/forcepan",
-           },
-       ),
+        (
+            id: "odd-openloop-forcepan",
+            type: "odd_subs::OddOpenLoopForcepanSrc",
+            config: {
+                "topic": "/palanuk/odd/forcepan",
+            },
+        ),
 
+        // END: Subscribers to ODD
 
-       // (
-       //     id: "camera-panning",
-       //     type: "cu_cam_pan::CameraPanning",
-       //     config: {
-       //         "sg90_pos_cmd_pin": 0 // PWM_CHAN0 = GPIO12
-       //     },
-       //     logging: (enabled: false)
-       // ),
+        // BEGIN: ANC publishers to ODD
 
-        // (
-        //     id: "propulsion",
-        //     type: "cu_propulsion::Propulsion",
-        //     config: {
-        //         "l298n_en_a": 2, // PWM_CHAN2 = GPIO18
-        //         "l298n_en_b": 3, // PWM_CHAN1 = GPIO13, PWM_CHAN1 is somehow faulty, using PWM_CHAN3 = GPIO15, PIN10
-        //         "l298n_in_1": 23,
-        //         "l298n_in_2": 24,
-        //         "l298n_in_3": 26,
-        //         "l298n_in_4": 19,
-        //     },
-        //     logging: (enabled: true)
-        // ),
+        (
+            id: "anc-pub",
+            type: "anc_pub::AncPub",
+        ),
 
+        (
+            id: "obstacle-detected",
+            type: "anc_pubs::ObstacleDetectedSink",
+            config: {
+                "topic": "/palanuk/anc/obstacle",
+            },
+        ),
 
+        (
+            id: "distance-reading",
+            type: "anc_pubs::DistanceSink",
+            config: {
+                "topic": "/palanuk/anc/distance",
+            },
+        ),
+
+        // END: ANC publishers to ODD
+
+        (
+            id: "propulsion",
+            type: "cu_propulsion::Propulsion",
+            config: {
+                "l298n_en_a": 2, // PWM_CHAN2 = GPIO18
+                "l298n_en_b": 3, // PWM_CHAN1 = GPIO13, PWM_CHAN1 is somehow faulty, using PWM_CHAN3 = GPIO15, PIN10
+                "l298n_in_1": 23,
+                "l298n_in_2": 24,
+                "l298n_in_3": 26,
+                "l298n_in_4": 19,
+            },
+            logging: (enabled: true)
+        ),
 
 
      ],
@@ -158,16 +232,48 @@
             msg: "cu_powermon::Ina219Payload"
         ),
 
+        // ec-pub-5vrail tail
         (src: "ec-pub-5vrail", dst: "5vrail-power-mwatts",         msg: "ec_pub::PowerMwatts"),
         (src: "ec-pub-5vrail", dst: "5vrail-load-current-mamps",   msg: "ec_pub::LoadCurrentMamps"),
         (src: "ec-pub-5vrail", dst: "5vrail-bus-voltage-mvolts",   msg: "ec_pub::BusVoltageMvolts"),
         (src: "ec-pub-5vrail", dst: "5vrail-shunt-voltage-mvolts", msg: "ec_pub::ShuntVoltageMvolts"),
 
+        // zsrc-merger head
         (src: "odd-openloop-speed",      dst: "zsrc-merger", msg: "zsrc_merger::OddOpenLoopSpeed"),
         (src: "odd-openloop-stop",       dst: "zsrc-merger", msg: "zsrc_merger::OddOpenLoopStop"),
         (src: "odd-loopmode",            dst: "zsrc-merger", msg: "zsrc_merger::OddLoopMode"),
         (src: "odd-openloop-drivestate", dst: "zsrc-merger", msg: "zsrc_merger::OddOpenLoopDriveState"),
         (src: "odd-openloop-forcepan",   dst: "zsrc-merger", msg: "zsrc_merger::OddOpenLoopForcepan"),
+
+        // propulsion-adapter head
+        (src: "propulsion-adapter", dst: "panner-adapter", msg: "propulsion_adapter::PropulsionAdapterOutputPayload"),
+        (src: "propulsion-adapter", dst: "dual-mtr-ctrlr", msg: "dual_mtr_ctrlr::DualMtrCtrlrPayload"),
+        (src: "propulsion-adapter", dst: "arbitrator", msg: "propulsion_adapter::PropulsionAdapterOutputPayload"),
+
+        // propulsion-adapter tails
+
+        // zsrc-merger tail
+        (src: "zsrc-merger",     dst: "propulsion-adapter", msg: "propulsion_adapter::ZenohTopicsAdapterOutputPayload"),
+        (src: "distance-sensor", dst: "propulsion-adapter", msg: "cu_hcsr04::HcSr04Payload"),
+        (src: "opencv-iox2",     dst: "propulsion-adapter", msg: "opencv_iox2::OpenCViox2Payload"),
+
+        // panner-adapter tail
+        (src: "panner-adapter", dst: "camera-panning", msg: "cu_cam_pan::CameraPanningPayload"),
+
+        // arbitrator head
+        (src: "dual-mtr-ctrlr", dst: "arbitrator", msg: "cu_pid::PIDControlOutputPayload"),
+        (src: "opencv-iox2", dst: "arbitrator", msg: "opencv_iox2::OpenCViox2Payload"),
+
+        // arbitrator tail
+        (src: "arbitrator", dst: "propulsion", msg: "cu_propulsion::PropulsionPayload"),
+        (src: "arbitrator", dst: "anc-pub", msg: "anc_pub::AncPubPayload"),
+
+        // anc-pub tail
+        (src: "anc-pub", dst: "obstacle-detected", msg: "anc_pub::ObstacleDetected"),
+        (src: "anc-pub", dst: "distance-reading", msg: "anc_pub::Distance"),
+
+        // (src: "propulsion-cleaver", dst: "propulsion", msg: "cu_propulsion::PropulsionPayload")
+
     ],
     monitor: (
           type: "cu_consolemon::CuConsoleMon",

@@ -5,11 +5,11 @@
 /// and loop mode.
 
 extern crate cu_bincode as bincode;
+use cu_pid::PIDControlOutputPayload;
 use cu29::prelude::*;
 use bincode::{Decode, Encode};
 use propulsion_adapter::{LoopState, PropulsionAdapterOutputPayload};
 use cu_propulsion::{PropulsionPayload, WheelDirection};
-use cu_pid::PIDControlOutputPayload;
 use anc_pub::AncPubPayload;
 use opencv_iox2::OpenCViox2Payload;
 
@@ -53,7 +53,7 @@ impl Freezable for Arbitrator {
 
 impl CuTask for Arbitrator {
     type Input<'m> = input_msg!('m, PropulsionAdapterOutputPayload, PIDControlOutputPayload, OpenCViox2Payload);
-    type Output<'m> = output_msg!((PropulsionPayload, AncPubPayload));
+    type Output<'m> = output_msg!(PropulsionPayload, AncPubPayload);
     type Resources<'r> = ();
 
     fn new(_config: Option<&ComponentConfig>, _resources: Self::Resources<'_>) -> CuResult<Self>
@@ -88,8 +88,8 @@ impl CuTask for Arbitrator {
                 distance: prop_adap_pload.distance
             };
 
-            let arbitrator_output_payload = (prop_payload, herald_pload);
-            output.set_payload(arbitrator_output_payload);
+            output.0.set_payload(prop_payload);
+            output.1.set_payload(herald_pload);
         }
         Ok(())
     }

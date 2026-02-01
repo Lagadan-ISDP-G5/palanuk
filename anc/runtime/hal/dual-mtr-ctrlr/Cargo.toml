@@ -8,4 +8,6 @@ license.workspace = true
 keywords.workspace = true
 
 [dependencies]
-mtr-ctrlr = { workspace = true }
+cu-bincode = { workspace = true }
+serde = { workspace = true }
+cu-pid = { workspace = true }

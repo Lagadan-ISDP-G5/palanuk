@@ -1,3 +1,5 @@
+/// Failed experiment on genericization. Ignore this, lmtr-ctrlr, and rmtr-ctrlr
+
 use cu29::prelude::*;
 use core::marker::PhantomData;
 use cu_pid::GenericPIDTask;

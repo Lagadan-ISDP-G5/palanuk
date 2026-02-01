@@ -6,6 +6,7 @@ use cu_cam_pan::{CameraPanningPayload, PositionCommand};
 use cu_propulsion::{PropulsionPayload, WheelDirection};
 use cu_hcsr04::{HcSr04Payload};
 use opencv_iox2::OpenCViox2Payload;
+use dual_mtr_ctrlr::DualMtrCtrlrPayload;
 
 #[derive(Debug, Clone, Copy, Default, Encode, Decode, PartialEq, Serialize, Deserialize)]
 pub enum LoopState {
@@ -41,6 +42,14 @@ pub struct PropulsionAdapterOutputPayload {
     pub distance: f64,
 }
 
+// impl From<&PropulsionAdapterOutputPayload> for DualMtrCtrlrPayload {
+//     fn from(value: &PropulsionAdapterOutputPayload) -> Self {
+//         Self {
+//             error : value.weighted_error
+//         }
+//     }
+// }
+
 #[derive(Default, Debug, Clone, Copy, Encode, Decode, PartialEq, Serialize, Deserialize)]
 pub struct ZenohTopicsAdapterOutputPayload {
     pub loop_state: LoopState,
@@ -73,7 +82,7 @@ impl Freezable for PropulsionAdapter {
 
 impl CuTask for PropulsionAdapter {
     type Input<'m> = input_msg!('m, ZenohTopicsAdapterOutputPayload, HcSr04Payload, OpenCViox2Payload);
-    type Output<'m> = output_msg!(PropulsionAdapterOutputPayload);
+    type Output<'m> = output_msg!(PropulsionAdapterOutputPayload, DualMtrCtrlrPayload);
     type Resources<'r> = ();
 
     fn new(config: Option<&ComponentConfig>, _resources: Self::Resources<'_>) -> CuResult<Self>
@@ -137,7 +146,7 @@ impl CuTask for PropulsionAdapter {
             };
         }
 
-        let output_payload = PropulsionAdapterOutputPayload {
+        let prop_adap_output_payload = PropulsionAdapterOutputPayload {
             loop_state,
             propulsion_payload,
             panner_payload,
@@ -145,7 +154,9 @@ impl CuTask for PropulsionAdapter {
             is_e_stop_triggered,
             distance: hcsr04_msg.distance
         };
-        output.set_payload(output_payload);
+
+        output.0.set_payload(prop_adap_output_payload);
+        output.1.set_payload(DualMtrCtrlrPayload { error: prop_adap_output_payload.weighted_error });
         Ok(())
     }
 }

@@ -17,7 +17,7 @@ pub struct PropulsionCleaver {
 impl Freezable for PropulsionCleaver {}
 
 impl CuTask for PropulsionCleaver {
-    type Input<'m> = input_msg!((PropulsionPayload, AncPubPayload));
+    type Input<'m> = input_msg!('m, PropulsionPayload);
     type Output<'m> = output_msg!(PropulsionPayload);
     type Resources<'r> = ();
 
@@ -50,13 +50,11 @@ impl CuTask for PropulsionCleaver {
     -> CuResult<()>
     {
         if let Some(cleaved) = input.payload() {
-            let (propulsion_cleaved, _) = cleaved;
             // and then right here we'll read from Self to decide which left/right motor value to cleave for
             // let cleaved = match self.which_motor {
             //     WhichMotor::Lmtr => propulsion_cleaved_lmtr,
             //     WhichMotor::Rmtr => propulsion_cleaved_rmtr,
             // };
-            let cleaved = propulsion_cleaved;
             output.set_payload(*cleaved);
         }
         Ok(())

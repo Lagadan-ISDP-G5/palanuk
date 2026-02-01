@@ -1,19 +1,17 @@
-use mtr_ctrlr::*;
+extern crate cu_bincode as bincode;
+use cu_pid::GenericPIDTask;
+use bincode::{Encode, Decode};
+use serde::{Serialize, Deserialize};
 
-pub type DualMtrCtrlr = Mtr<DualMtrCtrlrPayload>;
+pub type DualMtrCtrlr = GenericPIDTask<DualMtrCtrlrPayload>;
 
+#[derive(Debug, Clone, Copy, Default, Encode, Decode, PartialEq, Serialize, Deserialize)]
 pub struct DualMtrCtrlrPayload {
-    pub weighted_err: f32
+    pub error: f32
 }
 
-impl Into<f32> for DualMtrCtrlrPayload {
-    fn into(self) -> f32 {
-        self.weighted_err
-    }
-}
-
-impl From<f32> for DualMtrCtrlrPayload {
-    fn from(value: f32) -> Self {
-        Self { weighted_err: value }
+impl From<&DualMtrCtrlrPayload> for f32 {
+    fn from(payload: &DualMtrCtrlrPayload) -> f32 {
+        payload.error
     }
 }

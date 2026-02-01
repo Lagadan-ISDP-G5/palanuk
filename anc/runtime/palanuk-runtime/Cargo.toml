@@ -21,6 +21,14 @@ ec-pub = { workspace = true }
 cu-zenoh-sink = { workspace = true }
 cu-zenoh-src = { workspace = true}
 zsrc-merger = { workspace = true }
+opencv-iox2 = { workspace = true }
+propulsion-adapter = { workspace = true }
+panner-adapter = { workspace = true }
+dual-mtr-ctrlr = { workspace = true }
+arbitrator = { workspace = true }
+anc-pub = { workspace = true }
+propulsion-cleaver = { workspace = true }
+cu-pid = { workspace = true }
 
 [[bin]]
 name = "palanuk-runtime"
