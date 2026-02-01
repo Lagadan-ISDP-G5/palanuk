@@ -10,19 +10,28 @@ pub struct ZSrcMerger {}
 
 impl Freezable for ZSrcMerger {}
 
+/// IMPORTANT: The #[serde(transparent)] is so that rmp_serde treats these tuple structs as the raw
+/// types they contain, so that from_slice::<S>() in cu-zenoh-src will decode the primitive type sent from
+/// the wire directly
+
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, Encode, Decode)]
+#[serde(transparent)]
 pub struct OddOpenLoopSpeed(pub f64);
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, Encode, Decode)]
+#[serde(transparent)]
 pub struct OddOpenLoopStop(pub u8);
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, Encode, Decode)]
+#[serde(transparent)]
 pub struct OddLoopMode(pub u8);
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, Encode, Decode)]
+#[serde(transparent)]
 pub struct OddOpenLoopDriveState(pub u8);
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, Encode, Decode)]
+#[serde(transparent)]
 pub struct OddOpenLoopForcepan(pub u8);
 
 impl CuTask for ZSrcMerger {

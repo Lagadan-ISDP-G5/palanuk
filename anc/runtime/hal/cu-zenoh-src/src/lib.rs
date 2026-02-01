@@ -95,9 +95,9 @@ where
             Err(_) => return Err(CuError::from("msg recv failed"))
         };
 
-        let msg = from_slice(&sample.payload().to_bytes()).map_err(
+        let msg = from_slice::<S>(&sample.payload().to_bytes()).map_err(
             |_| -> CuError {CuError::from("decode failed")}
-        )?;
+        )?.into();
 
         output.set_payload(msg);
         Ok(())

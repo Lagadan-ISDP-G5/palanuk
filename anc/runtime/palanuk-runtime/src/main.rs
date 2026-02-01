@@ -12,6 +12,17 @@ use ec_pub::*;
 use core_affinity::*;
 use libc::*;
 
+pub mod odd_subs {
+    use cu_zenoh_src::ZSrc;
+    use zsrc_merger::{OddOpenLoopSpeed, OddOpenLoopStop, OddLoopMode, OddOpenLoopDriveState, OddOpenLoopForcepan};
+
+    pub type OddOpenLoopSpeedSrc      = ZSrc<zsrc_merger::OddOpenLoopSpeed>;
+    pub type OddOpenLoopStopSrc       = ZSrc<zsrc_merger::OddOpenLoopStop>;
+    pub type OddOpenLoopModeSrc       = ZSrc<zsrc_merger::OddLoopMode>;
+    pub type OddOpenLoopDriveStateSrc = ZSrc<zsrc_merger::OddOpenLoopDriveState>;
+    pub type OddOpenLoopForcepanSrc   = ZSrc<zsrc_merger::OddOpenLoopForcepan>;
+}
+
 pub mod ec_5vrail_pubs {
     use cu_zenoh_sink::ZSink;
     use ec_pub::{PowerMwatts, LoadCurrentMamps, BusVoltageMvolts, ShuntVoltageMvolts};
@@ -24,11 +35,23 @@ pub mod ec_5vrail_pubs {
 
 // pub mod ec_lmtr_pubs {
 //     use cu_zenoh_sink::ZSink;
+//     use ec_pub::{PowerMwatts, LoadCurrentMamps, BusVoltageMvolts, ShuntVoltageMvolts};
 
-//     pub type PowerMwatts        = ZSink<f64>;
-//     pub type LoadCurrentMamps   = ZSink<f64>;
-//     pub type BusVoltageMvolts   = ZSink<f64>;
-//     pub type ShuntVoltageMvolts = ZSink<f64>;
+//     pub type PowerMwattsSink        = ZSink<ec_pub::PowerMwatts>;
+//     pub type LoadCurrentMampsSink   = ZSink<ec_pub::LoadCurrentMamps>;
+//     pub type BusVoltageMvoltsSink   = ZSink<ec_pub::BusVoltageMvolts>;
+//     pub type ShuntVoltageMvoltsSink = ZSink<ec_pub::ShuntVoltageMvolts>;
+// }
+
+
+// pub mod ec_rmtr_pubs {
+//     use cu_zenoh_sink::ZSink;
+//     use ec_pub::{PowerMwatts, LoadCurrentMamps, BusVoltageMvolts, ShuntVoltageMvolts};
+
+//     pub type PowerMwattsSink        = ZSink<ec_pub::PowerMwatts>;
+//     pub type LoadCurrentMampsSink   = ZSink<ec_pub::LoadCurrentMamps>;
+//     pub type BusVoltageMvoltsSink   = ZSink<ec_pub::BusVoltageMvolts>;
+//     pub type ShuntVoltageMvoltsSink = ZSink<ec_pub::ShuntVoltageMvolts>;
 // }
 
 #[copper_runtime(config = "taskdag.ron", sim_mode = false)]

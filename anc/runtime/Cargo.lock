@@ -3525,6 +3525,7 @@ dependencies = [
  "cu-powermon",
  "cu-propulsion",
  "cu-zenoh-sink",
+ "cu-zenoh-src",
  "cu29",
  "cu29-export",
  "cu29-helpers",
@@ -3532,6 +3533,7 @@ dependencies = [
  "ec-pub",
  "libc",
  "serde",
+ "zsrc-merger",
 ]
 
 [[package]]

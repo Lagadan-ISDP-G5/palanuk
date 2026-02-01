@@ -19,7 +19,8 @@ libc = { workspace = true }
 core_affinity = { workspace = true }
 ec-pub = { workspace = true }
 cu-zenoh-sink = { workspace = true }
-# iceoryx2 = { workspace = true }
+cu-zenoh-src = { workspace = true}
+zsrc-merger = { workspace = true }
 
 [[bin]]
 name = "palanuk-runtime"
