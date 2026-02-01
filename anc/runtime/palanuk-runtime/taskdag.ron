@@ -78,6 +78,52 @@
        //     },
        // ),
 
+       (
+            id: "zsrc-merger",
+            type: "zsrc_merger::ZSrcMerger"
+       ),
+
+       (
+           id: "odd-openloop-speed",
+           type: "odd_subs::OddOpenLoopSpeedSrc",
+           config: {
+               "topic": "/palanuk/odd/speed",
+           },
+       ),
+
+       (
+           id: "odd-openloop-stop",
+           type: "odd_subs::OddOpenLoopStopSrc",
+           config: {
+               "topic": "/palanuk/odd/stop",
+           },
+       ),
+
+       (
+           id: "odd-loopmode",
+           type: "odd_subs::OddOpenLoopModeSrc",
+           config: {
+               "topic": "/palanuk/odd/loopmode",
+           },
+       ),
+
+       (
+           id: "odd-openloop-drivestate",
+           type: "odd_subs::OddOpenLoopDriveStateSrc",
+           config: {
+               "topic": "/palanuk/odd/drivestate",
+           },
+       ),
+
+       (
+           id: "odd-openloop-forcepan",
+           type: "odd_subs::OddOpenLoopForcepanSrc",
+           config: {
+               "topic": "/palanuk/odd/forcepan",
+           },
+       ),
+
+
        // (
        //     id: "camera-panning",
        //     type: "cu_cam_pan::CameraPanning",
@@ -117,6 +163,11 @@
         (src: "ec-pub-5vrail", dst: "5vrail-bus-voltage-mvolts",   msg: "ec_pub::BusVoltageMvolts"),
         (src: "ec-pub-5vrail", dst: "5vrail-shunt-voltage-mvolts", msg: "ec_pub::ShuntVoltageMvolts"),
 
+        (src: "odd-openloop-speed",      dst: "zsrc-merger", msg: "zsrc_merger::OddOpenLoopSpeed"),
+        (src: "odd-openloop-stop",       dst: "zsrc-merger", msg: "zsrc_merger::OddOpenLoopStop"),
+        (src: "odd-loopmode",            dst: "zsrc-merger", msg: "zsrc_merger::OddLoopMode"),
+        (src: "odd-openloop-drivestate", dst: "zsrc-merger", msg: "zsrc_merger::OddOpenLoopDriveState"),
+        (src: "odd-openloop-forcepan",   dst: "zsrc-merger", msg: "zsrc_merger::OddOpenLoopForcepan"),
     ],
     monitor: (
           type: "cu_consolemon::CuConsoleMon",

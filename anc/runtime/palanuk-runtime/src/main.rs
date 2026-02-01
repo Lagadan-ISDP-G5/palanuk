@@ -8,6 +8,7 @@ use cu_cam_pan::{CameraPanningPayload, PositionCommand};
 use cu_hcsr04::{HcSr04Payload};
 use cu_powermon::{Ina219Payload};
 use ec_pub::*;
+use zsrc_merger::*;
 
 use core_affinity::*;
 use libc::*;
