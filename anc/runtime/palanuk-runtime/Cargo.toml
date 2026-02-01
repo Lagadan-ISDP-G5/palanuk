@@ -9,17 +9,21 @@ cu29-export = { workspace = true }
 cu29-runtime = { workspace = true }
 cu29-helpers = { workspace = true }
 cu-consolemon = { workspace = true }
+cu-pid = { workspace = true }
+
 cu-propulsion = { workspace = true }
 cu-cam-pan = { workspace = true }
 cu-hcsr04 = { workspace = true }
 cu-powermon = { workspace = true }
+cu-zenoh-sink = { workspace = true }
+cu-zenoh-src = { workspace = true}
+
 serde = { workspace = true }
 ctrlc = { workspace = true }
 libc = { workspace = true }
 core_affinity = { workspace = true }
+
 ec-pub = { workspace = true }
-cu-zenoh-sink = { workspace = true }
-cu-zenoh-src = { workspace = true}
 zsrc-merger = { workspace = true }
 opencv-iox2 = { workspace = true }
 propulsion-adapter = { workspace = true }
@@ -27,8 +31,6 @@ panner-adapter = { workspace = true }
 dual-mtr-ctrlr = { workspace = true }
 arbitrator = { workspace = true }
 anc-pub = { workspace = true }
-propulsion-cleaver = { workspace = true }
-cu-pid = { workspace = true }
 
 [[bin]]
 name = "palanuk-runtime"

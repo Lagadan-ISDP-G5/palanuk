@@ -3542,7 +3542,6 @@ dependencies = [
  "opencv-iox2",
  "panner-adapter",
  "propulsion-adapter",
- "propulsion-cleaver",
  "serde",
  "zsrc-merger",
 ]
