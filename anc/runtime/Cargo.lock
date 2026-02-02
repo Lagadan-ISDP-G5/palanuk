@@ -2928,13 +2928,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "11d3d7f243d5c5a8b9bb5d6dd2b1602c0cb0b9db1621bafc7ed66e35ff9fe092"
 
 [[package]]
-name = "lmtr-ctrlr"
-version = "0.1.0"
-dependencies = [
- "mtr-ctrlr",
-]
-
-[[package]]
 name = "local-ip-address"
 version = "0.5.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3102,16 +3095,6 @@ dependencies = [
  "log",
  "wasi",
  "windows-sys 0.61.2",
-]
-
-[[package]]
-name = "mtr-ctrlr"
-version = "0.1.0"
-dependencies = [
- "cu-pid",
- "cu29",
- "propulsion-adapter",
- "serde",
 ]
 
 [[package]]
@@ -3977,15 +3960,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "propulsion-cleaver"
-version = "0.1.0"
-dependencies = [
- "anc-pub",
- "cu-propulsion",
- "cu29",
-]
-
-[[package]]
 name = "qrcode"
 version = "0.14.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4357,14 +4331,6 @@ checksum = "72f81bee8c8ef9b577d1681a70ebbc962c232461e397b22c208c43c04b67a155"
 dependencies = [
  "rmp",
  "serde",
-]
-
-[[package]]
-name = "rmtr-ctrlr"
-version = "0.1.0"
-dependencies = [
- "cu-pid",
- "mtr-ctrlr",
 ]
 
 [[package]]

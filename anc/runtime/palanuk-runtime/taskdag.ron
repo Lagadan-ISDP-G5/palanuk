@@ -63,12 +63,6 @@
             // }
         ),
 
-        // (
-        //     id: "propulsion-cleaver",
-        //     type: "propulsion_cleaver::PropulsionCleaver",
-        // ),
-
-
         // BEGIN: 5V rail supply power monitoring
 
         (
@@ -232,26 +226,25 @@
             msg: "cu_powermon::Ina219Payload"
         ),
 
-        // ec-pub-5vrail tail
+        // ec-pub-5vrail tails
         (src: "ec-pub-5vrail", dst: "5vrail-power-mwatts",         msg: "ec_pub::PowerMwatts"),
         (src: "ec-pub-5vrail", dst: "5vrail-load-current-mamps",   msg: "ec_pub::LoadCurrentMamps"),
         (src: "ec-pub-5vrail", dst: "5vrail-bus-voltage-mvolts",   msg: "ec_pub::BusVoltageMvolts"),
         (src: "ec-pub-5vrail", dst: "5vrail-shunt-voltage-mvolts", msg: "ec_pub::ShuntVoltageMvolts"),
 
-        // zsrc-merger head
+        // zsrc-merger heads
         (src: "odd-openloop-speed",      dst: "zsrc-merger", msg: "zsrc_merger::OddOpenLoopSpeed"),
         (src: "odd-openloop-stop",       dst: "zsrc-merger", msg: "zsrc_merger::OddOpenLoopStop"),
         (src: "odd-loopmode",            dst: "zsrc-merger", msg: "zsrc_merger::OddLoopMode"),
         (src: "odd-openloop-drivestate", dst: "zsrc-merger", msg: "zsrc_merger::OddOpenLoopDriveState"),
         (src: "odd-openloop-forcepan",   dst: "zsrc-merger", msg: "zsrc_merger::OddOpenLoopForcepan"),
 
-        // propulsion-adapter head
+        // propulsion-adapter tails
         (src: "propulsion-adapter", dst: "panner-adapter", msg: "propulsion_adapter::PropulsionAdapterOutputPayload"),
         (src: "propulsion-adapter", dst: "dual-mtr-ctrlr", msg: "dual_mtr_ctrlr::DualMtrCtrlrPayload"),
         (src: "propulsion-adapter", dst: "arbitrator", msg: "propulsion_adapter::PropulsionAdapterOutputPayload"),
 
-        // propulsion-adapter tails
-
+        // propulsion-adapter heads
         // zsrc-merger tail
         (src: "zsrc-merger",     dst: "propulsion-adapter", msg: "propulsion_adapter::ZenohTopicsAdapterOutputPayload"),
         (src: "distance-sensor", dst: "propulsion-adapter", msg: "cu_hcsr04::HcSr04Payload"),
@@ -260,19 +253,17 @@
         // panner-adapter tail
         (src: "panner-adapter", dst: "camera-panning", msg: "cu_cam_pan::CameraPanningPayload"),
 
-        // arbitrator head
+        // arbitrator heads
         (src: "dual-mtr-ctrlr", dst: "arbitrator", msg: "cu_pid::PIDControlOutputPayload"),
         (src: "opencv-iox2", dst: "arbitrator", msg: "opencv_iox2::OpenCViox2Payload"),
 
-        // arbitrator tail
+        // arbitrator tails
         (src: "arbitrator", dst: "propulsion", msg: "cu_propulsion::PropulsionPayload"),
         (src: "arbitrator", dst: "anc-pub", msg: "anc_pub::AncPubPayload"),
 
-        // anc-pub tail
+        // anc-pub tails
         (src: "anc-pub", dst: "obstacle-detected", msg: "anc_pub::ObstacleDetected"),
         (src: "anc-pub", dst: "distance-reading", msg: "anc_pub::Distance"),
-
-        // (src: "propulsion-cleaver", dst: "propulsion", msg: "cu_propulsion::PropulsionPayload")
 
     ],
     monitor: (

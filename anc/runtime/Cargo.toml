@@ -11,10 +11,6 @@ members = [
     "aux/propulsion-adapter",
     "aux/arbitrator",
     "aux/anc-pub",
-    "hal/mtr-ctrlr",
-    "hal/lmtr-ctrlr",
-    "hal/rmtr-ctrlr",
-    "aux/propulsion-cleaver",
     "hal/dual-mtr-ctrlr",
     "aux/panner-adapter",
     "aux/opencv-iox2",
@@ -59,7 +55,6 @@ zenoh = "1.6.2"
 rmp-serde = { version = "1.3.1" }
 
 propulsion-adapter = { path = "./aux/propulsion-adapter" }
-mtr-ctrlr = { path = "./hal/mtr-ctrlr" }
 anc-pub = { path = "./aux/anc-pub" }
 ec-pub = { path = "./aux/ec-pub" }
 opencv-iox2 = { path = "./aux/opencv-iox2" }

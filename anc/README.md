@@ -2,4 +2,8 @@
 
 Responsible Engineer: Ander
 
-Working HC-SR04 driver implementation is in experiments/hcsr04
+## Structure
+
+Lanekeeping and corner detection service: ./experiments/nsm
+
+Copper runtime: ./runtime
