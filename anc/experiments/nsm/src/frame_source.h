@@ -87,6 +87,9 @@ enum class PixelFormat : uint32_t {
 };
 
 struct IpcFrame {
+    // Must match the Rust #[type_name("Frame")] attribute
+    static constexpr const char* IOX2_TYPE_NAME = "Frame";
+
     uint64_t timestamp_ns;
     uint64_t sequence;
     uint32_t width;
@@ -96,6 +99,28 @@ struct IpcFrame {
     uint32_t len;
     uint8_t data[MAX_FRAME_SIZE];
 };
+
+// #[repr(C)]
+// #[derive(Debug, Clone, Copy, PartialEq, Eq, ZeroCopySend)]
+// pub enum PixelFormat {
+//     Yuv420 = 0x32315559,  // YU12 / I420
+//     Nv12 = 0x3231564E,    // NV12
+//     Nv21 = 0x3132564E,    // NV21
+//     Unknown = 0,
+// }
+
+// #[repr(C)]
+// #[derive(Debug, ZeroCopySend)]
+// pub struct Frame {
+//     pub timestamp_ns: u64,
+//     pub sequence: u64,
+//     pub width: u32,
+//     pub height: u32,
+//     pub stride: u32,
+//     pub format: PixelFormat,
+//     pub len: u32,
+//     pub data: [u8; MAX_FRAME_SIZE],
+// }
 
 // Shared memory frame source using iceoryx2
 // Usage: createFrameSource("iox:camera/frames")

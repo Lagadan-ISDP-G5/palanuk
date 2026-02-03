@@ -188,8 +188,15 @@ bool IceoryxSource::read(cv::Mat& frame) {
 
     const IpcFrame& ipc_frame = sample_opt.value().payload();
 
+    // Debug: print what we received
+    std::cerr << "IceoryxSource: received frame seq=" << ipc_frame.sequence
+              << " w=" << ipc_frame.width << " h=" << ipc_frame.height
+              << " stride=" << ipc_frame.stride << " len=" << ipc_frame.len
+              << " format=" << static_cast<uint32_t>(ipc_frame.format) << std::endl;
+
     // Validate frame data
     if (ipc_frame.len == 0 || ipc_frame.width == 0 || ipc_frame.height == 0) {
+        std::cerr << "IceoryxSource: validation failed" << std::endl;
         return false;
     }
 

@@ -40,7 +40,7 @@
             config: {
                 "sg90_pos_cmd_pin": 0 // PWM_CHAN0 = GPIO12
             },
-            logging: (enabled: false)
+            logging: (enabled: true)
         ),
 
         (
@@ -82,7 +82,7 @@
             id: "5vrail-power-mwatts",
             type: "ec_5vrail_pubs::PowerMwattsSink",
             config: {
-                "topic": "/palanuk/ec/power/mwatts",
+                "topic": "palanuk/ec/power/mwatts",
             },
         ),
 
@@ -90,7 +90,7 @@
             id: "5vrail-load-current-mamps",
             type: "ec_5vrail_pubs::LoadCurrentMampsSink",
             config: {
-                "topic": "/palanuk/ec/load_current/mamps",
+                "topic": "palanuk/ec/load_current/mamps",
             },
         ),
 
@@ -98,7 +98,7 @@
             id: "5vrail-bus-voltage-mvolts",
             type: "ec_5vrail_pubs::BusVoltageMvoltsSink",
             config: {
-                "topic": "/palanuk/ec/bus_voltage/mvolts",
+                "topic": "palanuk/ec/bus_voltage/mvolts",
             },
         ),
 
@@ -106,7 +106,7 @@
             id: "5vrail-shunt-voltage-mvolts",
             type: "ec_5vrail_pubs::ShuntVoltageMvoltsSink",
             config: {
-                "topic": "/palanuk/ec/shunt_voltage/mvolts",
+                "topic": "palanuk/ec/shunt_voltage/mvolts",
             },
         ),
 
@@ -140,7 +140,7 @@
             id: "odd-openloop-speed",
             type: "odd_subs::OddOpenLoopSpeedSrc",
             config: {
-                "topic": "/palanuk/odd/speed",
+                "topic": "palanuk/odd/speed",
             },
         ),
 
@@ -148,7 +148,7 @@
             id: "odd-openloop-stop",
             type: "odd_subs::OddOpenLoopStopSrc",
             config: {
-                "topic": "/palanuk/odd/stop",
+                "topic": "palanuk/odd/stop",
             },
         ),
 
@@ -156,7 +156,7 @@
             id: "odd-loopmode",
             type: "odd_subs::OddOpenLoopModeSrc",
             config: {
-                "topic": "/palanuk/odd/loopmode",
+                "topic": "palanuk/odd/loopmode",
             },
         ),
 
@@ -164,7 +164,7 @@
             id: "odd-openloop-drivestate",
             type: "odd_subs::OddOpenLoopDriveStateSrc",
             config: {
-                "topic": "/palanuk/odd/drivestate",
+                "topic": "palanuk/odd/drivestate",
             },
         ),
 
@@ -172,7 +172,7 @@
             id: "odd-openloop-forcepan",
             type: "odd_subs::OddOpenLoopForcepanSrc",
             config: {
-                "topic": "/palanuk/odd/forcepan",
+                "topic": "palanuk/odd/forcepan",
             },
         ),
 
@@ -189,7 +189,7 @@
             id: "obstacle-detected",
             type: "anc_pubs::ObstacleDetectedSink",
             config: {
-                "topic": "/palanuk/anc/obstacle",
+                "topic": "palanuk/anc/obstacle",
             },
         ),
 
@@ -197,7 +197,7 @@
             id: "distance-reading",
             type: "anc_pubs::DistanceSink",
             config: {
-                "topic": "/palanuk/anc/distance",
+                "topic": "palanuk/anc/distance",
             },
         ),
 

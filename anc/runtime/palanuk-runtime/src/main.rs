@@ -118,7 +118,7 @@ fn main() {
     let copper_ctx = basic_copper_setup(
         &PathBuf::from(logger_path),
         SLAB_SIZE,
-        false,
+        true,
         None
     )
     .expect("Failed to setup logger.");

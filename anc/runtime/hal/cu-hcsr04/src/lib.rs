@@ -1,4 +1,6 @@
 extern crate cu_bincode as bincode;
+use std::time::Duration;
+
 use cu29::prelude::*;
 use bincode::{Decode, Encode};
 use hcsr04_gpio_cdev::*;
@@ -53,7 +55,7 @@ impl CuSrcTask for CuHcSr04 {
     }
 
     fn process(&mut self, _clock: &RobotClock, msg: &mut Self::Output<'_>) -> CuResult<()> {
-        let dist_cm = self.driver_instance.dist_cm(None);
+        let dist_cm = self.driver_instance.dist_cm(Some(Duration::from_millis(12)));
 
         let dist_msg = dist_cm.map_err(|e| {
             match e {
