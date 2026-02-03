@@ -193,11 +193,25 @@ bool IceoryxSource::read(cv::Mat& frame) {
         return false;
     }
 
-    // Convert YUV420 to BGR for OpenCV
+    // Convert YUV to BGR for OpenCV based on pixel format
     cv::Mat yuv(static_cast<int>(ipc_frame.height + ipc_frame.height / 2),
                 static_cast<int>(ipc_frame.width), CV_8UC1,
                 const_cast<uint8_t*>(ipc_frame.data));
-    cv::cvtColor(yuv, frame, cv::COLOR_YUV2BGR_I420);
+
+    switch (ipc_frame.format) {
+        case PixelFormat::Yuv420:
+            cv::cvtColor(yuv, frame, cv::COLOR_YUV2BGR_I420);
+            break;
+        case PixelFormat::Nv12:
+            cv::cvtColor(yuv, frame, cv::COLOR_YUV2BGR_NV12);
+            break;
+        case PixelFormat::Nv21:
+            cv::cvtColor(yuv, frame, cv::COLOR_YUV2BGR_NV21);
+            break;
+        default:
+            cv::cvtColor(yuv, frame, cv::COLOR_YUV2BGR_I420);
+            break;
+    }
 
     last_sequence_ = ipc_frame.sequence;
     last_timestamp_ns_ = ipc_frame.timestamp_ns;

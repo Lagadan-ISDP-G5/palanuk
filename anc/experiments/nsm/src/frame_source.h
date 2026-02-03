@@ -78,12 +78,21 @@ private:
 // Frame layout for iceoryx2 IPC - must match Rust's #[repr(C)] struct
 constexpr size_t MAX_FRAME_SIZE = 1920 * 1080 * 3 / 2;  // ~3.1MB for 1080p YUV420
 
+// Pixel format identifier (matches Rust PixelFormat enum)
+enum class PixelFormat : uint32_t {
+    Yuv420 = 0x32315559,  // YU12 / I420
+    Nv12 = 0x3231564E,    // NV12
+    Nv21 = 0x3132564E,    // NV21
+    Unknown = 0,
+};
+
 struct IpcFrame {
     uint64_t timestamp_ns;
     uint64_t sequence;
     uint32_t width;
     uint32_t height;
     uint32_t stride;
+    PixelFormat format;
     uint32_t len;
     uint8_t data[MAX_FRAME_SIZE];
 };
