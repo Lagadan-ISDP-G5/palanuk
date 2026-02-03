@@ -2,6 +2,8 @@
 #include <filesystem>
 #include <iostream>
 #include <string>
+#include <thread>
+#include <chrono>
 
 #include "types.h"
 #include "pipeline.h"
@@ -86,6 +88,11 @@ int runLiveMode(nsm::FrameSource& source, nsm::Pipeline& pipeline) {
 
     while (true) {
         if (!source.read(frame)) {
+            // For IPC sources, no frame available is normal - just retry
+            if (source.isOpened()) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                continue;
+            }
             std::cerr << "Failed to read frame" << std::endl;
             break;
         }
