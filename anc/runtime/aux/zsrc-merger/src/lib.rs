@@ -98,8 +98,8 @@ impl CuTask for ZSrcMerger {
             };
 
             // Open loop stop command overrides drivestate
-            let left_enable = true;
-            // let left_enable = drive_state || !is_openloop_stop;
+            // let left_enable = true;
+            let left_enable = drive_state || !is_openloop_stop;
             let right_enable = left_enable;
 
             let left_direction = match odd_openloop_drivestate.0 {

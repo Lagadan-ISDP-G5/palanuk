@@ -13,6 +13,7 @@ where
     _marker: PhantomData<S>,
     config: ZCfg,
     ctx: Option<ZCtx>,
+    last_value: Option<S>,
 }
 
 pub struct ZCfg {
@@ -29,7 +30,7 @@ impl<S> Freezable for ZSrc<S> where S: CuMsgPayload {}
 
 impl<S> CuSrcTask for ZSrc<S>
 where
-    S: CuMsgPayload + 'static + DeserializeOwned,
+    S: CuMsgPayload + 'static + DeserializeOwned + Copy,
 {
     type Output<'m> = output_msg!(S);
     type Resources<'r> = ();
@@ -57,6 +58,7 @@ where
                 topic,
             },
             ctx: None,
+            last_value: None,
         })
     }
 
@@ -87,19 +89,23 @@ where
             .as_mut()
             .ok_or_else(|| CuError::from("ZSrc: Context not found"))?;
 
-        let sample = match ctx.subscriber.try_recv() {
-            Ok(Some(ret)) => {
-              ret
+
+        match ctx.subscriber.try_recv() {
+            Ok(Some(sample)) => {
+                let msg = from_slice::<S>(&sample.payload().to_bytes()).map_err(
+                    |_| -> CuError {CuError::from("decode failed")}
+                )?;
+                self.last_value = Some(msg);
             },
-            Ok(None) => return Ok(()), // empty channel, no messages
+            Ok(None) => (), // no new message, will use last_value
             Err(_) => return Err(CuError::from("msg recv failed"))
         };
 
-        let msg = from_slice::<S>(&sample.payload().to_bytes()).map_err(
-            |_| -> CuError {CuError::from("decode failed")}
-        )?.into();
+        // always output last value if theres one
+        if let Some(ref value) = self.last_value {
+            output.set_payload(*value);
+        }
 
-        output.set_payload(msg);
         Ok(())
     }
 
