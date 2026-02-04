@@ -1,0 +1,5 @@
+pip3 install onnxruntime ultralytics opencv-python numpy
+
+/home/pi/parkingbot/
+├── models/
+│   └── best.onnx
