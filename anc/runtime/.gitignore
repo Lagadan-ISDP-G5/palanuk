@@ -1,3 +1,3 @@
-./docs/odd_cfg.json5
-./docs/ugv_cfg.json5
-./quick-zenoh-client
+docs/odd_cfg.json5
+docs/ugv_cfg.json5
+quick-zenoh-client/
