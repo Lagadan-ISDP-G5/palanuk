@@ -9,6 +9,7 @@ pub const SERVICE_NAME_CORNER_POINT: &str = "nsm/corner_point";
 // IPC types
 #[repr(C)]
 #[derive(Debug, Clone, Copy, ZeroCopySend)]
+#[type_name("HeadingErrorMsg")]
 pub struct HeadingErrorMsg {
     pub valid: u8,
     pub value: f32,
@@ -16,6 +17,7 @@ pub struct HeadingErrorMsg {
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy, ZeroCopySend)]
+#[type_name("AbsLineGradientMsg")]
 pub struct AbsLineGradientMsg {
     pub valid: u8,
     pub value: f32,
@@ -23,12 +25,14 @@ pub struct AbsLineGradientMsg {
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy, ZeroCopySend)]
+#[type_name("CornerDetectedMsg")]
 pub struct CornerDetectedMsg {
     pub detected: u8,
 }
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy, ZeroCopySend)]
+#[type_name("CornerDirectionMsg")]
 pub struct CornerDirectionMsg {
     pub x: f32,
     pub y: f32,
@@ -36,6 +40,7 @@ pub struct CornerDirectionMsg {
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy, ZeroCopySend)]
+#[type_name("CornerPointMsg")]
 pub struct CornerPointMsg {
     pub x: f32,
     pub y: f32,

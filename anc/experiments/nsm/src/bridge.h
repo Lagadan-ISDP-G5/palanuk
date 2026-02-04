@@ -26,25 +26,30 @@ struct BridgeResult {
 
 // IPC message types (POD structs for zero-copy transfer)
 struct HeadingErrorMsg {
+    static constexpr const char* IOX2_TYPE_NAME = "HeadingErrorMsg";
     uint8_t valid;
     float value;
 };
 
 struct AbsLineGradientMsg {
+    static constexpr const char* IOX2_TYPE_NAME = "AbsLineGradientMsg";
     uint8_t valid;
     float value;
 };
 
 struct CornerDetectedMsg {
+    static constexpr const char* IOX2_TYPE_NAME = "CornerDetectedMsg";
     uint8_t detected;
 };
 
 struct CornerDirectionMsg {
+    static constexpr const char* IOX2_TYPE_NAME = "CornerDirectionMsg";
     float x;
     float y;
 };
 
 struct CornerPointMsg {
+    static constexpr const char* IOX2_TYPE_NAME = "CornerPointMsg";
     float x;
     float y;
 };

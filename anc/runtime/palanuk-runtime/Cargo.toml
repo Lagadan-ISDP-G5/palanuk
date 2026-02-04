@@ -31,6 +31,7 @@ panner-adapter = { workspace = true }
 dual-mtr-ctrlr = { workspace = true }
 arbitrator = { workspace = true }
 anc-pub = { workspace = true }
+opencv-splitter = { workspace = true }
 
 [[bin]]
 name = "palanuk-runtime"

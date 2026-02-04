@@ -43,11 +43,12 @@ impl CuSrcTask for OpenCViox2 {
     where
         Self: Sized,
     {
-        let heading_error_node = NodeBuilder::new().create::<Service>().map_err(|_| -> CuError {CuError::from("build node failed")})?;
+        eprintln!("OpenCViox2::new() called");
+        let heading_error_node = NodeBuilder::new().create::<Service>().map_err(|e| -> CuError {CuError::from(format!("build node failed: {:?}", e))})?;
         let heading_error_service = heading_error_node.service_builder(&ServiceName::new(SERVICE_NAME_HEADING_ERROR).unwrap())
             .publish_subscribe::<HeadingErrorMsg>()
-            .open_or_create().map_err(|_| -> CuError {CuError::from("build service failed")})?;
-        let heading_error_sub = heading_error_service.subscriber_builder().create().map_err(|_| -> CuError {CuError::from("build sub failed")})?;
+            .open_or_create().map_err(|e| -> CuError {CuError::from(format!("build heading_error service failed: {:?}", e))})?;
+        let heading_error_sub = heading_error_service.subscriber_builder().create().map_err(|e| -> CuError {CuError::from(format!("build heading_error sub failed: {:?}", e))})?;
 
 
         let abs_line_gradient_node = NodeBuilder::new().create::<Service>().map_err(|_| -> CuError {CuError::from("build node failed")})?;

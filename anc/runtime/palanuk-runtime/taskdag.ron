@@ -22,6 +22,11 @@
         ),
 
         (
+            id: "opencv-splitter",
+            type: "opencv_splitter::OpenCvSplitter",
+        ),
+
+        (
             id: "propulsion-adapter",
             type: "propulsion_adapter::PropulsionAdapter",
             config: {
@@ -248,14 +253,17 @@
         // zsrc-merger tail
         (src: "zsrc-merger",     dst: "propulsion-adapter", msg: "propulsion_adapter::ZenohTopicsAdapterOutputPayload"),
         (src: "distance-sensor", dst: "propulsion-adapter", msg: "cu_hcsr04::HcSr04Payload"),
-        (src: "opencv-iox2",     dst: "propulsion-adapter", msg: "opencv_iox2::OpenCViox2Payload"),
+        (src: "opencv-splitter", dst: "propulsion-adapter", msg: "opencv_splitter::NsmPayload"),
+
+        // opencv-splitter head
+        (src: "opencv-iox2", dst: "opencv-splitter", msg: "opencv_iox2::OpenCViox2Payload"),
 
         // panner-adapter tail
         (src: "panner-adapter", dst: "camera-panning", msg: "cu_cam_pan::CameraPanningPayload"),
 
         // arbitrator heads
         (src: "dual-mtr-ctrlr", dst: "arbitrator", msg: "cu_pid::PIDControlOutputPayload"),
-        (src: "opencv-iox2", dst: "arbitrator", msg: "opencv_iox2::OpenCViox2Payload"),
+        (src: "opencv-splitter", dst: "arbitrator", msg: "opencv_splitter::NsmPayload"),
 
         // arbitrator tails
         (src: "arbitrator", dst: "propulsion", msg: "cu_propulsion::PropulsionPayload"),

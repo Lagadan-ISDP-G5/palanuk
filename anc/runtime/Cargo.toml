@@ -15,7 +15,8 @@ members = [
     "aux/panner-adapter",
     "aux/opencv-iox2",
     "aux/zsrc-merger",
-    "aux/ec-pub"
+    "aux/ec-pub",
+    "aux/opencv-splitter"
     ]
 
 [workspace.package]
@@ -63,6 +64,7 @@ zsrc-merger = { path = "./aux/zsrc-merger" }
 panner-adapter = { path = "./aux/panner-adapter" }
 dual-mtr-ctrlr = { path = "./hal/dual-mtr-ctrlr" }
 arbitrator = { path = "./aux/arbitrator" }
+opencv-splitter = { path = "./aux/opencv-splitter" }
 
 [build]
 target = "aarch64-unknown-linux-gnu"

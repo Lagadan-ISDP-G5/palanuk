@@ -23,7 +23,7 @@ void printUsage(const char* program) {
               << "  camera:<id>      Use camera explicitly\n"
               << "  iox:<service>    Subscribe to iceoryx2 shared memory frames\n"
               << "\nOPTIONS:\n"
-              << "  --headless       Run without display (batch mode only)\n"
+              << "  --headless       Run without display (batch and iceoryx2 modes)\n"
               << "  --output DIR     Output directory for processed images\n"
               << "  --help           Show this help\n"
               << "\nExamples:\n"
@@ -77,9 +77,17 @@ int runBatchMode(nsm::ImageDirectorySource& source, nsm::Pipeline& pipeline,
     return 0;
 }
 
-int runLiveMode(nsm::FrameSource& source, nsm::Pipeline& pipeline) {
-    std::cout << "Starting live mode from: " << source.getName() << std::endl;
-    std::cout << "Press 'q' or ESC to quit\n" << std::endl;
+int runLiveMode(nsm::FrameSource& source, nsm::Pipeline& pipeline, bool headless) {
+    std::cout << "Starting live mode from: " << source.getName();
+    if (headless) {
+        std::cout << " (headless)";
+    }
+    std::cout << std::endl;
+    if (!headless) {
+        std::cout << "Press 'q' or ESC to quit\n" << std::endl;
+    } else {
+        std::cout << "Press Ctrl+C to quit\n" << std::endl;
+    }
 
     cv::Mat frame;
     nsm::BridgeResult bridge_result;
@@ -109,23 +117,25 @@ int runLiveMode(nsm::FrameSource& source, nsm::Pipeline& pipeline) {
         double fps = 1000.0 / result.processing_time_ms;
         fps_smoothed = (fps_smoothed * 0.9) + (fps * 0.1);
 
-        cv::Mat vis = nsm::visualize_result(frame, result);
+        if (!headless) {
+            cv::Mat vis = nsm::visualize_result(frame, result);
 
-        // Draw FPS and info overlay
-        std::string info = "FPS: " + std::to_string(static_cast<int>(fps_smoothed));
-        if (result.center_line.valid) {
-            info += " | Line detected";
+            // Draw FPS and info overlay
+            std::string info = "FPS: " + std::to_string(static_cast<int>(fps_smoothed));
+            if (result.center_line.valid) {
+                info += " | Line detected";
+            }
+            if (bridge_result.corner_detected) {
+                info += " | CORNER";
+            }
+            cv::putText(vis, info, cv::Point(10, 30),
+                        cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 2);
+
+            cv::imshow("NSM Pipeline", vis);
+
+            int key = cv::waitKey(1);
+            if (key == 'q' || key == 27) break;
         }
-        if (bridge_result.corner_detected) {
-            info += " | CORNER";
-        }
-        cv::putText(vis, info, cv::Point(10, 30),
-                    cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 2);
-
-        cv::imshow("NSM Pipeline", vis);
-
-        int key = cv::waitKey(1);
-        if (key == 'q' || key == 27) break;
 
         frame_count++;
         if (frame_count % 100 == 0) {
@@ -186,10 +196,12 @@ int main(int argc, char** argv) {
     if (auto* img_source = dynamic_cast<nsm::ImageDirectorySource*>(source.get())) {
         result = runBatchMode(*img_source, pipeline, output_dir, headless);
     } else {
-        if (headless) {
-            std::cerr << "Warning: --headless only supported for image directory mode" << std::endl;
+        bool is_iox_source = dynamic_cast<nsm::IceoryxSource*>(source.get()) != nullptr;
+        if (headless && !is_iox_source) {
+            std::cerr << "Warning: --headless only supported for image directory and iceoryx2 modes" << std::endl;
+            headless = false;
         }
-        result = runLiveMode(*source, pipeline);
+        result = runLiveMode(*source, pipeline, headless);
     }
 
     nsm::shutdown_publishers();

@@ -1,5 +1,5 @@
 [package]
-name = "propulsion-adapter"
+name = "opencv-splitter"
 publish.workspace = true
 version.workspace = true
 authors.workspace = true
@@ -11,8 +11,4 @@ keywords.workspace = true
 cu29 = { workspace = true }
 serde = { workspace = true }
 cu-bincode = { workspace = true }
-cu-cam-pan = { workspace = true }
-cu-propulsion = { workspace = true }
-cu-hcsr04 = { workspace = true }
-opencv-splitter = { workspace = true }
-dual-mtr-ctrlr = { workspace = true }
+opencv-iox2 = { workspace = true }

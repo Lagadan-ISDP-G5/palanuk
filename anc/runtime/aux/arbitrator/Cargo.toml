@@ -15,5 +15,5 @@ propulsion-adapter = { workspace = true }
 cu-propulsion = { workspace = true }
 cu-pid = { workspace = true }
 anc-pub = { workspace = true }
-opencv-iox2 = { workspace = true }
+opencv-splitter = { workspace = true }
 dual-mtr-ctrlr = { workspace = true }

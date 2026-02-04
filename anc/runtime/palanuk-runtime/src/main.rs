@@ -17,6 +17,7 @@ use arbitrator::*;
 use anc_pub::*;
 use dual_mtr_ctrlr::*;
 use cu_pid::*;
+use opencv_splitter::*;
 
 use core_affinity::*;
 use libc::*;

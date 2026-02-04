@@ -11,7 +11,7 @@ use bincode::{Decode, Encode};
 use propulsion_adapter::{LoopState, PropulsionAdapterOutputPayload};
 use cu_propulsion::{PropulsionPayload, WheelDirection};
 use anc_pub::AncPubPayload;
-use opencv_iox2::OpenCViox2Payload;
+use opencv_splitter::NsmPayload;
 
 pub const BASELINE_SPEED: f32 = 0.10;
 
@@ -52,7 +52,7 @@ impl Freezable for Arbitrator {
 }
 
 impl CuTask for Arbitrator {
-    type Input<'m> = input_msg!('m, PropulsionAdapterOutputPayload, PIDControlOutputPayload, OpenCViox2Payload);
+    type Input<'m> = input_msg!('m, PropulsionAdapterOutputPayload, PIDControlOutputPayload, NsmPayload);
     type Output<'m> = output_msg!(PropulsionPayload, AncPubPayload);
     type Resources<'r> = ();
 
@@ -65,8 +65,8 @@ impl CuTask for Arbitrator {
     fn process(&mut self, _clock: &RobotClock, input: &Self::Input<'_>, output: &mut Self::Output<'_>)
     -> CuResult<()>
     {
-        let (prop_adap, mtr_pid, opencviox2) = *input;
-        if let (Some(prop_adap_pload), Some(mtr_pid_pload), Some(opencviox2_payload)) = (prop_adap.payload(), mtr_pid.payload(), opencviox2.payload()) {
+        let (prop_adap, mtr_pid, nsm) = *input;
+        if let (Some(prop_adap_pload), Some(mtr_pid_pload), Some(nsm_payload)) = (prop_adap.payload(), mtr_pid.payload(), nsm.payload()) {
 
             let prop_payload;
             let loop_state = prop_adap_pload.loop_state;
@@ -79,7 +79,7 @@ impl CuTask for Arbitrator {
                 }
             }
 
-            // let steering_msg = opencviox2_payload;
+            // let steering_msg = nsm_payload;
             // self.steering_handler(*steering_msg)?; // impl TODO
 
             let herald_pload = AncPubPayload {
@@ -196,7 +196,7 @@ impl Arbitrator {
         Ok(ret)
     }
 
-    fn steering_handler(&mut self, steering_msg: OpenCViox2Payload) -> CuResult<PropulsionPayload> {
+    fn steering_handler(&mut self, steering_msg: NsmPayload) -> CuResult<PropulsionPayload> {
         todo!()
     }
 }
