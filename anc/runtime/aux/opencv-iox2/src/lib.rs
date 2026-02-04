@@ -123,6 +123,7 @@ impl CuSrcTask for OpenCViox2 {
                 corner_direction = CornerDirection::Left; // basically unreachable
             }
             output.set_payload(OpenCViox2Payload { abs_line_gradient, heading_error, corner_detected, corner_coords, corner_direction });
+            output.metadata.set_status(format!("hdng err: {heading_error:.2}"));
         }
 
         Ok(())

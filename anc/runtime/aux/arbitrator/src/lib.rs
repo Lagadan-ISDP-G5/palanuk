@@ -65,32 +65,42 @@ impl CuTask for Arbitrator {
     fn process(&mut self, _clock: &RobotClock, input: &Self::Input<'_>, output: &mut Self::Output<'_>)
     -> CuResult<()>
     {
-        let (prop_adap, mtr_pid, nsm) = *input;
-        if let (Some(prop_adap_pload), Some(mtr_pid_pload), Some(nsm_payload)) = (prop_adap.payload(), mtr_pid.payload(), nsm.payload()) {
+        let (prop_adap, mtr_pid, _nsm) = *input;
 
-            let prop_payload;
-            let loop_state = prop_adap_pload.loop_state;
-            match loop_state {
-                LoopState::Closed => {
-                    prop_payload = self.closed_loop_handler(mtr_pid_pload, prop_adap_pload)?;
-                },
-                LoopState::Open => {
-                    prop_payload = self.open_loop_handler(prop_adap_pload)?;
+        // PropulsionAdapterOutputPayload is required - can't do anything without it
+        let Some(prop_adap_pload) = prop_adap.payload() else {
+            return Ok(()); // No input from propulsion-adapter yet, skip this cycle
+        };
+
+        let loop_state = prop_adap_pload.loop_state;
+
+        let prop_payload = match loop_state {
+            LoopState::Open => {
+                // Open-loop: just pass through propulsion payload, no PID needed
+                self.open_loop_handler(prop_adap_pload)?
+            },
+            LoopState::Closed => {
+                // Closed-loop: requires PID output
+                if let Some(mtr_pid_pload) = mtr_pid.payload() {
+                    self.closed_loop_handler(mtr_pid_pload, prop_adap_pload)?
+                } else {
+                    // No PID output yet, use safe defaults (stopped)
+                    PropulsionPayload::default()
                 }
             }
+        };
 
-            // let steering_msg = nsm_payload;
-            // self.steering_handler(*steering_msg)?; // impl TODO
+        // NSM payload is for steering (TODO), not blocking on it
 
-            let herald_pload = AncPubPayload {
-                e_stop_trig_fdbk: prop_adap_pload.is_e_stop_triggered,
-                loop_mode_fdbk: prop_adap_pload.loop_state,
-                distance: prop_adap_pload.distance
-            };
+        let herald_pload = AncPubPayload {
+            e_stop_trig_fdbk: prop_adap_pload.is_e_stop_triggered,
+            loop_mode_fdbk: prop_adap_pload.loop_state,
+            distance: prop_adap_pload.distance
+        };
 
-            output.0.set_payload(prop_payload);
-            output.1.set_payload(herald_pload);
-        }
+        output.0.set_payload(prop_payload);
+        output.1.set_payload(herald_pload);
+
         Ok(())
     }
 }

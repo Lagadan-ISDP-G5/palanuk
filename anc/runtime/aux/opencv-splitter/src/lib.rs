@@ -28,7 +28,9 @@ impl From<&OpenCViox2Payload> for NsmPayload {
     }
 }
 
-pub struct OpenCvSplitter;
+pub struct OpenCvSplitter {
+    last_value: Option<NsmPayload>,
+}
 
 impl Freezable for OpenCvSplitter {}
 
@@ -41,7 +43,7 @@ impl CuTask for OpenCvSplitter {
     where
         Self: Sized,
     {
-        Ok(Self)
+        Ok(Self { last_value: None })
     }
 
     fn process(
@@ -50,11 +52,15 @@ impl CuTask for OpenCvSplitter {
         input: &Self::Input<'_>,
         output: &mut Self::Output<'_>,
     ) -> CuResult<()> {
-        let opencv_msg = input
-            .payload()
-            .ok_or_else(|| CuError::from("no payload from opencv-iox2"))?;
 
-        output.set_payload(NsmPayload::from(opencv_msg));
+        if let Some(opencv_msg) = input.payload() {
+            self.last_value = Some(NsmPayload::from(opencv_msg));
+        }
+
+        if let Some(value) = self.last_value {
+            output.set_payload(value);
+        }
+
         Ok(())
     }
 }

@@ -76,9 +76,9 @@ impl CuTask for ZSrcMerger {
             input.4.payload()
         ) {
             let loop_state = match odd_loopmode.0 {
-                0 => LoopState::Closed,
-                1 => LoopState::Open,
-                _ => LoopState::Closed
+                0 => LoopState::Open,
+                1 => LoopState::Closed,
+                _ => LoopState::Open
             };
 
             let openloop_left_speed = odd_openloop_speed.0 as f32;

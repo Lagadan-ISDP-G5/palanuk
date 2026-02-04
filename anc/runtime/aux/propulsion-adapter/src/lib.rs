@@ -105,34 +105,42 @@ impl CuTask for PropulsionAdapter {
     {
         let (get_zenoh, get_hcsr04, get_nsm) = input;
 
-        let zenoh_msg = get_zenoh.payload().map_or(Err(CuError::from(format!("none pload PropulsionAdapter"))), |msg| {Ok(msg)})?;
-        let hcsr04_msg = get_hcsr04.payload().map_or(Err(CuError::from(format!("none payload hcsr04"))), |msg| {Ok(msg)})?;
-        let nsm_msg = get_nsm.payload().map_or(Err(CuError::from(format!("none payload nsm"))), |msg| {Ok(msg)})?;
+        // Zenoh commands are required - can't do anything without knowing the mode
+        let Some(zenoh_msg) = get_zenoh.payload() else {
+            return Ok(()); // No commands yet, skip this cycle
+        };
 
         let loop_state = zenoh_msg.loop_state;
 
-        let mut propulsion_payload
-            = PropulsionPayload {
-                left_enable: zenoh_msg.left_enable,
-                right_enable: zenoh_msg.right_enable,
-                left_speed: zenoh_msg.openloop_left_speed,
-                right_speed: zenoh_msg.openloop_right_speed,
-                left_direction: zenoh_msg.left_direction,
-                right_direction: zenoh_msg.right_direction
-            };
+        // Distance sensor: use safe default if unavailable (assume far away, no e-stop)
+        let hcsr04_msg = get_hcsr04.payload();
+        let distance = hcsr04_msg.map(|m| m.distance).unwrap_or(f64::MAX);
+        let is_e_stop_triggered = distance < self.e_stop_threshold_cm;
+
+        // NSM payload: only needed for closed-loop (heading error for PID)
+        // For open-loop, use 0.0; for closed-loop, require payload (opencv-splitter is sticky)
+        let weighted_error = match loop_state {
+            LoopState::Closed => {
+                match get_nsm.payload() {
+                    Some(m) => m.heading_error,
+                    None => return Ok(()),
+                }
+            },
+            LoopState::Open => 0.0,
+        };
+
+        let mut propulsion_payload = PropulsionPayload {
+            left_enable: zenoh_msg.left_enable,
+            right_enable: zenoh_msg.right_enable,
+            left_speed: zenoh_msg.openloop_left_speed,
+            right_speed: zenoh_msg.openloop_right_speed,
+            left_direction: zenoh_msg.left_direction,
+            right_direction: zenoh_msg.right_direction
+        };
 
         let panner_payload = CameraPanningPayload { pos_cmd: zenoh_msg.camera_position };
-        let weighted_error = nsm_msg.heading_error;
 
-        let mut is_e_stop_triggered = false;
-        if hcsr04_msg.distance < self.e_stop_threshold_cm {
-            is_e_stop_triggered = true;
-        }
-
-        let is_at_rest = match zenoh_msg.work_or_rest_state {
-            WorkOrRestState::AtRest => true,
-            _ => false
-        };
+        let is_at_rest = matches!(zenoh_msg.work_or_rest_state, WorkOrRestState::AtRest);
 
         let stop_condition = is_e_stop_triggered || is_at_rest;
         if stop_condition {
@@ -152,7 +160,7 @@ impl CuTask for PropulsionAdapter {
             panner_payload,
             weighted_error,
             is_e_stop_triggered,
-            distance: hcsr04_msg.distance
+            distance,
         };
 
         output.0.set_payload(prop_adap_output_payload);
