@@ -106,15 +106,19 @@ impl CuTask for PropulsionAdapter {
         let (get_zenoh, get_hcsr04, get_nsm) = input;
 
         // Zenoh commands are required - can't do anything without knowing the mode
+        // IMPORTANT: All subscribers from ODD must have received at least something for this to not just
+        // evaluate to None
         let Some(zenoh_msg) = get_zenoh.payload() else {
-            return Ok(()); // No commands yet, skip this cycle
+            return Ok(());
         };
 
         let loop_state = zenoh_msg.loop_state;
 
-        // Distance sensor: use safe default if unavailable (assume far away, no e-stop)
-        let hcsr04_msg = get_hcsr04.payload();
-        let distance = hcsr04_msg.map(|m| m.distance).unwrap_or(f64::MAX);
+        // Distance sensor: require payload (cu-hcsr04 is sticky)
+        let Some(hcsr04_msg) = get_hcsr04.payload() else {
+            return Ok(());
+        };
+        let distance = hcsr04_msg.distance;
         let is_e_stop_triggered = distance < self.e_stop_threshold_cm;
 
         // NSM payload: only needed for closed-loop (heading error for PID)

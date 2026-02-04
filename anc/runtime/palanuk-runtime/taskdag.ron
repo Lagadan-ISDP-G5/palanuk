@@ -52,9 +52,9 @@
             id: "dual-mtr-ctrlr",
             type: "dual_mtr_ctrlr::DualMtrCtrlr",
             config: {
-                "kp": 0.01,
+                "kp": 0.03,
                 "kd": 0.00,
-                "ki": 0.00005,
+                "ki": 0.005,
                 "setpoint": 0.0,
                 "cutoff": 0.9,
             }
