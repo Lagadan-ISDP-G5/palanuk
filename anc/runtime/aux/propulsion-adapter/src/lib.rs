@@ -100,7 +100,7 @@ impl CuTask for PropulsionAdapter {
         Ok(Self { e_stop_threshold_cm })
     }
 
-    fn process(&mut self, _clock: &RobotClock, input: &Self::Input<'_>, output: &mut Self::Output<'_>,)
+    fn process(&mut self, clock: &RobotClock, input: &Self::Input<'_>, output: &mut Self::Output<'_>,)
     -> CuResult<()>
     {
         let (get_zenoh, get_hcsr04, get_nsm) = input;
@@ -168,7 +168,9 @@ impl CuTask for PropulsionAdapter {
         };
 
         output.0.set_payload(prop_adap_output_payload);
-        output.1.set_payload(DualMtrCtrlrPayload { error: prop_adap_output_payload.weighted_error });
+        output.1.tov = Tov::Time(clock.now());
+        output.1.set_payload(DualMtrCtrlrPayload { error: weighted_error });
+        output.1.metadata.set_status(format!("hdng_err: {weighted_error:.2}"));
         Ok(())
     }
 }

@@ -89,7 +89,7 @@ impl CuSrcTask for CuIna219 {
                 target_addr     : self.target_addr
             }
         );
-        msg.metadata.set_status(format!("{power:.2}mW {current:.2}mA {bus_voltage:.2}V"));
+        // msg.metadata.set_status(format!("{power:.2}mW {current:.2}mA {bus_voltage:.2}V"));
         Ok(())
     }
 }
