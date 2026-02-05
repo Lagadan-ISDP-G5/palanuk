@@ -52,11 +52,11 @@
             id: "dual-mtr-ctrlr",
             type: "dual_mtr_ctrlr::DualMtrCtrlr",
             config: {
-                "kp": 0.0001,
-                "kd": 0.000,
-                "ki": 0.00002,
+                "kp": 0.002,
+                "kd": 0.001,
+                "ki": 0.0001,
                 "setpoint": 0.00,
-                "cutoff": 0.5,
+                "cutoff": 1.5,
             }
         ),
 

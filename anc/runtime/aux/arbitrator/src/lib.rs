@@ -13,11 +13,16 @@ use cu_propulsion::{PropulsionPayload, WheelDirection};
 use anc_pub::AncPubPayload;
 use opencv_splitter::NsmPayload;
 
-pub const BASELINE_SPEED: f32 = 0.1;
+pub const BASELINE_SPEED: f32 = 0.2;
 
+/// r_wind_comp is applied to right motor. Depending on your winding resistance ratio difference
+/// it can be more than or less than 1, but no greater than 2.
 pub struct Arbitrator {
     e_stop_trig_fdbk: bool,
     loop_mode_fdbk: LoopState,
+    target_speed: Option<f32>,
+    /// Applied to right motor
+    r_wind_comp: f32
 }
 
 impl Default for Arbitrator {
@@ -25,6 +30,8 @@ impl Default for Arbitrator {
         Self {
             e_stop_trig_fdbk: false,
             loop_mode_fdbk: LoopState::Closed,
+            target_speed: None,
+            r_wind_comp: 0.0
         }
     }
 }
@@ -48,10 +55,21 @@ impl CuTask for Arbitrator {
     type Output<'m> = output_msg!(PropulsionPayload, AncPubPayload);
     type Resources<'r> = ();
 
-    fn new(_config: Option<&ComponentConfig>, _resources: Self::Resources<'_>) -> CuResult<Self>
+    fn new(config: Option<&ComponentConfig>, _resources: Self::Resources<'_>) -> CuResult<Self>
     where Self: Sized
     {
-        Ok(Self::default())
+        let ComponentConfig(kv) =
+            config.ok_or("No ComponentConfig specified for GPIO in RON")?;
+
+        let r_wind_comp: f64 = kv
+            .get("r_wind_compensation")
+            .expect("Motor winding resistance compensation factor not set in RON config")
+            .clone()
+            .into();
+
+        let mut inst = Self::default();
+        inst.r_wind_comp = r_wind_comp as f32;
+        Ok(inst)
     }
 
     fn process(&mut self, _clock: &RobotClock, input: &Self::Input<'_>, output: &mut Self::Output<'_>)
@@ -65,6 +83,9 @@ impl CuTask for Arbitrator {
         };
 
         let loop_state = prop_adap_pload.loop_state;
+
+        // FIXME
+        self.target_speed = Some(prop_adap_pload.propulsion_payload.left_speed);
 
         let prop_payload = match loop_state {
             LoopState::Open => {
@@ -139,8 +160,9 @@ impl Arbitrator {
 
 
         // pid_output > 0 implies error >0, turn right: slow left, speed up right
-        let left_speed = (BASELINE_SPEED - pid_output).clamp(0.0, 0.7);
-        let right_speed = (BASELINE_SPEED + pid_output).clamp(0.0, 0.7);
+        let left_speed = (self.target_speed.unwrap_or(BASELINE_SPEED) - pid_output).clamp(0.0, 0.9);
+        // VERY IMPORTANT: apply compensation
+        let right_speed = (self.target_speed.unwrap_or(BASELINE_SPEED)*self.r_wind_comp + pid_output).clamp(0.0, 0.9);
 
         Ok(PropulsionPayload {
             left_enable: true,
