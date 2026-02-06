@@ -4,6 +4,6 @@ Responsible Engineer: Ander
 
 ## Structure
 
-Lanekeeping and corner detection service: ./experiments/nsm
+Lanekeeping and corner detection service: `./nsm`
 
-Copper runtime: ./runtime
+Copper runtime: `./runtime`
