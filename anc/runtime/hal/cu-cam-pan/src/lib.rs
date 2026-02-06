@@ -141,6 +141,8 @@ impl CuSinkTask for CameraPanning {
             _ = controller.sg90_pos_cmd.set_duty_cycle(0.075);
             sleep(Duration::from_millis(1750));
 
+            let mut current_duty_cycle = (DUTY_CYCLE_POS_FRONT * IPOLATE_DIV) as u32;
+
             while task_running.load(Ordering::Relaxed) {
                 let pos_cmd_copy = PositionCommand::from_u8(pos_cmd.load(Ordering::Acquire));
                 // FIXME: reduce casts
@@ -155,40 +157,24 @@ impl CuSinkTask for CameraPanning {
                         (DUTY_CYCLE_POS_RIGHT * IPOLATE_DIV) as u32
                     }
                 };
-                // should probably make this task stateful, i.e., remembers what position it's in so
-                // that our for loop starts from the target_duty_cycle it was prior
-                let start = (DUTY_CYCLE_POS_FRONT * IPOLATE_DIV) as u32;
 
-                if target_duty_cycle == start {
-                    _ = controller.sg90_pos_cmd.set_duty_cycle(DUTY_CYCLE_POS_FRONT);
-                    sleep(Duration::from_millis(1750));
-                }
-                else {
-                    if start < target_duty_cycle {
-                        for duty_cycle in (start..=target_duty_cycle).step_by(1) {
-                            _ = controller.sg90_pos_cmd.set_duty_cycle(duty_cycle as f32 / IPOLATE_DIV);
-                            sleep(Duration::from_millis(10));
-                        }
-
-                        sleep(Duration::from_millis(1750));
-                        for duty_cycle in (start..=target_duty_cycle).rev().step_by(1) {
+                if target_duty_cycle != current_duty_cycle {
+                    if current_duty_cycle < target_duty_cycle {
+                        for duty_cycle in (current_duty_cycle..=target_duty_cycle).step_by(1) {
                             _ = controller.sg90_pos_cmd.set_duty_cycle(duty_cycle as f32 / IPOLATE_DIV);
                             sleep(Duration::from_millis(10));
                         }
                     }
                     else {
-                        for duty_cycle in (target_duty_cycle..=start).step_by(1) {
-                            _ = controller.sg90_pos_cmd.set_duty_cycle(duty_cycle as f32 / IPOLATE_DIV);
-                            sleep(Duration::from_millis(10));
-                        }
-
-                        sleep(Duration::from_millis(1750));
-                        for duty_cycle in (target_duty_cycle..=start).rev().step_by(1) {
+                        for duty_cycle in (target_duty_cycle..=current_duty_cycle).rev().step_by(1) {
                             _ = controller.sg90_pos_cmd.set_duty_cycle(duty_cycle as f32 / IPOLATE_DIV);
                             sleep(Duration::from_millis(10));
                         }
                     }
+                    current_duty_cycle = target_duty_cycle;
                 }
+
+                sleep(Duration::from_millis(50));
             }
 
             // Cleanup
