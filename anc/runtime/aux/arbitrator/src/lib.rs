@@ -31,7 +31,7 @@ pub struct Arbitrator {
     r_wind_comp: f32,
     /// normalized corner y coord to trigger steering handler and override lanekeeping for the maneuver
     corner_y_coord_steering_trig: f32,
-    steerer_state: SteererState
+    steerer_state: SteererState,
 }
 
 #[derive(Default, PartialEq, Eq)]
@@ -117,8 +117,15 @@ impl CuTask for Arbitrator {
             closed_loop_prop_payload = self.closed_loop_handler(mtr_pid_pload, prop_adap_pload)?;
         }
         // steering handler
-        if let Some(m) = nsm.payload() && m.corner_coords.1 <= self.corner_y_coord_steering_trig {
-            closed_loop_prop_payload = self.steering_handler(prop_adap_pload, *m)?;
+        // problematic: mid-maneuver the corner will be invisible/far away so steering handler never finishes
+        if let Some(m) = nsm.payload() {
+            if m.corner_coords.1 <= self.corner_y_coord_steering_trig {
+                self.steerer_state = SteererState::Steering; // sticky condition, will be mutated by steering handler
+            }
+
+            if self.steerer_state == SteererState::Steering {
+                closed_loop_prop_payload = self.steering_handler(prop_adap_pload, *m)?;
+            }
         }
 
         let loop_state = prop_adap_pload.loop_state;
@@ -201,7 +208,6 @@ impl Arbitrator {
         // either offset calculated from the normalized corner x coord
         // or offset calculated from the vertical line that fits the center lane
         // this is decided in the propulsion-adapter task
-        self.steerer_state = SteererState::Steering;
 
         let heading_error = prop_adap_pload.weighted_error;
         let mut left_speed;
