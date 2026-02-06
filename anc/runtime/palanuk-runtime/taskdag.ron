@@ -1,6 +1,6 @@
 (
     runtime: (
-        rate_target_hz: 4, // 250ms cycle time
+        rate_target_hz: 20, // 50ms cycle time, lanekeeping and steering service runs at >= 24 fps.
     ),
 
     tasks: [
@@ -52,9 +52,9 @@
             id: "dual-mtr-ctrlr",
             type: "dual_mtr_ctrlr::DualMtrCtrlr",
             config: {
-                "kp": 0.0015,
-                "kd": 0.0001,
-                "ki": 0.0001,
+                "kp": 0.12,
+                "kd": 0.0,
+                "ki": 0.006,
                 "setpoint": 0.00,
                 "cutoff": 1.5,
             }
