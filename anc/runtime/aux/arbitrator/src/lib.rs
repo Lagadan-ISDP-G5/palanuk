@@ -117,7 +117,6 @@ impl CuTask for Arbitrator {
             closed_loop_prop_payload = self.closed_loop_handler(mtr_pid_pload, prop_adap_pload)?;
         }
         // steering handler
-        // problematic: mid-maneuver the corner will be invisible/far away so steering handler never finishes
         if let Some(m) = nsm.payload() {
             if m.corner_coords.1 <= self.corner_y_coord_steering_trig {
                 self.steerer_state = SteererState::Steering; // sticky condition, will be mutated by steering handler
