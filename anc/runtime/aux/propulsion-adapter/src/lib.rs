@@ -126,7 +126,18 @@ impl CuTask for PropulsionAdapter {
         let weighted_error = match loop_state {
             LoopState::Closed => {
                 match get_nsm.payload() {
-                    Some(m) => m.heading_error,
+                    Some(m) => {
+                        let mut res: f32 = m.heading_error;
+
+                        if !m.vertical_line_valid && m.corner_detected {
+                            res = 0.5 - m.corner_coords.0; // we only get normalized corner coords from IPC
+                            // in opencv (0,0) is top left, (1,1) bottom right!!!!!
+                        }
+                        if !m.vertical_line_valid && !m.corner_detected {
+                            error!("totally absent heading error signals!!!!")
+                        }
+                        res
+                    },
                     None => return Ok(()),
                 }
             },

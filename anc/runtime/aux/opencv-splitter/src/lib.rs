@@ -14,6 +14,7 @@ pub struct NsmPayload {
     pub corner_detected: bool,
     pub corner_coords: (f32, f32),
     pub corner_direction: opencv_iox2::CornerDirection,
+    pub vertical_line_valid: bool
 }
 
 impl From<&OpenCViox2Payload> for NsmPayload {
@@ -24,6 +25,7 @@ impl From<&OpenCViox2Payload> for NsmPayload {
             corner_detected: value.corner_detected,
             corner_coords: value.corner_coords,
             corner_direction: value.corner_direction,
+            vertical_line_valid: value.vertical_line_valid
         }
     }
 }

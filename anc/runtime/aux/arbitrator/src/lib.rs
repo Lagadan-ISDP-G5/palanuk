@@ -145,6 +145,7 @@ impl Arbitrator {
 
         else {
             ret = prop_adap_pload.propulsion_payload;
+            ret.right_speed = ret.right_speed * self.r_wind_comp; // VERY IMPORTANT: apply compensation
         }
 
         Ok(ret)
@@ -175,6 +176,7 @@ impl Arbitrator {
     }
 
     fn steering_handler(&mut self, steering_msg: NsmPayload) -> CuResult<PropulsionPayload> {
+        let corner_y_coord = steering_msg.corner_coords.1;
         todo!()
     }
 }

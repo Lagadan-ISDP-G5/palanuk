@@ -23,6 +23,7 @@ pub struct OpenCViox2Payload {
     pub corner_detected: bool,
     pub corner_coords: (f32, f32),
     pub corner_direction: CornerDirection,
+    pub vertical_line_valid: bool
 }
 
 pub struct OpenCViox2 {
@@ -106,6 +107,11 @@ impl CuSrcTask for OpenCViox2 {
         {
             let abs_line_gradient = *&abs_line_gradient_sub.payload().value;
             let heading_error = *&heading_error_sub.payload().value;
+            let vertical_line_valid = match *&heading_error_sub.payload().valid {
+                0 => false,
+                1 => true,
+                _ => unreachable!() // cross-language contract. requires C++ static cast to uphold
+            };
 
             let corner_detected = match corner_detected_sub.payload().detected {
                 0 => false,
@@ -122,7 +128,7 @@ impl CuSrcTask for OpenCViox2 {
             else {
                 corner_direction = CornerDirection::Left; // basically unreachable
             }
-            output.set_payload(OpenCViox2Payload { abs_line_gradient, heading_error, corner_detected, corner_coords, corner_direction });
+            output.set_payload(OpenCViox2Payload { abs_line_gradient, heading_error, corner_detected, corner_coords, corner_direction, vertical_line_valid });
             output.metadata.set_status(format!("hdng err: {heading_error:.2}"));
         }
 
