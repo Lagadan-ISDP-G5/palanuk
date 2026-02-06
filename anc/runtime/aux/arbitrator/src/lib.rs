@@ -5,6 +5,7 @@
 /// and loop mode.
 
 extern crate cu_bincode as bincode;
+
 use cu_pid::PIDControlOutputPayload;
 use cu29::prelude::*;
 use bincode::{Decode, Encode};
@@ -13,6 +14,7 @@ use cu_propulsion::{PropulsionPayload, WheelDirection};
 use anc_pub::AncPubPayload;
 use opencv_splitter::NsmPayload;
 use opencv_iox2::{CornerDirection};
+use core::default::*;
 
 pub const BASELINE_SPEED: f32 = 0.2;
 pub const HEADING_ERROR_END_STEERING_MANEUVER_THRESHOLD: f32 = 0.1;
@@ -29,13 +31,16 @@ pub struct Arbitrator {
     r_wind_comp: f32,
     /// normalized corner y coord to trigger steering handler and override lanekeeping for the maneuver
     corner_y_coord_steering_trig: f32,
+    steerer_state: SteererState
 }
 
-// pub struct Steerer {
-//     begin_steer: CuTime,
-//     steering_duration: CuDuration,
-//     direction: CornerDirection
-// }
+#[derive(Default, PartialEq, Eq)]
+pub enum SteererState {
+    Steering,
+    Done,
+    #[default]
+    NotSteering
+}
 
 impl Default for Arbitrator {
     fn default() -> Self {
@@ -44,7 +49,8 @@ impl Default for Arbitrator {
             loop_mode_fdbk: LoopState::Closed,
             target_speed: None,
             r_wind_comp: 0.0,
-            corner_y_coord_steering_trig: 0.0
+            corner_y_coord_steering_trig: 0.0,
+            steerer_state: SteererState::default()
         }
     }
 }
@@ -102,14 +108,12 @@ impl CuTask for Arbitrator {
             return Ok(());
         };
 
-        let loop_state = prop_adap_pload.loop_state;
-
-        // FIXME?
-        self.target_speed = Some(prop_adap_pload.propulsion_payload.left_speed);
+        self.target_speed = Some(prop_adap_pload.propulsion_payload.left_speed); // FIXME?
 
         // No PID output yet, use safe defaults (stopped)
         let mut closed_loop_prop_payload: PropulsionPayload = PropulsionPayload::default();
-        if let Some(mtr_pid_pload) = mtr_pid.payload() {
+        // lanekeeping handler
+        if let Some(mtr_pid_pload) = mtr_pid.payload() && self.steerer_state != SteererState::Steering {
             closed_loop_prop_payload = self.closed_loop_handler(mtr_pid_pload, prop_adap_pload)?;
         }
         // steering handler
@@ -117,6 +121,7 @@ impl CuTask for Arbitrator {
             closed_loop_prop_payload = self.steering_handler(prop_adap_pload, *m)?;
         }
 
+        let loop_state = prop_adap_pload.loop_state;
         let prop_payload: PropulsionPayload = match loop_state {
             LoopState::Open => {
                 // Open-loop: just pass through propulsion payload, no PID needed
@@ -141,7 +146,6 @@ impl CuTask for Arbitrator {
 
 impl Arbitrator {
     fn open_loop_handler(&self, prop_adap_pload: &PropulsionAdapterOutputPayload) -> CuResult<PropulsionPayload> {
-
         // initialize to safe conditions
         let left_enable: bool = false;
         let right_enable: bool = false;
@@ -162,7 +166,6 @@ impl Arbitrator {
         if prop_adap_pload.is_e_stop_triggered {
             return Ok(ret)
         }
-
         else {
             ret = prop_adap_pload.propulsion_payload;
             ret.right_speed = ret.right_speed * self.r_wind_comp; // VERY IMPORTANT: apply compensation
@@ -172,13 +175,11 @@ impl Arbitrator {
     }
 
     fn closed_loop_handler(&self, pid_pload: &PIDControlOutputPayload, prop_adap_pload: &PropulsionAdapterOutputPayload) -> CuResult<PropulsionPayload> {
-
         if prop_adap_pload.is_e_stop_triggered {
             return Ok(PropulsionPayload::default());
         }
 
         let pid_output = pid_pload.output;
-
         // pid_output > 0 implies error >0, turn right: slow left, speed up right
         let left_speed = (self.target_speed.unwrap_or(BASELINE_SPEED) - pid_output).clamp(0.0, 0.9);
         // VERY IMPORTANT: apply compensation
@@ -200,6 +201,8 @@ impl Arbitrator {
         // either offset calculated from the normalized corner x coord
         // or offset calculated from the vertical line that fits the center lane
         // this is decided in the propulsion-adapter task
+        self.steerer_state = SteererState::Steering;
+
         let heading_error = prop_adap_pload.weighted_error;
         let mut left_speed;
         let mut right_speed;
@@ -218,6 +221,7 @@ impl Arbitrator {
         if heading_error < HEADING_ERROR_END_STEERING_MANEUVER_THRESHOLD {
             right_speed = 0.0;
             left_speed = 0.0;
+            self.steerer_state = SteererState::Done;
         }
 
         Ok(PropulsionPayload {
