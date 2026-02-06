@@ -63,9 +63,10 @@
         (
             id: "arbitrator",
             type: "arbitrator::Arbitrator",
-            // config: {
-
-            // }
+            config: {
+                "r_wind_comp": 0.85,
+                "corner_y_coord_steering_trig": 0.18,
+            }
         ),
 
         // BEGIN: 5V rail supply power monitoring

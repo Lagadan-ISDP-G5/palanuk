@@ -18,8 +18,8 @@ use core::default::*;
 
 pub const BASELINE_SPEED: f32 = 0.2;
 pub const HEADING_ERROR_END_STEERING_MANEUVER_THRESHOLD: f32 = 0.1;
-pub const OUTER_WHEEL_STEERING_SPEED: f32 = 0.8;
-pub const INNER_WHEEL_STEERING_SPEED: f32 = 0.0;
+pub const OUTER_WHEEL_STEERING_SPEED: f32 = 0.85;
+pub const INNER_WHEEL_STEERING_SPEED: f32 = 0.5;
 
 /// r_wind_comp is applied to right motor. Depending on your winding resistance ratio difference
 /// it can be more than or less than 1, but no greater than 2.
