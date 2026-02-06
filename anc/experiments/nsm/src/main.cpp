@@ -45,7 +45,7 @@ int runBatchMode(nsm::ImageDirectorySource& source, nsm::Pipeline& pipeline,
         std::cout << filename << ": " << frame.cols << "x" << frame.rows;
 
         const nsm::FrameResult& result = pipeline.process(frame);
-        nsm::process(result, frame.cols, bridge_result);
+        nsm::process(result, frame.cols, frame.rows, bridge_result);
         nsm::publish_control_vars(bridge_result);
 
         if (bridge_result.heading_error.has_value()) {
@@ -57,8 +57,8 @@ int runBatchMode(nsm::ImageDirectorySource& source, nsm::Pipeline& pipeline,
             std::cout << ", line fitted";
         }
         if (bridge_result.corner_detected) {
-            std::cout << ", CORNER at (" << static_cast<int>(bridge_result.corner_point.x)
-                      << "," << static_cast<int>(bridge_result.corner_point.y) << ")";
+            std::cout << ", CORNER at (" << bridge_result.corner_point.x
+                      << "," << bridge_result.corner_point.y << ")";
         }
         std::cout << " [" << result.processing_time_ms << " ms]" << std::endl;
 
@@ -106,7 +106,7 @@ int runLiveMode(nsm::FrameSource& source, nsm::Pipeline& pipeline, bool headless
         }
 
         const nsm::FrameResult& result = pipeline.process(frame);
-        nsm::process(result, frame.cols, bridge_result);
+        nsm::process(result, frame.cols, frame.rows, bridge_result);
         nsm::publish_control_vars(bridge_result);
 
         if (bridge_result.heading_error.has_value()) {

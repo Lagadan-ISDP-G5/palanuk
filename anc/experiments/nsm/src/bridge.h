@@ -60,7 +60,7 @@ bool init_publishers();
 // Cleanup iceoryx2 publishers. Call at shutdown.
 void shutdown_publishers();
 
-void process(const FrameResult& frame_result, int frame_width, BridgeResult& out);
+void process(const FrameResult& frame_result, int frame_width, int frame_height, BridgeResult& out);
 bool publish_control_vars(const BridgeResult& result);
 
 }  // namespace nsm

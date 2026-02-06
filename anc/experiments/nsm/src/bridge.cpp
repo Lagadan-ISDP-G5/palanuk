@@ -168,14 +168,17 @@ void shutdown_publishers() {
     g_initialized = false;
 }
 
-void process(const FrameResult& frame_result, int frame_width, BridgeResult& out) {
+void process(const FrameResult& frame_result, int frame_width, int frame_height, BridgeResult& out) {
     out.reset();
 
     out.heading_error = calculate_heading_error(frame_result.center_line, frame_width);
     out.abs_line_gradient = calculate_abs_line_gradient(frame_result.center_line);
     out.corner_detected = frame_result.corner.detected;
     out.corner_direction = frame_result.corner.horizontal_direction;
-    out.corner_point = frame_result.corner.corner_point;
+    out.corner_point = cv::Point2f(
+        frame_result.corner.corner_point.x / static_cast<float>(frame_width),
+        frame_result.corner.corner_point.y / static_cast<float>(frame_height)
+    );
 }
 
 bool publish_control_vars(const BridgeResult& result) {
