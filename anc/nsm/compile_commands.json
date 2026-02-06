@@ -1,0 +1,50 @@
+[
+{
+  "directory": "/Users/ander/Documents/proj/palanuk/anc/nsm",
+  "command": "/usr/bin/c++  -I/Users/ander/Documents/proj/palanuk/anc/nsm/src -isystem /opt/homebrew/Cellar/opencv/4.12.0_18/include/opencv4 -isystem /Users/ander/Documents/proj/palanuk/anc/nsm/deps/include/iceoryx2/v0.8.1 -std=gnu++17 -arch arm64 -o CMakeFiles/anc_nsm.dir/src/main.cpp.o -c /Users/ander/Documents/proj/palanuk/anc/nsm/src/main.cpp",
+  "file": "/Users/ander/Documents/proj/palanuk/anc/nsm/src/main.cpp",
+  "output": "CMakeFiles/anc_nsm.dir/src/main.cpp.o"
+},
+{
+  "directory": "/Users/ander/Documents/proj/palanuk/anc/nsm",
+  "command": "/usr/bin/c++  -I/Users/ander/Documents/proj/palanuk/anc/nsm/src -isystem /opt/homebrew/Cellar/opencv/4.12.0_18/include/opencv4 -isystem /Users/ander/Documents/proj/palanuk/anc/nsm/deps/include/iceoryx2/v0.8.1 -std=gnu++17 -arch arm64 -o CMakeFiles/anc_nsm.dir/src/preprocessing.cpp.o -c /Users/ander/Documents/proj/palanuk/anc/nsm/src/preprocessing.cpp",
+  "file": "/Users/ander/Documents/proj/palanuk/anc/nsm/src/preprocessing.cpp",
+  "output": "CMakeFiles/anc_nsm.dir/src/preprocessing.cpp.o"
+},
+{
+  "directory": "/Users/ander/Documents/proj/palanuk/anc/nsm",
+  "command": "/usr/bin/c++  -I/Users/ander/Documents/proj/palanuk/anc/nsm/src -isystem /opt/homebrew/Cellar/opencv/4.12.0_18/include/opencv4 -isystem /Users/ander/Documents/proj/palanuk/anc/nsm/deps/include/iceoryx2/v0.8.1 -std=gnu++17 -arch arm64 -o CMakeFiles/anc_nsm.dir/src/line_detection.cpp.o -c /Users/ander/Documents/proj/palanuk/anc/nsm/src/line_detection.cpp",
+  "file": "/Users/ander/Documents/proj/palanuk/anc/nsm/src/line_detection.cpp",
+  "output": "CMakeFiles/anc_nsm.dir/src/line_detection.cpp.o"
+},
+{
+  "directory": "/Users/ander/Documents/proj/palanuk/anc/nsm",
+  "command": "/usr/bin/c++  -I/Users/ander/Documents/proj/palanuk/anc/nsm/src -isystem /opt/homebrew/Cellar/opencv/4.12.0_18/include/opencv4 -isystem /Users/ander/Documents/proj/palanuk/anc/nsm/deps/include/iceoryx2/v0.8.1 -std=gnu++17 -arch arm64 -o CMakeFiles/anc_nsm.dir/src/corner_detection.cpp.o -c /Users/ander/Documents/proj/palanuk/anc/nsm/src/corner_detection.cpp",
+  "file": "/Users/ander/Documents/proj/palanuk/anc/nsm/src/corner_detection.cpp",
+  "output": "CMakeFiles/anc_nsm.dir/src/corner_detection.cpp.o"
+},
+{
+  "directory": "/Users/ander/Documents/proj/palanuk/anc/nsm",
+  "command": "/usr/bin/c++  -I/Users/ander/Documents/proj/palanuk/anc/nsm/src -isystem /opt/homebrew/Cellar/opencv/4.12.0_18/include/opencv4 -isystem /Users/ander/Documents/proj/palanuk/anc/nsm/deps/include/iceoryx2/v0.8.1 -std=gnu++17 -arch arm64 -o CMakeFiles/anc_nsm.dir/src/visualization.cpp.o -c /Users/ander/Documents/proj/palanuk/anc/nsm/src/visualization.cpp",
+  "file": "/Users/ander/Documents/proj/palanuk/anc/nsm/src/visualization.cpp",
+  "output": "CMakeFiles/anc_nsm.dir/src/visualization.cpp.o"
+},
+{
+  "directory": "/Users/ander/Documents/proj/palanuk/anc/nsm",
+  "command": "/usr/bin/c++  -I/Users/ander/Documents/proj/palanuk/anc/nsm/src -isystem /opt/homebrew/Cellar/opencv/4.12.0_18/include/opencv4 -isystem /Users/ander/Documents/proj/palanuk/anc/nsm/deps/include/iceoryx2/v0.8.1 -std=gnu++17 -arch arm64 -o CMakeFiles/anc_nsm.dir/src/frame_source.cpp.o -c /Users/ander/Documents/proj/palanuk/anc/nsm/src/frame_source.cpp",
+  "file": "/Users/ander/Documents/proj/palanuk/anc/nsm/src/frame_source.cpp",
+  "output": "CMakeFiles/anc_nsm.dir/src/frame_source.cpp.o"
+},
+{
+  "directory": "/Users/ander/Documents/proj/palanuk/anc/nsm",
+  "command": "/usr/bin/c++  -I/Users/ander/Documents/proj/palanuk/anc/nsm/src -isystem /opt/homebrew/Cellar/opencv/4.12.0_18/include/opencv4 -isystem /Users/ander/Documents/proj/palanuk/anc/nsm/deps/include/iceoryx2/v0.8.1 -std=gnu++17 -arch arm64 -o CMakeFiles/anc_nsm.dir/src/pipeline.cpp.o -c /Users/ander/Documents/proj/palanuk/anc/nsm/src/pipeline.cpp",
+  "file": "/Users/ander/Documents/proj/palanuk/anc/nsm/src/pipeline.cpp",
+  "output": "CMakeFiles/anc_nsm.dir/src/pipeline.cpp.o"
+},
+{
+  "directory": "/Users/ander/Documents/proj/palanuk/anc/nsm",
+  "command": "/usr/bin/c++  -I/Users/ander/Documents/proj/palanuk/anc/nsm/src -isystem /opt/homebrew/Cellar/opencv/4.12.0_18/include/opencv4 -isystem /Users/ander/Documents/proj/palanuk/anc/nsm/deps/include/iceoryx2/v0.8.1 -std=gnu++17 -arch arm64 -o CMakeFiles/anc_nsm.dir/src/bridge.cpp.o -c /Users/ander/Documents/proj/palanuk/anc/nsm/src/bridge.cpp",
+  "file": "/Users/ander/Documents/proj/palanuk/anc/nsm/src/bridge.cpp",
+  "output": "CMakeFiles/anc_nsm.dir/src/bridge.cpp.o"
+}
+]

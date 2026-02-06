@@ -1,1 +1,4 @@
 deps/
+build-pi/
+build/
+CMakeFiles/
