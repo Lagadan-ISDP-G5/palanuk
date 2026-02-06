@@ -5,7 +5,6 @@ use cu29::prelude::*;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use propulsion_adapter::LoopState;
-use cu_propulsion::PropulsionPayload;
 
 #[derive(Default, Debug, Clone, Copy, Encode, Decode, PartialEq, Serialize, Deserialize)]
 pub struct AncPubPayload {

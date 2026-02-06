@@ -1,3 +1,6 @@
+#![allow(unused_imports)]
+#![allow(unused_import_braces)]
+
 use cu29::prelude::*;
 use cu29_helpers::basic_copper_setup;
 use std::fs;

@@ -63,6 +63,7 @@ pub struct PropulsionPinAssignments {
 }
 
 pub struct PropulsionControllerInstances {
+    #[allow(unused)]
     gpio_inst: Chip,
     direction_pins: DirectionPinHdls,
     lmtr_en_a: Pwm,
@@ -80,6 +81,7 @@ pub struct Propulsion {
     left_wheel: WheelState,
     right_wheel: WheelState,
     pin_controller_instances: PropulsionControllerInstances,
+    #[allow(unused)]
     pin_assignments: PropulsionPinAssignments,
 }
 

@@ -1,3 +1,6 @@
+#![allow(unused_imports)]
+#![allow(unused_import_braces)]
+
 use cu29::prelude::*;
 use cu29_export::run_cli;
 use anc_pub::{ObstacleDetected, Distance};
