@@ -21,13 +21,13 @@ pub const HEADING_ERROR_END_STEERING_MANEUVER_THRESHOLD: f32 = 0.1;
 pub const OUTER_WHEEL_STEERING_SPEED: f32 = 0.85;
 pub const INNER_WHEEL_STEERING_SPEED: f32 = 0.5;
 
-/// r_wind_comp is applied to right motor. Depending on your winding resistance ratio difference
+/// r_wind_comp is applied to left motor (if you were looking at the front of the robot). Depending on your winding resistance ratio difference
 /// it can be more than or less than 1, but no greater than 2.
 pub struct Arbitrator {
     e_stop_trig_fdbk: bool,
     loop_mode_fdbk: LoopState,
     target_speed: Option<f32>,
-    /// Applied to right motor
+    /// Applied to left motor
     r_wind_comp: f32,
     /// normalized corner y coord to trigger steering handler and override lanekeeping for the maneuver
     corner_y_coord_steering_trig: f32,
@@ -174,7 +174,7 @@ impl Arbitrator {
         }
         else {
             ret = prop_adap_pload.propulsion_payload;
-            ret.right_speed = ret.right_speed * self.r_wind_comp; // VERY IMPORTANT: apply compensation
+            ret.left_speed = ret.left_speed * self.r_wind_comp; // VERY IMPORTANT: apply compensation
         }
 
         Ok(ret)
@@ -187,9 +187,9 @@ impl Arbitrator {
 
         let pid_output = pid_pload.output;
         // pid_output > 0 implies error >0, turn right: slow left, speed up right
-        let left_speed = (self.target_speed.unwrap_or(BASELINE_SPEED) - pid_output).clamp(0.0, 0.9);
+        let left_speed = (self.target_speed.unwrap_or(BASELINE_SPEED)*self.r_wind_comp - pid_output).clamp(0.0, 0.9);
         // VERY IMPORTANT: apply compensation
-        let right_speed = (self.target_speed.unwrap_or(BASELINE_SPEED)*self.r_wind_comp + pid_output).clamp(0.0, 0.9);
+        let right_speed = (self.target_speed.unwrap_or(BASELINE_SPEED) + pid_output).clamp(0.0, 0.9);
 
         Ok(PropulsionPayload {
             left_enable: true,
@@ -215,15 +215,15 @@ impl Arbitrator {
         match steering_msg.corner_direction {
             CornerDirection::Right => {
                 right_speed = OUTER_WHEEL_STEERING_SPEED;
-                left_speed = INNER_WHEEL_STEERING_SPEED;
+                left_speed = INNER_WHEEL_STEERING_SPEED * self.r_wind_comp;
             },
             CornerDirection::Left => {
                 right_speed = INNER_WHEEL_STEERING_SPEED;
-                left_speed = OUTER_WHEEL_STEERING_SPEED;
+                left_speed = OUTER_WHEEL_STEERING_SPEED * self.r_wind_comp;
             } // unimplemented
         }
 
-        if heading_error < HEADING_ERROR_END_STEERING_MANEUVER_THRESHOLD {
+        if heading_error.abs() < HEADING_ERROR_END_STEERING_MANEUVER_THRESHOLD {
             right_speed = 0.0;
             left_speed = 0.0;
             self.steerer_state = SteererState::Done;
