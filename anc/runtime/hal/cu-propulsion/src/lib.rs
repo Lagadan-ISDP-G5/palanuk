@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 
 pub struct DirectionPair(u8, u8);
 // Just reassign these if the actual hardware connections happen to be flipped
-const FORWARD: DirectionPair = DirectionPair(0, 1);
-const BACKWARDS: DirectionPair = DirectionPair(1, 0);
+const FORWARD: DirectionPair = DirectionPair(1, 0);
+const BACKWARDS: DirectionPair = DirectionPair(0, 1);
 const STOP: DirectionPair = DirectionPair(0, 0);
 
 /// ReallySlow by default
@@ -271,12 +271,12 @@ impl CuSinkTask for Propulsion {
                 }
             }
 
-            match en_a_hdl.set_duty_cycle(payload.left_speed) {
+            match en_a_hdl.set_duty_cycle(payload.left_speed.clamp(0.0, 1.0)) {
                 Ok(_) => (),
                 Err(_) => return Err(CuError::from(format!("Failed to set duty cycle")))
             };
 
-            match en_b_hdl.set_duty_cycle(payload.right_speed) {
+            match en_b_hdl.set_duty_cycle(payload.right_speed.clamp(0.0, 1.0)) {
                 Ok(_) => (),
                 Err(_) => return Err(CuError::from(format!("Failed to set duty cycle")))
             };

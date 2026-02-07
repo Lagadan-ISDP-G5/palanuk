@@ -56,7 +56,7 @@ impl CuSrcTask for CuHcSr04 {
     }
 
     fn process(&mut self, _clock: &RobotClock, output: &mut Self::Output<'_>) -> CuResult<()> {
-        let dist_cm = self.driver_instance.dist_cm(Some(Duration::from_millis(12)));
+        let dist_cm = self.driver_instance.dist_cm(None);
 
         // Update last_value on successful reading
         if let Ok(dist) = dist_cm {

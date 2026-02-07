@@ -180,7 +180,7 @@ impl CuSinkTask for CameraPanning {
             // Cleanup
             // Return back to middle position
             _ = controller.sg90_pos_cmd.set_duty_cycle(0.075);
-            sleep(Duration::from_millis(1750));
+            sleep(Duration::from_millis(3000));
 
             _ = controller.sg90_pos_cmd.set_enable(false);
             _ = controller.sg90_pos_cmd.set_duty_cycle(0.0);
@@ -206,6 +206,7 @@ impl CuSinkTask for CameraPanning {
 
     fn stop(&mut self, _clock: &RobotClock) -> CuResult<()> {
         self.task_running.store(false, Ordering::Relaxed);
+        sleep(Duration::from_millis(2000));
         let hdl = self.ipolate_thread_hdl.take();
         match hdl {
             Some(hdl) => {

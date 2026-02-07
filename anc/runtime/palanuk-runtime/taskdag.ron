@@ -11,7 +11,7 @@
             config: {
                 "trig_pin": 21,
                 "echo_pin": 20,
-                "dist_threshold_cm": 12,
+                "dist_threshold_cm": 2,
             },
             logging: (enabled: true)
         ),
@@ -30,7 +30,7 @@
             id: "propulsion-adapter",
             type: "propulsion_adapter::PropulsionAdapter",
             config: {
-                "e_stop_threshold_cm": 5,
+                "e_stop_threshold_cm": 22,
             }
         ),
 
@@ -64,7 +64,7 @@
             id: "arbitrator",
             type: "arbitrator::Arbitrator",
             config: {
-                "r_wind_compensation": 1.0, // applied to left motor
+                "r_wind_compensation": 1.15, // applied to left motor
                 "corner_y_coord_steering_trig": 0.18,
             }
         ),
