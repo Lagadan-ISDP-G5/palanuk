@@ -199,8 +199,13 @@ impl Arbitrator {
         let pid_output = pid_pload.output;
         // pid_output > 0 implies error >0, turn right: slow left, speed up right
         // // VERY IMPORTANT: apply compensation
-        let left_speed = (self.target_speed.unwrap_or(BASELINE_SPEED)*self.r_wind_comp_lmtr - pid_output).clamp(0.0, 0.9);
-        let right_speed = (self.target_speed.unwrap_or(BASELINE_SPEED)*self.r_wind_comp_rmtr + pid_output).clamp(0.0, 0.9);
+        let left_speed = (
+                (self.target_speed.unwrap_or(BASELINE_SPEED) - pid_output) * self.r_wind_comp_lmtr
+            ).clamp(0.0, 0.9);
+
+        let right_speed = (
+                (self.target_speed.unwrap_or(BASELINE_SPEED) + pid_output) * self.r_wind_comp_rmtr
+            ).clamp(0.0, 0.9);
 
         Ok(PropulsionPayload {
             left_enable: true,
