@@ -175,10 +175,14 @@ impl CuTask for PropulsionAdapter {
                 LoopState::Open => {
                     match zenoh_msg.steer_direction {
                         SteerDirection::HardLeft => {
-                            propulsion_payload.left_speed = 0.44;
+                            propulsion_payload.left_direction = WheelDirection::Reverse;
+                            propulsion_payload.right_direction = WheelDirection::Forward;
+                            // propulsion_payload.left_speed = 0.44;
                         },
                         SteerDirection::HardRight => {
-                            propulsion_payload.right_speed = 0.44;
+                            propulsion_payload.left_direction = WheelDirection::Forward;
+                            propulsion_payload.right_direction = WheelDirection::Reverse;
+                            // propulsion_payload.right_speed = 0.44;
                         },
                         _ => ()
                     }

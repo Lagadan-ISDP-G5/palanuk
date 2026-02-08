@@ -16,10 +16,15 @@ use opencv_splitter::NsmPayload;
 use opencv_iox2::{CornerDirection};
 use core::default::*;
 
+pub const R_WIND_COMP_LMTR: f32 = 1.17;
+pub const R_WIND_COMP_RMTR: f32 = 0.85;
+
 pub const BASELINE_SPEED: f32 = 0.2;
 pub const HEADING_ERROR_END_STEERING_MANEUVER_THRESHOLD: f32 = 0.1;
 pub const OUTER_WHEEL_STEERING_SPEED: f32 = 0.85;
 pub const INNER_WHEEL_STEERING_SPEED: f32 = 0.5;
+
+pub const ON_AXIS_ROTATION_DURATION_MILLISEC: u64 = 5250;
 
 /// r_wind_comp values can be between 0 and 2 for either motor, but not both. If one is > 1 another must be <1.
 pub struct Arbitrator {
@@ -33,6 +38,87 @@ pub struct Arbitrator {
     /// normalized corner y coord to trigger steering handler and override lanekeeping for the maneuver
     corner_y_coord_steering_trig: f32,
     steerer_state: SteererState,
+    on_axis_rotator: OnAxisRotator,
+}
+
+pub struct OnAxisRotator {
+    current_cmd: RotateOnAxisCmd,
+    last_cmd: RotateOnAxisCmd,
+    rotator_state: RotateOnAxisState,
+    instant_rotating_started: CuInstant,
+}
+
+impl Default for OnAxisRotator {
+    fn default() -> Self {
+        Self {
+            current_cmd: RotateOnAxisCmd::Init,
+            last_cmd: RotateOnAxisCmd::Init,
+            rotator_state: RotateOnAxisState::Init,
+            instant_rotating_started: CuInstant::now()
+        }
+    }
+}
+
+impl OnAxisRotator {
+    fn update_current_cmd_from_wheel_dir(&mut self, left_wheel_dir: WheelDirection, right_wheel_dir: WheelDirection) {
+        match (left_wheel_dir, right_wheel_dir) {
+            (WheelDirection::Forward, WheelDirection::Reverse) => {
+                self.current_cmd = RotateOnAxisCmd::RotateRight;
+            },
+            (WheelDirection::Reverse, WheelDirection::Forward) => {
+                self.current_cmd = RotateOnAxisCmd::RotateLeft;
+            }
+            _ => ()
+        }
+    }
+
+    /// returns a tuple:
+    /// (false, None) -> dont do anything
+    /// (true, Some(RotateOnAxisCmd)) -> do according to the RotateOnAxisCmd
+    fn should_rotate(&mut self) -> (bool, Option<RotateOnAxisCmd>) {
+        // only respond to rising edge
+        let is_cmd_valid = match (self.last_cmd, self.current_cmd) {
+            (RotateOnAxisCmd::Init, RotateOnAxisCmd::RotateLeft) => { true },
+            (RotateOnAxisCmd::Init, RotateOnAxisCmd::RotateRight) => { true },
+            _ => false
+        };
+
+        if is_cmd_valid && self.rotator_state != RotateOnAxisState::Rotating {
+            self.instant_rotating_started = CuInstant::now();
+            self.rotator_state = RotateOnAxisState::Rotating;
+        }
+
+        let is_cmd_done;
+        let dur = CuDuration::from_millis(ON_AXIS_ROTATION_DURATION_MILLISEC);
+        let res = CuInstant::now().as_nanos().checked_sub(self.instant_rotating_started.as_nanos());
+        let elapsed = CuDuration::from_nanos(res.unwrap_or(0u64));
+
+        if elapsed >= dur && is_cmd_valid { is_cmd_done = true; }
+        else { is_cmd_done =  false; }
+
+        if is_cmd_done {
+            self.rotator_state = RotateOnAxisState::Done;
+            (false, None)
+        }
+        else {
+            // this is where we do the motor command subroutine to rotate the rover on its axis
+            (true, Some(self.current_cmd))
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub enum RotateOnAxisCmd {
+    Init,
+    RotateLeft,
+    RotateRight
+}
+
+#[derive(Clone, Copy, PartialEq)]
+pub enum RotateOnAxisState {
+    Init,
+    Rotating,
+    Done
 }
 
 #[derive(Default, PartialEq, Eq)]
@@ -52,7 +138,8 @@ impl Default for Arbitrator {
             r_wind_comp_lmtr: 0.0,
             r_wind_comp_rmtr: 0.0,
             corner_y_coord_steering_trig: 0.0,
-            steerer_state: SteererState::default()
+            steerer_state: SteererState::default(),
+            on_axis_rotator: OnAxisRotator::default()
         }
     }
 }
@@ -82,17 +169,19 @@ impl CuTask for Arbitrator {
         let ComponentConfig(kv) =
             config.ok_or("No ComponentConfig specified for GPIO in RON")?;
 
-        let r_wind_comp_lmtr: f64 = kv
-            .get("r_wind_comp_lmtr")
-            .expect("Left motor winding resistance compensation factor not set in RON config")
-            .clone()
-            .into();
+        // let r_wind_comp_lmtr: f64 = kv
+        //     .get("r_wind_comp_lmtr")
+        //     .expect("Left motor winding resistance compensation factor not set in RON config")
+        //     .clone()
+        //     .into();
+        let r_wind_comp_lmtr = R_WIND_COMP_LMTR;
 
-        let r_wind_comp_rmtr: f64 = kv
-            .get("r_wind_comp_rmtr")
-            .expect("Right motor winding resistance compensation factor not set in RON config")
-            .clone()
-            .into();
+        // let r_wind_comp_rmtr: f64 = kv
+        //     .get("r_wind_comp_rmtr")
+        //     .expect("Right motor winding resistance compensation factor not set in RON config")
+        //     .clone()
+        //     .into();
+        let r_wind_comp_rmtr = R_WIND_COMP_RMTR;
 
         let corner_y_coord_steering_trig: f64 = kv
             .get("corner_y_coord_steering_trig")
@@ -186,6 +275,9 @@ impl Arbitrator {
             // VERY IMPORTANT: apply compensation
             ret.right_speed = ret.right_speed * self.r_wind_comp_rmtr;
             ret.left_speed = ret.left_speed * self.r_wind_comp_lmtr;
+
+            // call OnAxisRotator::rotate() here
+
         }
 
         Ok(ret)

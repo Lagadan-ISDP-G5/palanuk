@@ -64,8 +64,8 @@
             id: "arbitrator",
             type: "arbitrator::Arbitrator",
             config: {
-                "r_wind_comp_lmtr": 1.17,
-                "r_wind_comp_rmtr": 0.85,
+                // "r_wind_comp_lmtr": 1.17,
+                // "r_wind_comp_rmtr": 0.85,
                 "corner_y_coord_steering_trig": 0.15,
             }
         ),
