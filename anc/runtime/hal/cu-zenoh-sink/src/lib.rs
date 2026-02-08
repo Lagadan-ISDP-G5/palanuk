@@ -38,8 +38,12 @@ where
     {
         let config = config.ok_or(CuError::from("ZSrc: missing config! provide at least no value for the \"topic\" field"))?;
 
+        let mut def_cfg = Config::default();
+        def_cfg.insert_json5("scouting/multicast/autoconnect", r#"{ "router": [], "peer": ["router", "peer"], "client": ["router"] }"#)
+            .map_err(|_| -> CuError {CuError::from("ZSrc: Failed to construct custom default zenoh config")})?;
+
         let session_config = config.get::<String>("zenoh_config_file").map_or(
-            Ok(Config::default()),
+            Ok(def_cfg),
             |s| -> CuResult<Config> {
                 Config::from_file(&s)
                     .map_err(|_| -> CuError {CuError::from("ZSink: Failed to create zenoh config")} )

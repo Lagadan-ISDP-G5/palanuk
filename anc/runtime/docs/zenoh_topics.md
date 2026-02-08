@@ -21,9 +21,7 @@ For each measurable, child topics may be additionally defined for alternate unit
 Data under `/palanuk/odd/**`:
 
 - `loopmode/<u8>` - 0 - Open loop, 1 - Closed loop
-- `stop/<u8>` - This is a boolean (1 - true, 0 - false)
-- `steer/left/<f64>`
-- `steer/right/<f64>`
+- `steercmd/<u8>` - 0 - Center, 1 - Left, 2 - Right
 - `speed/<f64>`
 - `drivestate/<u8>` - This is NOT a boolean, but an enum (0 - At Rest, 1 - Forward, 2 - Reverse) 
 - `forcepan/<u8>` - 0 - Center, 1 - Reference Left, 2 - Reference Right

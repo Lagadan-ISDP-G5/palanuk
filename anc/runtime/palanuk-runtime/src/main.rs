@@ -27,13 +27,13 @@ use libc::*;
 
 pub mod odd_subs {
     use cu_zenoh_src::ZSrc;
-    use zsrc_merger::{OddOpenLoopSpeed, OddOpenLoopStop, OddLoopMode, OddOpenLoopDriveState, OddOpenLoopForcepan};
+    use zsrc_merger::{OddOpenLoopSpeed, OddLoopMode, OddOpenLoopDriveState, OddOpenLoopForcepan, OddOpenLoopSteerCmd};
 
     pub type OddOpenLoopSpeedSrc      = ZSrc<zsrc_merger::OddOpenLoopSpeed>;
-    pub type OddOpenLoopStopSrc       = ZSrc<zsrc_merger::OddOpenLoopStop>;
     pub type OddOpenLoopModeSrc       = ZSrc<zsrc_merger::OddLoopMode>;
     pub type OddOpenLoopDriveStateSrc = ZSrc<zsrc_merger::OddOpenLoopDriveState>;
     pub type OddOpenLoopForcepanSrc   = ZSrc<zsrc_merger::OddOpenLoopForcepan>;
+    pub type OddOpenLoopSteerCmdSrc   = ZSrc<zsrc_merger::OddOpenLoopSteerCmd>;
 }
 
 pub mod anc_pubs {

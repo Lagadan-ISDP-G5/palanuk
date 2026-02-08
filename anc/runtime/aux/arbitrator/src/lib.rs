@@ -21,14 +21,15 @@ pub const HEADING_ERROR_END_STEERING_MANEUVER_THRESHOLD: f32 = 0.1;
 pub const OUTER_WHEEL_STEERING_SPEED: f32 = 0.85;
 pub const INNER_WHEEL_STEERING_SPEED: f32 = 0.5;
 
-/// r_wind_comp is applied to left motor (if you were looking at the front of the robot). Depending on your winding resistance ratio difference
-/// it can be more than or less than 1, but no greater than 2.
+/// r_wind_comp values can be between 0 and 2 for either motor, but not both. If one is > 1 another must be <1.
 pub struct Arbitrator {
     e_stop_trig_fdbk: bool,
     loop_mode_fdbk: LoopState,
     target_speed: Option<f32>,
     /// Applied to left motor
-    r_wind_comp: f32,
+    r_wind_comp_lmtr: f32,
+    /// Applied to right motor
+    r_wind_comp_rmtr: f32,
     /// normalized corner y coord to trigger steering handler and override lanekeeping for the maneuver
     corner_y_coord_steering_trig: f32,
     steerer_state: SteererState,
@@ -48,7 +49,8 @@ impl Default for Arbitrator {
             e_stop_trig_fdbk: false,
             loop_mode_fdbk: LoopState::Closed,
             target_speed: None,
-            r_wind_comp: 0.0,
+            r_wind_comp_lmtr: 0.0,
+            r_wind_comp_rmtr: 0.0,
             corner_y_coord_steering_trig: 0.0,
             steerer_state: SteererState::default()
         }
@@ -80,9 +82,15 @@ impl CuTask for Arbitrator {
         let ComponentConfig(kv) =
             config.ok_or("No ComponentConfig specified for GPIO in RON")?;
 
-        let r_wind_comp: f64 = kv
-            .get("r_wind_compensation")
-            .expect("Motor winding resistance compensation factor not set in RON config")
+        let r_wind_comp_lmtr: f64 = kv
+            .get("r_wind_comp_lmtr")
+            .expect("Left motor winding resistance compensation factor not set in RON config")
+            .clone()
+            .into();
+
+        let r_wind_comp_rmtr: f64 = kv
+            .get("r_wind_comp_rmtr")
+            .expect("Right motor winding resistance compensation factor not set in RON config")
             .clone()
             .into();
 
@@ -93,7 +101,8 @@ impl CuTask for Arbitrator {
             .into();
 
         let mut inst = Self::default();
-        inst.r_wind_comp = r_wind_comp as f32;
+        inst.r_wind_comp_lmtr = r_wind_comp_lmtr as f32;
+        inst.r_wind_comp_rmtr = r_wind_comp_rmtr as f32;
         inst.corner_y_coord_steering_trig = corner_y_coord_steering_trig as f32;
         Ok(inst)
     }
@@ -174,7 +183,9 @@ impl Arbitrator {
         }
         else {
             ret = prop_adap_pload.propulsion_payload;
-            ret.left_speed = ret.left_speed * self.r_wind_comp; // VERY IMPORTANT: apply compensation
+            // VERY IMPORTANT: apply compensation
+            ret.right_speed = ret.right_speed * self.r_wind_comp_rmtr;
+            ret.left_speed = ret.left_speed * self.r_wind_comp_lmtr;
         }
 
         Ok(ret)
@@ -187,9 +198,9 @@ impl Arbitrator {
 
         let pid_output = pid_pload.output;
         // pid_output > 0 implies error >0, turn right: slow left, speed up right
-        let left_speed = (self.target_speed.unwrap_or(BASELINE_SPEED)*self.r_wind_comp - pid_output).clamp(0.0, 0.9);
-        // VERY IMPORTANT: apply compensation
-        let right_speed = (self.target_speed.unwrap_or(BASELINE_SPEED) + pid_output).clamp(0.0, 0.9);
+        // // VERY IMPORTANT: apply compensation
+        let left_speed = (self.target_speed.unwrap_or(BASELINE_SPEED)*self.r_wind_comp_lmtr - pid_output).clamp(0.0, 0.9);
+        let right_speed = (self.target_speed.unwrap_or(BASELINE_SPEED)*self.r_wind_comp_rmtr + pid_output).clamp(0.0, 0.9);
 
         Ok(PropulsionPayload {
             left_enable: true,
@@ -214,12 +225,12 @@ impl Arbitrator {
 
         match steering_msg.corner_direction {
             CornerDirection::Right => {
-                right_speed = OUTER_WHEEL_STEERING_SPEED;
-                left_speed = INNER_WHEEL_STEERING_SPEED * self.r_wind_comp;
+                right_speed = OUTER_WHEEL_STEERING_SPEED * self.r_wind_comp_rmtr;
+                left_speed = INNER_WHEEL_STEERING_SPEED * self.r_wind_comp_lmtr;
             },
             CornerDirection::Left => {
-                right_speed = INNER_WHEEL_STEERING_SPEED;
-                left_speed = OUTER_WHEEL_STEERING_SPEED * self.r_wind_comp;
+                right_speed = INNER_WHEEL_STEERING_SPEED * self.r_wind_comp_rmtr;
+                left_speed = OUTER_WHEEL_STEERING_SPEED * self.r_wind_comp_lmtr;
             } // unimplemented
         }
 
@@ -238,4 +249,5 @@ impl Arbitrator {
             right_direction: WheelDirection::Forward,
         })
     }
+
 }

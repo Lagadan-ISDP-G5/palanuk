@@ -20,10 +20,6 @@ pub struct OddOpenLoopSpeed(pub f64);
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, Encode, Decode)]
 #[serde(transparent)]
-pub struct OddOpenLoopStop(pub u8);
-
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, Encode, Decode)]
-#[serde(transparent)]
 pub struct OddLoopMode(pub u8);
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, Encode, Decode)]
@@ -34,20 +30,24 @@ pub struct OddOpenLoopDriveState(pub u8);
 #[serde(transparent)]
 pub struct OddOpenLoopForcepan(pub u8);
 
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, Encode, Decode)]
+#[serde(transparent)]
+pub struct OddOpenLoopSteerCmd(pub u8);
+
 impl CuTask for ZSrcMerger {
     // f64 - odd_openloop_speed
-    // u8 - odd_openloop_stop
     // u8 - odd_loopmode
     // u8 - odd_openloop_drivestate
     // u8 - odd_openloop_forcepan
+    // u8 - odd_openloop_steercmd
 
     type Input<'m>
     = input_msg!('m,
             OddOpenLoopSpeed,
-            OddOpenLoopStop,
             OddLoopMode,
             OddOpenLoopDriveState,
-            OddOpenLoopForcepan
+            OddOpenLoopForcepan,
+            OddOpenLoopSteerCmd
         );
     type Output<'m> = output_msg!(ZenohTopicsAdapterOutputPayload);
     type Resources<'r> = ();
@@ -63,17 +63,17 @@ impl CuTask for ZSrcMerger {
     {
         if let (
             Some(odd_openloop_speed),
-            Some(odd_openloop_stop),
             Some(odd_loopmode),
             Some(odd_openloop_drivestate),
-            Some(odd_openloop_forcepan)
+            Some(odd_openloop_forcepan),
+            Some(odd_openloop_steercmd)
         ) =
         (
             input.0.payload(),
             input.1.payload(),
             input.2.payload(),
             input.3.payload(),
-            input.4.payload()
+            input.4.payload(),
         ) {
             let loop_state = match odd_loopmode.0 {
                 0 => LoopState::Open,
@@ -91,15 +91,9 @@ impl CuTask for ZSrcMerger {
                 _ => false
             };
 
-            let is_openloop_stop = match odd_openloop_stop.0 {
-                1 => true,
-                0 => false,
-                _ => true,
-            };
-
             // Open loop stop command overrides drivestate
             // let left_enable = true;
-            let left_enable = drive_state || !is_openloop_stop;
+            let left_enable = drive_state;
             let right_enable = left_enable;
 
             let left_direction = match odd_openloop_drivestate.0 {
@@ -111,7 +105,12 @@ impl CuTask for ZSrcMerger {
 
             let right_direction = left_direction;
 
-            let steer_direction = SteerDirection::Center;
+            let steer_direction = match odd_openloop_steercmd.0 {
+                0 => SteerDirection::Center,
+                1 => SteerDirection::HardLeft,
+                2 => SteerDirection::HardRight,
+                _ => SteerDirection::Center
+            };
 
             let work_or_rest_state = match odd_openloop_drivestate.0 {
                 0 => WorkOrRestState::AtRest, // At Rest

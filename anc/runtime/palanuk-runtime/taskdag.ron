@@ -64,8 +64,9 @@
             id: "arbitrator",
             type: "arbitrator::Arbitrator",
             config: {
-                "r_wind_compensation": 1.15, // applied to left motor
-                "corner_y_coord_steering_trig": 0.18,
+                "r_wind_comp_lmtr": 1.17,
+                "r_wind_comp_rmtr": 0.85,
+                "corner_y_coord_steering_trig": 0.15,
             }
         ),
 
@@ -151,14 +152,6 @@
         ),
 
         (
-            id: "odd-openloop-stop",
-            type: "odd_subs::OddOpenLoopStopSrc",
-            config: {
-                "topic": "palanuk/odd/stop",
-            },
-        ),
-
-        (
             id: "odd-loopmode",
             type: "odd_subs::OddOpenLoopModeSrc",
             config: {
@@ -179,6 +172,14 @@
             type: "odd_subs::OddOpenLoopForcepanSrc",
             config: {
                 "topic": "palanuk/odd/forcepan",
+            },
+        ),
+
+        (
+            id: "odd-openloop-steercmd",
+            type: "odd_subs::OddOpenLoopSteerCmdSrc",
+            config: {
+                "topic": "palanuk/odd/steercmd",
             },
         ),
 
@@ -240,10 +241,10 @@
 
         // zsrc-merger heads
         (src: "odd-openloop-speed",      dst: "zsrc-merger", msg: "zsrc_merger::OddOpenLoopSpeed"),
-        (src: "odd-openloop-stop",       dst: "zsrc-merger", msg: "zsrc_merger::OddOpenLoopStop"),
         (src: "odd-loopmode",            dst: "zsrc-merger", msg: "zsrc_merger::OddLoopMode"),
         (src: "odd-openloop-drivestate", dst: "zsrc-merger", msg: "zsrc_merger::OddOpenLoopDriveState"),
         (src: "odd-openloop-forcepan",   dst: "zsrc-merger", msg: "zsrc_merger::OddOpenLoopForcepan"),
+        (src: "odd-openloop-steercmd",   dst: "zsrc-merger", msg: "zsrc_merger::OddOpenLoopSteerCmd"),
 
         // propulsion-adapter tails
         (src: "propulsion-adapter", dst: "panner-adapter", msg: "propulsion_adapter::PropulsionAdapterOutputPayload"),

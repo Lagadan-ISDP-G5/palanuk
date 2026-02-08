@@ -1,5 +1,4 @@
 extern crate cu_bincode as bincode;
-use std::time::Duration;
 
 use cu29::prelude::*;
 use bincode::{Decode, Encode};
