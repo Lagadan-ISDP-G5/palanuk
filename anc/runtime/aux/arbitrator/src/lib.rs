@@ -230,12 +230,12 @@ impl Arbitrator {
 
         match steering_msg.corner_direction {
             CornerDirection::Right => {
-                right_speed = OUTER_WHEEL_STEERING_SPEED * self.r_wind_comp_rmtr;
-                left_speed = INNER_WHEEL_STEERING_SPEED * self.r_wind_comp_lmtr;
-            },
-            CornerDirection::Left => {
                 right_speed = INNER_WHEEL_STEERING_SPEED * self.r_wind_comp_rmtr;
                 left_speed = OUTER_WHEEL_STEERING_SPEED * self.r_wind_comp_lmtr;
+            },
+            CornerDirection::Left => {
+                right_speed = OUTER_WHEEL_STEERING_SPEED * self.r_wind_comp_rmtr;
+                left_speed = INNER_WHEEL_STEERING_SPEED * self.r_wind_comp_lmtr;
             } // unimplemented
         }
 
