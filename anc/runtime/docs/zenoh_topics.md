@@ -31,6 +31,11 @@ Preliminary implementation on ANC and ODD side for now (9/2/2026):
 - `loopmode/<u8>` - 0 - Open loop, 1 - Closed loop
 - `drivestate/<u8>` - This is NOT a boolean, but an enum (0 - At Rest, 1 - Forward, 2 - Reverse) 
 - `forcepan/<u8>` - 0 - Center, 1 - Reference Left, 2 - Reference Right
+
+`Free` means in the future if exact direction commands for individual wheels are implemented, the
+code will respect it, because the on-axis rotation (hard left/right steer) is implemented based on
+control of the travel direction of individual wheels.
+
 - `steercmd/<u8>` - 0 - Free, 1 - Hard Left, 2 - Hard Right
 
 Data under `/palanuk/itp/**`:
