@@ -169,21 +169,22 @@ impl CuTask for PropulsionAdapter {
                 right_direction: WheelDirection::Stop,
             };
         }
-
-        // passthrough for openloop steercmd
-        match loop_state {
-            LoopState::Open => {
-                match zenoh_msg.steer_direction {
-                    SteerDirection::HardLeft => {
-                        propulsion_payload.left_speed = 0.44;
-                    },
-                    SteerDirection::HardRight => {
-                        propulsion_payload.right_speed = 0.44;
-                    },
-                    _ => ()
+        else {
+            // passthrough for openloop steercmd
+            match loop_state {
+                LoopState::Open => {
+                    match zenoh_msg.steer_direction {
+                        SteerDirection::HardLeft => {
+                            propulsion_payload.left_speed = 0.44;
+                        },
+                        SteerDirection::HardRight => {
+                            propulsion_payload.right_speed = 0.44;
+                        },
+                        _ => ()
+                    }
                 }
+                _ => ()
             }
-            _ => ()
         }
 
         let prop_adap_output_payload = PropulsionAdapterOutputPayload {
