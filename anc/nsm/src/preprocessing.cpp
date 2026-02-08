@@ -9,6 +9,8 @@ cv::Mat threshold_white_line(const cv::Mat& img, const PipelineConfig& config) {
     cv::GaussianBlur(gray, blurred, cv::Size(config.blur_kernel_size, config.blur_kernel_size), 0);
     cv::threshold(blurred, thresh_raw, config.brightness_threshold, 255, cv::THRESH_BINARY);
 
+    // cv::adaptiveThreshold(blurred, thresh_raw, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY, 15, 0);
+
     // Mask out the top portion of the frame
     int roi_top = static_cast<int>(img.rows * config.roi_ignore_top_percent);
     thresh_raw(cv::Rect(0, 0, img.cols, roi_top)) = 0;
