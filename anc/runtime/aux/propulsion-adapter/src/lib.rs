@@ -25,7 +25,7 @@ pub enum WorkOrRestState {
 #[derive(Debug, Clone, Copy, Default, Encode, Decode, PartialEq, Serialize, Deserialize)]
 pub enum SteerDirection {
     #[default]
-    Center,
+    Free,
     HardRight,
     SlightRight,
     HardLeft,
@@ -184,6 +184,10 @@ impl CuTask for PropulsionAdapter {
                             propulsion_payload.right_direction = WheelDirection::Reverse;
                             // propulsion_payload.right_speed = 0.44;
                         },
+                        SteerDirection::Free => {
+                            propulsion_payload.left_direction = zenoh_msg.left_direction;
+                            propulsion_payload.right_direction = zenoh_msg.right_direction;
+                        }
                         _ => ()
                     }
                 }

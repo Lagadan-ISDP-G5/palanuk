@@ -51,8 +51,8 @@ pub struct OnAxisRotator {
 impl Default for OnAxisRotator {
     fn default() -> Self {
         Self {
-            current_cmd: RotateOnAxisCmd::Init,
-            last_cmd: RotateOnAxisCmd::Init,
+            current_cmd: RotateOnAxisCmd::Free,
+            last_cmd: RotateOnAxisCmd::Free,
             rotator_state: RotateOnAxisState::Init,
             instant_rotating_started: CuInstant::now()
         }
@@ -68,7 +68,7 @@ impl OnAxisRotator {
             (WheelDirection::Reverse, WheelDirection::Forward) => {
                 self.current_cmd = RotateOnAxisCmd::RotateLeft;
             }
-            _ => ()
+            _ => self.current_cmd = RotateOnAxisCmd::Free
         }
     }
 
@@ -76,10 +76,12 @@ impl OnAxisRotator {
     /// (false, None) -> dont do anything
     /// (true, Some(RotateOnAxisCmd)) -> do according to the RotateOnAxisCmd
     fn should_rotate(&mut self) -> (bool, Option<RotateOnAxisCmd>) {
-        // only respond to rising edge
+        // only respond to rising edges
         let is_cmd_valid = match (self.last_cmd, self.current_cmd) {
-            (RotateOnAxisCmd::Init, RotateOnAxisCmd::RotateLeft) => { true },
-            (RotateOnAxisCmd::Init, RotateOnAxisCmd::RotateRight) => { true },
+            (RotateOnAxisCmd::Free, RotateOnAxisCmd::RotateLeft) => { true },
+            (RotateOnAxisCmd::Free, RotateOnAxisCmd::RotateRight) => { true },
+            (RotateOnAxisCmd::RotateLeft, RotateOnAxisCmd::RotateRight) => { true },
+            (RotateOnAxisCmd::RotateRight, RotateOnAxisCmd::RotateLeft) => { true },
             _ => false
         };
 
@@ -107,9 +109,9 @@ impl OnAxisRotator {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum RotateOnAxisCmd {
-    Init,
+    Free,
     RotateLeft,
     RotateRight
 }
@@ -249,7 +251,7 @@ impl CuTask for Arbitrator {
 }
 
 impl Arbitrator {
-    fn open_loop_handler(&self, prop_adap_pload: &PropulsionAdapterOutputPayload) -> CuResult<PropulsionPayload> {
+    fn open_loop_handler(&mut self, prop_adap_pload: &PropulsionAdapterOutputPayload) -> CuResult<PropulsionPayload> {
         // initialize to safe conditions
         let left_enable: bool = false;
         let right_enable: bool = false;
@@ -276,7 +278,15 @@ impl Arbitrator {
             ret.right_speed = ret.right_speed * self.r_wind_comp_rmtr;
             ret.left_speed = ret.left_speed * self.r_wind_comp_lmtr;
 
-            // call OnAxisRotator::rotate() here
+            self.on_axis_rotator.update_current_cmd_from_wheel_dir(ret.left_direction, ret.right_direction);
+            if self.on_axis_rotator.current_cmd != RotateOnAxisCmd::Free {
+                if let (should_rotate, Some(_cmd)) = self.on_axis_rotator.should_rotate() {
+                    if !should_rotate {
+                        ret.left_direction = WheelDirection::Stop;
+                        ret.right_direction = WheelDirection::Stop;
+                    }
+                }
+            }
 
         }
 

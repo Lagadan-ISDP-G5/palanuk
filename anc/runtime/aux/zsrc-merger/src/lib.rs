@@ -106,10 +106,10 @@ impl CuTask for ZSrcMerger {
             let right_direction = left_direction;
 
             let steer_direction = match odd_openloop_steercmd.0 {
-                0 => SteerDirection::Center,
+                0 => SteerDirection::Free,
                 1 => SteerDirection::HardLeft,
                 2 => SteerDirection::HardRight,
-                _ => SteerDirection::Center
+                _ => SteerDirection::Free
             };
 
             let work_or_rest_state = match odd_openloop_drivestate.0 {

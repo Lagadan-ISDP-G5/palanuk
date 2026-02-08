@@ -21,17 +21,17 @@ For each measurable, child topics may be additionally defined for alternate unit
 Data under `/palanuk/odd/**`:
 
 - `loopmode/<u8>` - 0 - Open loop, 1 - Closed loop
-- `steercmd/<u8>` - 0 - Center, 1 - Left, 2 - Right
 - `speed/<f64>`
 - `drivestate/<u8>` - This is NOT a boolean, but an enum (0 - At Rest, 1 - Forward, 2 - Reverse) 
 - `forcepan/<u8>` - 0 - Center, 1 - Reference Left, 2 - Reference Right
 
-Preliminary implementation on ANC and ODD side for now (30/1/2026):
+Preliminary implementation on ANC and ODD side for now (9/2/2026):
 - `speed/<f64>`
 - `stop/<u8>` - This is a boolean (1 - true, 0 - false)
 - `loopmode/<u8>` - 0 - Open loop, 1 - Closed loop
 - `drivestate/<u8>` - This is NOT a boolean, but an enum (0 - At Rest, 1 - Forward, 2 - Reverse) 
 - `forcepan/<u8>` - 0 - Center, 1 - Reference Left, 2 - Reference Right
+- `steercmd/<u8>` - 0 - Free, 1 - Hard Left, 2 - Hard Right
 
 Data under `/palanuk/itp/**`:
 
