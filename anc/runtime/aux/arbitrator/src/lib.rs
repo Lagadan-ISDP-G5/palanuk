@@ -24,7 +24,7 @@ pub const HEADING_ERROR_END_STEERING_MANEUVER_THRESHOLD: f32 = 0.1;
 pub const OUTER_WHEEL_STEERING_SPEED: f32 = 0.85;
 pub const INNER_WHEEL_STEERING_SPEED: f32 = 0.5;
 
-pub const ON_AXIS_ROTATION_DURATION_MILLISEC: u64 = 5250;
+pub const ON_AXIS_ROTATION_DURATION_MILLISEC_90_DEG: u64 = 525;
 
 /// r_wind_comp values can be between 0 and 2 for either motor, but not both. If one is > 1 another must be <1.
 pub struct Arbitrator {
@@ -59,6 +59,9 @@ impl Default for OnAxisRotator {
     }
 }
 
+/// routine duration determines angle of rotation
+/// if we can tune ON_AXIS_ROTATION_DURATION_MILLISEC_90_DEG to do 90 deg we can trivially
+/// extra/interpolate other angles
 impl OnAxisRotator {
     fn update_current_cmd_from_wheel_dir(&mut self, left_wheel_dir: WheelDirection, right_wheel_dir: WheelDirection) {
         if self.rotator_state != RotateOnAxisState::Rotating {
@@ -93,7 +96,7 @@ impl OnAxisRotator {
         }
 
         let is_cmd_done;
-        let dur = CuDuration::from_millis(ON_AXIS_ROTATION_DURATION_MILLISEC);
+        let dur = CuDuration::from_millis(ON_AXIS_ROTATION_DURATION_MILLISEC_90_DEG);
         let res = CuInstant::now().as_nanos().checked_sub(self.instant_rotating_started.as_nanos());
         let elapsed = CuDuration::from_nanos(res.unwrap_or(0u64));
 
