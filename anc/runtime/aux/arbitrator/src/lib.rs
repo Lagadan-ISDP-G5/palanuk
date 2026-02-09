@@ -61,14 +61,16 @@ impl Default for OnAxisRotator {
 
 impl OnAxisRotator {
     fn update_current_cmd_from_wheel_dir(&mut self, left_wheel_dir: WheelDirection, right_wheel_dir: WheelDirection) {
-        match (left_wheel_dir, right_wheel_dir) {
-            (WheelDirection::Forward, WheelDirection::Reverse) => {
-                self.current_cmd = RotateOnAxisCmd::RotateRight;
-            },
-            (WheelDirection::Reverse, WheelDirection::Forward) => {
-                self.current_cmd = RotateOnAxisCmd::RotateLeft;
+        if self.rotator_state != RotateOnAxisState::Rotating {
+            match (left_wheel_dir, right_wheel_dir) {
+                (WheelDirection::Forward, WheelDirection::Reverse) => {
+                    self.current_cmd = RotateOnAxisCmd::RotateRight;
+                },
+                (WheelDirection::Reverse, WheelDirection::Forward) => {
+                    self.current_cmd = RotateOnAxisCmd::RotateLeft;
+                }
+                _ => self.current_cmd = RotateOnAxisCmd::Free
             }
-            _ => self.current_cmd = RotateOnAxisCmd::Free
         }
     }
 
