@@ -66,7 +66,7 @@ struct PipelineConfig {
     int horiz_window_height = 40;
 
     // Bird's-eye view warp
-    bool warp_enabled = true;
+    bool warp_enabled = false;
     // Source trapezoid (relative 0-1 coordinates, scaled to frame size at runtime)
     float warp_src_top_left_x = 0.35f;
     float warp_src_top_left_y = 0.53f;

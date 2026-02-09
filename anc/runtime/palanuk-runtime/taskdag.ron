@@ -30,7 +30,7 @@
             id: "propulsion-adapter",
             type: "propulsion_adapter::PropulsionAdapter",
             config: {
-                "e_stop_threshold_cm": 22,
+                "e_stop_threshold_cm": 2, // Should be at least 22cm
             }
         ),
 
@@ -52,11 +52,11 @@
             id: "dual-mtr-ctrlr",
             type: "dual_mtr_ctrlr::DualMtrCtrlr",
             config: {
-                "kp": 0.12,
+                "kp": 0.4,
                 "kd": 0.0,
-                "ki": 0.006,
-                "setpoint": 0.00,
-                "cutoff": 1.5,
+                "ki": 0.005,
+                "setpoint": 0.0,
+                "cutoff": 2.0,
             }
         ),
 

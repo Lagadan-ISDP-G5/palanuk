@@ -16,10 +16,10 @@ use opencv_splitter::NsmPayload;
 use opencv_iox2::{CornerDirection};
 use core::default::*;
 
-pub const R_WIND_COMP_LMTR: f32 = 1.17;
-pub const R_WIND_COMP_RMTR: f32 = 0.85;
+pub const R_WIND_COMP_LMTR: f32 = 0.6; // 1.17
+pub const R_WIND_COMP_RMTR: f32 = 0.85; // 0.85
 
-pub const BASELINE_SPEED: f32 = 0.2;
+pub const BASELINE_SPEED: f32 = 0.35;
 pub const HEADING_ERROR_END_STEERING_MANEUVER_THRESHOLD: f32 = 0.1;
 pub const OUTER_WHEEL_STEERING_SPEED: f32 = 0.85;
 pub const INNER_WHEEL_STEERING_SPEED: f32 = 0.5;
@@ -39,6 +39,7 @@ pub struct Arbitrator {
     corner_y_coord_steering_trig: f32,
     steerer_state: SteererState,
     on_axis_rotator: OnAxisRotator,
+    last_pid_output: f32,
 }
 
 pub struct OnAxisRotator {
@@ -146,7 +147,8 @@ impl Default for Arbitrator {
             r_wind_comp_rmtr: 0.0,
             corner_y_coord_steering_trig: 0.0,
             steerer_state: SteererState::default(),
-            on_axis_rotator: OnAxisRotator::default()
+            on_axis_rotator: OnAxisRotator::default(),
+            last_pid_output: 0.0,
         }
     }
 }
@@ -215,20 +217,23 @@ impl CuTask for Arbitrator {
 
         self.target_speed = Some(prop_adap_pload.propulsion_payload.left_speed); // FIXME?
 
-        // No PID output yet, use safe defaults (stopped)
-        let mut closed_loop_prop_payload: PropulsionPayload = PropulsionPayload::default();
+        let mut closed_loop_prop_payload: PropulsionPayload;
         // lanekeeping handler
         if let Some(mtr_pid_pload) = mtr_pid.payload() && self.steerer_state != SteererState::Steering {
-            closed_loop_prop_payload = self.closed_loop_handler(mtr_pid_pload, prop_adap_pload)?;
+            self.last_pid_output = mtr_pid_pload.output;
         }
+        closed_loop_prop_payload = self.closed_loop_handler(self.last_pid_output, prop_adap_pload)?;
+
         // steering handler
         if let Some(m) = nsm.payload() {
-            if m.corner_coords.1 <= self.corner_y_coord_steering_trig {
-                self.steerer_state = SteererState::Steering; // sticky condition, will be mutated by steering handler
+            if m.corner_coords.1 <= self.corner_y_coord_steering_trig && m.corner_detected {
+                if self.steerer_state != SteererState::Steering {
+                    self.steerer_state = SteererState::Steering; // sticky condition, will be mutated by steering handler
+                }
             }
 
             if self.steerer_state == SteererState::Steering {
-                closed_loop_prop_payload = self.steering_handler(prop_adap_pload, *m)?;
+                self.steering_handler(prop_adap_pload, *m, &mut closed_loop_prop_payload);
             }
         }
 
@@ -243,14 +248,14 @@ impl CuTask for Arbitrator {
             }
         };
 
-        let herald_pload = AncPubPayload {
+        let anc_pub_pload = AncPubPayload {
             e_stop_trig_fdbk: prop_adap_pload.is_e_stop_triggered,
             loop_mode_fdbk: prop_adap_pload.loop_state,
             distance: prop_adap_pload.distance
         };
 
         output.0.set_payload(prop_payload);
-        output.1.set_payload(herald_pload);
+        output.1.set_payload(anc_pub_pload);
         Ok(())
     }
 }
@@ -298,21 +303,23 @@ impl Arbitrator {
         Ok(ret)
     }
 
-    fn closed_loop_handler(&self, pid_pload: &PIDControlOutputPayload, prop_adap_pload: &PropulsionAdapterOutputPayload) -> CuResult<PropulsionPayload> {
+    fn closed_loop_handler(&self, pid_output: f32, prop_adap_pload: &PropulsionAdapterOutputPayload) -> CuResult<PropulsionPayload> {
         if prop_adap_pload.is_e_stop_triggered {
             return Ok(PropulsionPayload::default());
         }
 
-        let pid_output = pid_pload.output;
         // pid_output > 0 implies error >0, turn right: slow left, speed up right
         // // VERY IMPORTANT: apply compensation
-        let left_speed = (
-                (self.target_speed.unwrap_or(BASELINE_SPEED) - pid_output) * self.r_wind_comp_lmtr
-            ).clamp(0.0, 0.9);
+        let base_speed = self.target_speed.unwrap_or(BASELINE_SPEED);
+        let left_speed;
+        let right_speed;
+        left_speed = (
+                (base_speed - pid_output) * self.r_wind_comp_lmtr
+            ).clamp(BASELINE_SPEED * self.r_wind_comp_lmtr, 0.9);
 
-        let right_speed = (
-                (self.target_speed.unwrap_or(BASELINE_SPEED) + pid_output) * self.r_wind_comp_rmtr
-            ).clamp(0.0, 0.9);
+        right_speed = (
+                (base_speed + pid_output) * self.r_wind_comp_rmtr
+            ).clamp(BASELINE_SPEED * self.r_wind_comp_rmtr, 0.9);
 
         Ok(PropulsionPayload {
             left_enable: true,
@@ -325,41 +332,33 @@ impl Arbitrator {
     }
 
     /// called when corner y coord is low enough
-    fn steering_handler(&mut self, prop_adap_pload: &PropulsionAdapterOutputPayload, steering_msg: NsmPayload) -> CuResult<PropulsionPayload> {
+    fn steering_handler(&mut self, prop_adap_pload: &PropulsionAdapterOutputPayload, steering_msg: NsmPayload, res: &mut PropulsionPayload) {
         // again, two possible sources of heading error
         // either offset calculated from the normalized corner x coord
         // or offset calculated from the vertical line that fits the center lane
         // this is decided in the propulsion-adapter task
 
         let heading_error = prop_adap_pload.weighted_error;
-        let mut left_speed;
-        let mut right_speed;
-
-        match steering_msg.corner_direction {
-            CornerDirection::Right => {
-                right_speed = INNER_WHEEL_STEERING_SPEED * self.r_wind_comp_rmtr;
-                left_speed = OUTER_WHEEL_STEERING_SPEED * self.r_wind_comp_lmtr;
-            },
-            CornerDirection::Left => {
-                right_speed = OUTER_WHEEL_STEERING_SPEED * self.r_wind_comp_rmtr;
-                left_speed = INNER_WHEEL_STEERING_SPEED * self.r_wind_comp_lmtr;
-            } // unimplemented
-        }
+        let left_speed;
+        let right_speed;
 
         if heading_error.abs() < HEADING_ERROR_END_STEERING_MANEUVER_THRESHOLD {
-            right_speed = 0.0;
-            left_speed = 0.0;
             self.steerer_state = SteererState::Done;
         }
-
-        Ok(PropulsionPayload {
-            left_enable: true,
-            right_enable: true,
-            left_speed,
-            right_speed,
-            left_direction: WheelDirection::Forward,
-            right_direction: WheelDirection::Forward,
-        })
+        else {
+            match steering_msg.corner_direction {
+                CornerDirection::Right => {
+                    right_speed = INNER_WHEEL_STEERING_SPEED * self.r_wind_comp_rmtr;
+                    left_speed = OUTER_WHEEL_STEERING_SPEED * self.r_wind_comp_lmtr;
+                },
+                CornerDirection::Left => {
+                    right_speed = OUTER_WHEEL_STEERING_SPEED * self.r_wind_comp_rmtr;
+                    left_speed = INNER_WHEEL_STEERING_SPEED * self.r_wind_comp_lmtr;
+                } // unimplemented
+            }
+            res.left_speed = left_speed;
+            res.right_speed = right_speed;
+        }
     }
 
 }

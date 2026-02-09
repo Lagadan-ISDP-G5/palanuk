@@ -83,6 +83,8 @@ pub struct Propulsion {
     pin_controller_instances: PropulsionControllerInstances,
     #[allow(unused)]
     pin_assignments: PropulsionPinAssignments,
+    last_lmtr_duty_cycle: Option<f32>,
+    last_rmtr_duty_cycle: Option<f32>
 }
 
 impl Freezable for Propulsion {
@@ -188,6 +190,8 @@ impl CuSinkTask for Propulsion {
             right_wheel: WheelState::default(),
             pin_controller_instances: pin_controller_instances,
             pin_assignments: pin_assignments,
+            last_lmtr_duty_cycle: None,
+            last_rmtr_duty_cycle: None
         })
     }
 
@@ -270,16 +274,8 @@ impl CuSinkTask for Propulsion {
                     false => ()
                 }
             }
-
-            match en_a_hdl.set_duty_cycle(payload.left_speed.clamp(0.0, 1.0)) {
-                Ok(_) => (),
-                Err(_) => return Err(CuError::from(format!("Failed to set duty cycle")))
-            };
-
-            match en_b_hdl.set_duty_cycle(payload.right_speed.clamp(0.0, 1.0)) {
-                Ok(_) => (),
-                Err(_) => return Err(CuError::from(format!("Failed to set duty cycle")))
-            };
+            self.last_lmtr_duty_cycle = Some(payload.left_speed);
+            self.last_rmtr_duty_cycle = Some(payload.right_speed);
 
             let dir_hdl = &mut self.pin_controller_instances.direction_pins;
 
@@ -344,6 +340,16 @@ impl CuSinkTask for Propulsion {
             }
 
         }
+
+        match en_a_hdl.set_duty_cycle(self.last_lmtr_duty_cycle.unwrap().clamp(0.0, 1.0)) {
+            Ok(_) => (),
+            Err(_) => return Err(CuError::from(format!("Failed to set duty cycle")))
+        };
+
+        match en_b_hdl.set_duty_cycle(self.last_rmtr_duty_cycle.unwrap().clamp(0.0, 1.0)) {
+            Ok(_) => (),
+            Err(_) => return Err(CuError::from(format!("Failed to set duty cycle")))
+        };
 
         Ok(())
     }
