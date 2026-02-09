@@ -40,4 +40,26 @@ cv::Mat threshold_white_line(const cv::Mat& img, const PipelineConfig& config) {
     return thresh;
 }
 
+void warp_birdseye(const cv::Mat& frame, const PipelineConfig& config, cv::Mat& out) {
+    float w = static_cast<float>(frame.cols);
+    float h = static_cast<float>(frame.rows);
+
+    cv::Point2f src[4] = {
+        {config.warp_src_top_left_x * w,     config.warp_src_top_left_y * h},
+        {config.warp_src_top_right_x * w,    config.warp_src_top_right_y * h},
+        {config.warp_src_bottom_right_x * w, config.warp_src_bottom_right_y * h},
+        {config.warp_src_bottom_left_x * w,  config.warp_src_bottom_left_y * h},
+    };
+
+    cv::Point2f dst[4] = {
+        {config.warp_dst_top_left_x * w,     config.warp_dst_top_left_y * h},
+        {config.warp_dst_top_right_x * w,    config.warp_dst_top_right_y * h},
+        {config.warp_dst_bottom_right_x * w, config.warp_dst_bottom_right_y * h},
+        {config.warp_dst_bottom_left_x * w,  config.warp_dst_bottom_left_y * h},
+    };
+
+    cv::Mat M = cv::getPerspectiveTransform(src, dst);
+    cv::warpPerspective(frame, out, M, frame.size());
+}
+
 }  // namespace nsm

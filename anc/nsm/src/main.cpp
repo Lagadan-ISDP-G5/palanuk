@@ -62,7 +62,8 @@ int runBatchMode(nsm::ImageDirectorySource& source, nsm::Pipeline& pipeline,
         }
         std::cout << " [" << result.processing_time_ms << " ms]" << std::endl;
 
-        cv::Mat output = nsm::visualize_side_by_side(frame, result);
+        const cv::Mat& vis_frame = pipeline.getConfig().warp_enabled ? pipeline.getWarped() : frame;
+        cv::Mat output = nsm::visualize_side_by_side(vis_frame, result);
         fs::path output_path = fs::path(output_dir) / ("processed_" + filename);
         cv::imwrite(output_path.string(), output);
 
@@ -118,7 +119,8 @@ int runLiveMode(nsm::FrameSource& source, nsm::Pipeline& pipeline, bool headless
         fps_smoothed = (fps_smoothed * 0.9) + (fps * 0.1);
 
         if (!headless) {
-            cv::Mat vis = nsm::visualize_result(frame, result);
+            const cv::Mat& vis_frame = pipeline.getConfig().warp_enabled ? pipeline.getWarped() : frame;
+            cv::Mat vis = nsm::visualize_result(vis_frame, result);
 
             // Draw FPS and info overlay
             std::string info = "FPS: " + std::to_string(static_cast<int>(fps_smoothed));

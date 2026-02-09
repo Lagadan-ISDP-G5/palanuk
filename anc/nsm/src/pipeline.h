@@ -14,12 +14,14 @@ public:
 
     void setConfig(const PipelineConfig& config);
     const PipelineConfig& getConfig() const;
+    const cv::Mat& getWarped() const;
 
 private:
     PipelineConfig config_;
 
     // reused each frame to avoid allocations
     FrameResult result_;
+    cv::Mat warped_scratch_;
     LineDetectionResult horiz_line_scratch_;
     std::vector<cv::Point2f> harris_corners_scratch_;
 };

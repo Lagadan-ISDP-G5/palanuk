@@ -13,8 +13,14 @@ const FrameResult& Pipeline::process(const cv::Mat& frame) {
 
     auto start = cv::getTickCount();
 
+    // Stage 0: Bird's-eye view warp
+    if (config_.warp_enabled) {
+        warp_birdseye(frame, config_, warped_scratch_);
+    }
+    const cv::Mat& input = config_.warp_enabled ? warped_scratch_ : frame;
+
     // Stage 1: Preprocessing
-    result_.thresholded = threshold_white_line(frame, config_);
+    result_.thresholded = threshold_white_line(input, config_);
 
     // Stage 2: Line detection
     detect_line_sliding_window(result_.thresholded, config_, result_.center_line);
@@ -36,5 +42,10 @@ void Pipeline::setConfig(const PipelineConfig& config) {
 const PipelineConfig& Pipeline::getConfig() const {
     return config_;
 }
+
+const cv::Mat& Pipeline::getWarped() const {
+    return warped_scratch_;
+}
+
 
 }  // namespace nsm

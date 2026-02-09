@@ -65,6 +65,27 @@ struct PipelineConfig {
     int horiz_num_windows = 10;
     int horiz_window_height = 40;
 
+    // Bird's-eye view warp
+    bool warp_enabled = true;
+    // Source trapezoid (relative 0-1 coordinates, scaled to frame size at runtime)
+    float warp_src_top_left_x = 0.35f;
+    float warp_src_top_left_y = 0.53f;
+    float warp_src_top_right_x = 0.65f;
+    float warp_src_top_right_y = 0.53f;
+    float warp_src_bottom_left_x = 0.0f;
+    float warp_src_bottom_left_y = 1.0f;
+    float warp_src_bottom_right_x = 1.0f;
+    float warp_src_bottom_right_y = 1.0f;
+    // Destination rectangle (relative 0-1 coordinates)
+    float warp_dst_top_left_x = 0.0f;
+    float warp_dst_top_left_y = 0.0f;
+    float warp_dst_top_right_x = 1.0f;
+    float warp_dst_top_right_y = 0.0f;
+    float warp_dst_bottom_left_x = 0.0f;
+    float warp_dst_bottom_left_y = 1.0f;
+    float warp_dst_bottom_right_x = 1.0f;
+    float warp_dst_bottom_right_y = 1.0f;
+
     // Corner detection
     int harris_block_size = 9;
     int harris_ksize = 3;
