@@ -1,3 +1,5 @@
+#include <opencv2/core/types.hpp>
+#include <opencv2/highgui.hpp>
 #include <opencv2/opencv.hpp>
 #include <filesystem>
 #include <iostream>
@@ -95,6 +97,11 @@ int runLiveMode(nsm::FrameSource& source, nsm::Pipeline& pipeline, bool headless
     double fps_smoothed = 0.0;
     int frame_count = 0;
 
+    if (!headless) {
+        cv::namedWindow("NSM Pipeline", cv::WINDOW_GUI_NORMAL);
+        cv::resizeWindow("NSM Pipeline", 1068, 600);
+    }
+
     while (true) {
         if (!source.read(frame)) {
             // For IPC sources, no frame available is normal - just retry
@@ -130,6 +137,11 @@ int runLiveMode(nsm::FrameSource& source, nsm::Pipeline& pipeline, bool headless
             if (bridge_result.corner_detected) {
                 info += " | CORNER";
             }
+            if (bridge_result.heading_error.has_value()) {
+                std::string heading_error = "heading_err: " + std::to_string(bridge_result.heading_error.value());
+                cv::putText(vis, heading_error, cv::Point(10, 50), cv::FONT_HERSHEY_SIMPLEX, 1.2, cv::Scalar(0, 255, 0), 2);
+            }
+
             cv::putText(vis, info, cv::Point(10, 30),
                         cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 2);
 
