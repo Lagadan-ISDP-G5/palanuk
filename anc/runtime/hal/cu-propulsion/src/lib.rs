@@ -33,9 +33,9 @@ pub struct PropulsionPayload {
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Encode, Decode, Serialize, Deserialize)]
 pub enum WheelDirection {
-    #[default]
     Forward,
     Reverse,
+    #[default]
     Stop
 }
 

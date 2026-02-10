@@ -11,7 +11,7 @@
             config: {
                 "trig_pin": 21,
                 "echo_pin": 20,
-                "dist_threshold_cm": 2,
+                "dist_threshold_cm": 0,
             },
             logging: (enabled: true)
         ),
@@ -30,7 +30,7 @@
             id: "propulsion-adapter",
             type: "propulsion_adapter::PropulsionAdapter",
             config: {
-                "e_stop_threshold_cm": 2, // Should be at least 22cm
+                "e_stop_threshold_cm": 22, // Should be at least 22cm
             }
         ),
 
@@ -52,7 +52,7 @@
             id: "dual-mtr-ctrlr",
             type: "dual_mtr_ctrlr::DualMtrCtrlr",
             config: {
-                "kp": 0.4,
+                "kp": 1.6,
                 "kd": 0.0,
                 "ki": 0.005,
                 "setpoint": 0.0,

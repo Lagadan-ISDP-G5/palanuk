@@ -3,8 +3,10 @@ use serde::de::DeserializeOwned;
 use rmp_serde::from_slice;
 use zenoh::{Config, Session, handlers::{FifoChannel, FifoChannelHandler}, key_expr::KeyExpr, pubsub::Subscriber, sample::Sample};
 use core::marker::PhantomData;
+use std::ops::Sub;
 
 pub const CHANNEL_CAPACITY: usize = 2048;
+pub const DEFAULT_STALENESS_TIMEOUT_MS: f64 = 500.0;
 
 pub struct ZSrc<S>
 where
@@ -14,6 +16,8 @@ where
     config: ZCfg,
     ctx: Option<ZCtx>,
     last_value: Option<S>,
+    last_recv_instant: Option<CuInstant>,
+    staleness_timeout: CuDuration,
 }
 
 pub struct ZCfg {
@@ -41,9 +45,15 @@ where
     {
         let config = config.ok_or(CuError::from("ZSrc: missing config! provide at least no value for the \"topic\" field"))?;
 
+        // let router_endpoint = config.get::<String>("router-endpoint").unwrap_or("tcp/localhost:7447".to_owned());
+
         let mut def_cfg = Config::default();
-        def_cfg.insert_json5("scouting/multicast/autoconnect", r#"{ "router": [], "peer": ["router", "peer"], "client": ["router"] }"#)
-            .map_err(|_| -> CuError {CuError::from("ZSrc: Failed to construct custom default zenoh config")})?;
+
+        // def_cfg.insert_json5("mode", r#""client""#)
+        //     .map_err(|_| -> CuError {CuError::from("ZSrc: Failed to set client mode")})?;
+
+        // def_cfg.insert_json5("connect/endpoints", &format!(r#"["{}"]"#, router_endpoint))
+        //     .map_err(|_| -> CuError {CuError::from("ZSrc: Failed to set router endpoint")})?;
 
         let session_config = config.get::<String>("zenoh_config_file").map_or(
             Ok(def_cfg),
@@ -54,6 +64,7 @@ where
         )?;
 
         let topic = config.get::<String>("topic").unwrap_or("palanuk".to_owned());
+        let staleness_timeout_ms = config.get::<f64>("staleness_timeout_ms").unwrap_or(DEFAULT_STALENESS_TIMEOUT_MS);
 
         Ok(Self {
             _marker: Default::default(),
@@ -63,6 +74,8 @@ where
             },
             ctx: None,
             last_value: None,
+            last_recv_instant: None,
+            staleness_timeout: CuDuration::from_millis(staleness_timeout_ms as u64),
         })
     }
 
@@ -100,12 +113,24 @@ where
                     |_| -> CuError {CuError::from("decode failed")}
                 )?;
                 self.last_value = Some(msg);
+                self.last_recv_instant = Some(Instant::now());
             },
-            Ok(None) => (), // no new message, will use last_value
+            Ok(None) => (), // no new message, will use last_value if not stale
             Err(_) => return Err(CuError::from("msg recv failed"))
         };
 
-        // always output last value if theres one
+        // clear stale values so downstream tasks early-return and motors stop
+        if let Some(last_recv) = self.last_recv_instant {
+            let res = CuInstant::now().as_nanos().checked_sub(last_recv.as_nanos());
+            if let Some(res_nanos) = res {
+                let elapsed = CuDuration::from_nanos(res_nanos);
+                if elapsed > self.staleness_timeout {
+                    self.last_value = None;
+                    self.last_recv_instant = None;
+                }
+            }
+        }
+
         if let Some(ref value) = self.last_value {
             output.set_payload(*value);
         }

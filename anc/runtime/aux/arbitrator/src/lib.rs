@@ -16,15 +16,15 @@ use opencv_splitter::NsmPayload;
 use opencv_iox2::{CornerDirection};
 use core::default::*;
 
-pub const R_WIND_COMP_LMTR: f32 = 0.6; // 1.17
-pub const R_WIND_COMP_RMTR: f32 = 0.85; // 0.85
+pub const R_WIND_COMP_LMTR: f32 = 1.0; // 1.17
+pub const R_WIND_COMP_RMTR: f32 = 1.0; // 0.85
 
-pub const BASELINE_SPEED: f32 = 0.35;
+pub const BASELINE_SPEED: f32 = 0.7;
 pub const HEADING_ERROR_END_STEERING_MANEUVER_THRESHOLD: f32 = 0.1;
-pub const OUTER_WHEEL_STEERING_SPEED: f32 = 0.85;
-pub const INNER_WHEEL_STEERING_SPEED: f32 = 0.5;
+pub const OUTER_WHEEL_STEERING_SPEED: f32 = 0.95;
+pub const INNER_WHEEL_STEERING_SPEED: f32 = 0.95;
 
-pub const ON_AXIS_ROTATION_DURATION_MILLISEC_90_DEG: u64 = 525;
+pub const ON_AXIS_ROTATION_DURATION_MILLISEC_90_DEG: u64 = 625;
 
 /// r_wind_comp values can be between 0 and 2 for either motor, but not both. If one is > 1 another must be <1.
 pub struct Arbitrator {
@@ -66,6 +66,7 @@ impl Default for OnAxisRotator {
 impl OnAxisRotator {
     fn update_current_cmd_from_wheel_dir(&mut self, left_wheel_dir: WheelDirection, right_wheel_dir: WheelDirection) {
         if self.rotator_state != RotateOnAxisState::Rotating {
+            self.last_cmd = self.current_cmd;
             match (left_wheel_dir, right_wheel_dir) {
                 (WheelDirection::Forward, WheelDirection::Reverse) => {
                     self.current_cmd = RotateOnAxisCmd::RotateRight;
@@ -101,16 +102,19 @@ impl OnAxisRotator {
         let res = CuInstant::now().as_nanos().checked_sub(self.instant_rotating_started.as_nanos());
         let elapsed = CuDuration::from_nanos(res.unwrap_or(0u64));
 
-        if elapsed >= dur && is_cmd_valid { is_cmd_done = true; }
-        else { is_cmd_done =  false; }
+        if elapsed >= dur && self.rotator_state == RotateOnAxisState::Rotating { is_cmd_done = true; }
+        else { is_cmd_done = false; }
 
         if is_cmd_done {
             self.rotator_state = RotateOnAxisState::Done;
             (false, None)
         }
-        else {
+        else if self.rotator_state == RotateOnAxisState::Rotating {
             // this is where we do the motor command subroutine to rotate the rover on its axis
             (true, Some(self.current_cmd))
+        }
+        else {
+            (false, None)
         }
     }
 }
@@ -141,7 +145,7 @@ impl Default for Arbitrator {
     fn default() -> Self {
         Self {
             e_stop_trig_fdbk: false,
-            loop_mode_fdbk: LoopState::Closed,
+            loop_mode_fdbk: LoopState::Open,
             target_speed: None,
             r_wind_comp_lmtr: 0.0,
             r_wind_comp_rmtr: 0.0,
@@ -217,27 +221,33 @@ impl CuTask for Arbitrator {
 
         self.target_speed = Some(prop_adap_pload.propulsion_payload.left_speed); // FIXME?
 
-        let mut closed_loop_prop_payload: PropulsionPayload;
+        let mut closed_loop_prop_payload: PropulsionPayload = PropulsionPayload::default();
         // lanekeeping handler
         if let Some(mtr_pid_pload) = mtr_pid.payload() && self.steerer_state != SteererState::Steering {
             self.last_pid_output = mtr_pid_pload.output;
         }
-        closed_loop_prop_payload = self.closed_loop_handler(self.last_pid_output, prop_adap_pload)?;
-
-        // steering handler
-        if let Some(m) = nsm.payload() {
-            if m.corner_coords.1 <= self.corner_y_coord_steering_trig && m.corner_detected {
-                if self.steerer_state != SteererState::Steering {
-                    self.steerer_state = SteererState::Steering; // sticky condition, will be mutated by steering handler
-                }
-            }
-
-            if self.steerer_state == SteererState::Steering {
-                self.steering_handler(prop_adap_pload, *m, &mut closed_loop_prop_payload);
-            }
-        }
 
         let loop_state = prop_adap_pload.loop_state;
+        match loop_state {
+            LoopState::Closed => {
+                closed_loop_prop_payload = self.closed_loop_handler(self.last_pid_output, prop_adap_pload)?;
+
+                // steering handler
+                if let Some(m) = nsm.payload() {
+                    if m.corner_coords.1 <= self.corner_y_coord_steering_trig && m.corner_detected {
+                        if self.steerer_state != SteererState::Steering {
+                            self.steerer_state = SteererState::Steering; // sticky condition, will be mutated by steering handler
+                        }
+                    }
+
+                    if self.steerer_state == SteererState::Steering {
+                        self.steering_handler(prop_adap_pload, *m, &mut closed_loop_prop_payload);
+                    }
+                }
+            }
+            _ => ()
+        }
+
         let prop_payload: PropulsionPayload = match loop_state {
             LoopState::Open => {
                 // Open-loop: just pass through propulsion payload, no PID needed
@@ -290,11 +300,10 @@ impl Arbitrator {
 
             self.on_axis_rotator.update_current_cmd_from_wheel_dir(ret.left_direction, ret.right_direction);
             if self.on_axis_rotator.current_cmd != RotateOnAxisCmd::Free {
-                if let (should_rotate, Some(_cmd)) = self.on_axis_rotator.should_rotate() {
-                    if !should_rotate {
-                        ret.left_direction = WheelDirection::Stop;
-                        ret.right_direction = WheelDirection::Stop;
-                    }
+                let (is_rotating, _) = self.on_axis_rotator.should_rotate();
+                if !is_rotating {
+                    ret.left_direction = WheelDirection::Stop;
+                    ret.right_direction = WheelDirection::Stop;
                 }
             }
 
@@ -314,12 +323,12 @@ impl Arbitrator {
         let left_speed;
         let right_speed;
         left_speed = (
-                (base_speed - pid_output) * self.r_wind_comp_lmtr
-            ).clamp(BASELINE_SPEED * self.r_wind_comp_lmtr, 0.9);
+                (base_speed*self.r_wind_comp_lmtr) - pid_output
+            ).clamp(BASELINE_SPEED * self.r_wind_comp_lmtr, 1.0);
 
         right_speed = (
-                (base_speed + pid_output) * self.r_wind_comp_rmtr
-            ).clamp(BASELINE_SPEED * self.r_wind_comp_rmtr, 0.9);
+                (base_speed*self.r_wind_comp_lmtr) + pid_output
+            ).clamp(BASELINE_SPEED * self.r_wind_comp_rmtr, 1.0);
 
         Ok(PropulsionPayload {
             left_enable: true,

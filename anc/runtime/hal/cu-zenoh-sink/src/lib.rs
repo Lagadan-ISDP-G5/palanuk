@@ -38,9 +38,14 @@ where
     {
         let config = config.ok_or(CuError::from("ZSrc: missing config! provide at least no value for the \"topic\" field"))?;
 
+        // let router_endpoint = config.get::<String>("router-endpoint").unwrap_or("tcp/localhost:7447".to_owned());
+
         let mut def_cfg = Config::default();
-        def_cfg.insert_json5("scouting/multicast/autoconnect", r#"{ "router": [], "peer": ["router", "peer"], "client": ["router"] }"#)
-            .map_err(|_| -> CuError {CuError::from("ZSrc: Failed to construct custom default zenoh config")})?;
+        // def_cfg.insert_json5("mode", r#""client""#)
+        //     .map_err(|_| -> CuError {CuError::from("ZSink: Failed to set client mode")})?;
+
+        // def_cfg.insert_json5("connect/endpoints", &format!(r#"["{}"]"#, router_endpoint))
+            // .map_err(|_| -> CuError {CuError::from("ZSink: Failed to set router endpoint")})?;
 
         let session_config = config.get::<String>("zenoh_config_file").map_or(
             Ok(def_cfg),

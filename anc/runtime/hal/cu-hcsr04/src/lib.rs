@@ -57,12 +57,15 @@ impl CuSrcTask for CuHcSr04 {
     fn process(&mut self, _clock: &RobotClock, output: &mut Self::Output<'_>) -> CuResult<()> {
         let dist_cm = self.driver_instance.dist_cm(None);
 
-        // Update last_value on successful reading
-        if let Ok(dist) = dist_cm {
-            self.last_value = Some(HcSr04Payload { distance: dist.to_val() });
+        match dist_cm {
+            Ok(dist) => {
+                self.last_value = Some(HcSr04Payload { distance: dist.to_val() });
+            }
+            Err(_) => {
+                return Err(CuError::from(format!("error getting distance")))
+            }
         }
 
-        // Always output last_value if we have one (sticky behavior)
         if let Some(payload) = self.last_value {
             output.set_payload(payload);
             output.metadata.set_status(format!("{:.2} cm", payload.distance));

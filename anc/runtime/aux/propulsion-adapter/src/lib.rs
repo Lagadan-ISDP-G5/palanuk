@@ -10,8 +10,8 @@ use dual_mtr_ctrlr::DualMtrCtrlrPayload;
 
 #[derive(Debug, Clone, Copy, Default, Encode, Decode, PartialEq, Serialize, Deserialize)]
 pub enum LoopState {
-    #[default]
     Closed,
+    #[default]
     Open
 }
 
@@ -114,12 +114,19 @@ impl CuTask for PropulsionAdapter {
 
         let loop_state = zenoh_msg.loop_state;
 
+        let is_e_stop_triggered;
         // Distance sensor: require payload (cu-hcsr04 is sticky)
         let Some(hcsr04_msg) = get_hcsr04.payload() else {
             return Ok(());
         };
+
         let distance = hcsr04_msg.distance;
-        let is_e_stop_triggered = distance < self.e_stop_threshold_cm;
+        if get_hcsr04.payload().is_none() {
+            is_e_stop_triggered = false;
+        }
+        else {
+            is_e_stop_triggered = distance < self.e_stop_threshold_cm;
+        }
 
         // NSM payload: only needed for closed-loop (heading error for PID)
         // For open-loop, use 0.0; for closed-loop, require payload (opencv-splitter is sticky)
