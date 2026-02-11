@@ -174,7 +174,7 @@ impl CuSinkTask for CameraPanning {
                     current_duty_cycle = target_duty_cycle;
                 }
 
-                sleep(Duration::from_millis(50));
+                sleep(Duration::from_millis(1750));
             }
 
             // Cleanup
@@ -193,7 +193,7 @@ impl CuSinkTask for CameraPanning {
                     }
                 }
             }
-            sleep(Duration::from_millis(500));
+            sleep(Duration::from_millis(900));
 
             _ = controller.sg90_pos_cmd.set_enable(false);
             _ = controller.sg90_pos_cmd.set_duty_cycle(0.0);
@@ -219,7 +219,6 @@ impl CuSinkTask for CameraPanning {
 
     fn stop(&mut self, _clock: &RobotClock) -> CuResult<()> {
         self.task_running.store(false, Ordering::Relaxed);
-        sleep(Duration::from_millis(2000));
         let hdl = self.ipolate_thread_hdl.take();
         match hdl {
             Some(hdl) => {

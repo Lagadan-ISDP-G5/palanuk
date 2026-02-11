@@ -46,7 +46,7 @@ pub struct PropulsionAdapterOutputPayload {
     pub panner_payload: CameraPanningPayload,
     pub weighted_error: f32,
     pub is_e_stop_triggered: bool,
-    pub distance: f64,
+    pub distance: Option<f64>,
 }
 
 // impl From<&PropulsionAdapterOutputPayload> for DualMtrCtrlrPayload {
@@ -127,7 +127,8 @@ impl CuTask for PropulsionAdapter {
         };
 
         let distance = hcsr04_msg.distance;
-        let is_e_stop_triggered = distance < self.e_stop_threshold_cm;
+        let is_e_stop_triggered = distance
+            .map_or(false, |d| d < self.e_stop_threshold_cm);
 
         // NSM payload: only needed for closed-loop (heading error for PID)
         // For open-loop, use 0.0; for closed-loop, require payload (opencv-splitter is sticky)

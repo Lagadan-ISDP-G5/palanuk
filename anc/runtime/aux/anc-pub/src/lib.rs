@@ -10,7 +10,7 @@ use propulsion_adapter::LoopState;
 pub struct AncPubPayload {
     pub e_stop_trig_fdbk: bool,
     pub loop_mode_fdbk: LoopState,
-    pub distance: f64
+    pub distance: Option<f64>
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, Encode, Decode)]
@@ -42,14 +42,14 @@ impl CuTask for AncPub {
     {
         if let Some(anc_pub) = input.payload() {
             let obstacle_detected = anc_pub.e_stop_trig_fdbk;
-            let distance_reading = Distance(anc_pub.distance);
-
             let obstacle_detected: ObstacleDetected = match obstacle_detected {
                 false => ObstacleDetected(0),
                 true => ObstacleDetected(1)
             };
             output.0.set_payload(obstacle_detected);
-            output.1.set_payload(distance_reading);
+            if let Some(d) = anc_pub.distance {
+                output.1.set_payload(Distance(d));
+            }
         }
 
         Ok(())

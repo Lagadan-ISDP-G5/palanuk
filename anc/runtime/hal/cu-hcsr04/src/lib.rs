@@ -13,7 +13,7 @@ pub struct CuHcSr04 {
 
 #[derive(Debug, Clone, Copy, Encode, Decode, Default, PartialEq, Serialize, Deserialize)]
 pub struct HcSr04Payload {
-    pub distance: f64,
+    pub distance: Option<f64>,
 }
 
 impl Freezable for CuHcSr04 {}
@@ -59,14 +59,14 @@ impl CuSrcTask for CuHcSr04 {
 
         match dist_cm {
             Ok(dist) => {
-                self.last_value = Some(HcSr04Payload { distance: dist.to_val() })
+                self.last_value = Some(HcSr04Payload { distance: Some(dist.to_val()) })
             },
-            _ => ()
+            _ => self.last_value = Some(HcSr04Payload { distance: None })
         }
 
         if let Some(payload) = self.last_value {
             output.set_payload(payload);
-            output.metadata.set_status(format!("{:.2} cm", payload.distance));
+            // output.metadata.set_status(format!("{:.2} cm", payload.distance));
         }
 
         Ok(())
