@@ -29,7 +29,6 @@ pub const ON_AXIS_ROTATION_DURATION_MILLISEC_90_DEG: u64 = 625;
 /// r_wind_comp values can be between 0 and 2 for either motor, but not both. If one is > 1 another must be <1.
 pub struct Arbitrator {
     e_stop_trig_fdbk: bool,
-    loop_mode_fdbk: LoopState,
     target_speed: Option<f32>,
     /// Applied to left motor
     r_wind_comp_lmtr: f32,
@@ -145,7 +144,6 @@ impl Default for Arbitrator {
     fn default() -> Self {
         Self {
             e_stop_trig_fdbk: false,
-            loop_mode_fdbk: LoopState::Open,
             target_speed: None,
             r_wind_comp_lmtr: 0.0,
             r_wind_comp_rmtr: 0.0,
@@ -160,13 +158,11 @@ impl Default for Arbitrator {
 impl Freezable for Arbitrator {
     fn freeze<E: bincode::enc::Encoder>(&self, encoder: &mut E) -> Result<(), bincode::error::EncodeError> {
         Encode::encode(&self.e_stop_trig_fdbk, encoder)?;
-        Encode::encode(&self.loop_mode_fdbk, encoder)?;
         Ok(())
     }
 
     fn thaw<D: bincode::de::Decoder>(&mut self, decoder: &mut D) -> Result<(), bincode::error::DecodeError> {
         self.e_stop_trig_fdbk = Decode::decode(decoder)?;
-        self.loop_mode_fdbk = Decode::decode(decoder)?;
         Ok(())
     }
 }
@@ -295,8 +291,8 @@ impl Arbitrator {
         else {
             ret = prop_adap_pload.propulsion_payload;
             // VERY IMPORTANT: apply compensation
-            ret.right_speed = ret.right_speed * self.r_wind_comp_rmtr;
-            ret.left_speed = ret.left_speed * self.r_wind_comp_lmtr;
+            ret.right_speed = (ret.right_speed * self.r_wind_comp_rmtr).clamp(0.0, 1.0);
+            ret.left_speed = (ret.left_speed * self.r_wind_comp_lmtr).clamp(0.0, 1.0);
 
             self.on_axis_rotator.update_current_cmd_from_wheel_dir(ret.left_direction, ret.right_direction);
             if self.on_axis_rotator.current_cmd != RotateOnAxisCmd::Free {
@@ -365,8 +361,8 @@ impl Arbitrator {
                     left_speed = INNER_WHEEL_STEERING_SPEED * self.r_wind_comp_lmtr;
                 } // unimplemented
             }
-            res.left_speed = left_speed;
-            res.right_speed = right_speed;
+            res.left_speed = left_speed.clamp(0.0, 1.0);
+            res.right_speed = right_speed.clamp(0.0, 1.0);
         }
     }
 

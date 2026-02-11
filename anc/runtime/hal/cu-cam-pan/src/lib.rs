@@ -178,9 +178,22 @@ impl CuSinkTask for CameraPanning {
             }
 
             // Cleanup
-            // Return back to middle position
-            _ = controller.sg90_pos_cmd.set_duty_cycle(0.075);
-            sleep(Duration::from_millis(3000));
+            // Interpolate back to middle position
+            let target_duty_cycle = (DUTY_CYCLE_POS_FRONT * IPOLATE_DIV) as u32;
+            if current_duty_cycle != target_duty_cycle {
+                if current_duty_cycle < target_duty_cycle {
+                    for duty_cycle in (current_duty_cycle..=target_duty_cycle).step_by(1) {
+                        _ = controller.sg90_pos_cmd.set_duty_cycle(duty_cycle as f32 / IPOLATE_DIV);
+                        sleep(Duration::from_millis(10));
+                    }
+                } else {
+                    for duty_cycle in (target_duty_cycle..=current_duty_cycle).rev().step_by(1) {
+                        _ = controller.sg90_pos_cmd.set_duty_cycle(duty_cycle as f32 / IPOLATE_DIV);
+                        sleep(Duration::from_millis(10));
+                    }
+                }
+            }
+            sleep(Duration::from_millis(500));
 
             _ = controller.sg90_pos_cmd.set_enable(false);
             _ = controller.sg90_pos_cmd.set_duty_cycle(0.0);

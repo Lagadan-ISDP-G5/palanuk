@@ -59,11 +59,9 @@ impl CuSrcTask for CuHcSr04 {
 
         match dist_cm {
             Ok(dist) => {
-                self.last_value = Some(HcSr04Payload { distance: dist.to_val() });
-            }
-            Err(_) => {
-                return Err(CuError::from(format!("error getting distance")))
-            }
+                self.last_value = Some(HcSr04Payload { distance: dist.to_val() })
+            },
+            _ => ()
         }
 
         if let Some(payload) = self.last_value {
