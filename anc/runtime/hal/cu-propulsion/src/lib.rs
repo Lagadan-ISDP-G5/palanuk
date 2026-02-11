@@ -84,7 +84,8 @@ pub struct Propulsion {
     #[allow(unused)]
     pin_assignments: PropulsionPinAssignments,
     last_lmtr_duty_cycle: Option<f32>,
-    last_rmtr_duty_cycle: Option<f32>
+    last_rmtr_duty_cycle: Option<f32>,
+    period_ns: u32
 }
 
 impl Freezable for Propulsion {
@@ -110,6 +111,11 @@ impl CuSinkTask for Propulsion {
     {
         let ComponentConfig(kv) =
             config.ok_or("No ComponentConfig specified for GPIO in RON")?;
+
+        let period_ns: u32 = kv
+            .get("period_ns")
+            .map_or(20_000_000, |p: &config::Value| -> u32 {p.clone().into()})
+            .into();
 
         let l298n_en_a_pin_offset: u32 = kv
             .get("l298n_en_a")
@@ -191,7 +197,8 @@ impl CuSinkTask for Propulsion {
             pin_controller_instances: pin_controller_instances,
             pin_assignments: pin_assignments,
             last_lmtr_duty_cycle: None,
-            last_rmtr_duty_cycle: None
+            last_rmtr_duty_cycle: None,
+            period_ns
         })
     }
 
@@ -199,8 +206,8 @@ impl CuSinkTask for Propulsion {
         let en_a_hdl = &mut self.pin_controller_instances.lmtr_en_a;
         let en_b_hdl = &mut self.pin_controller_instances.rmtr_en_b;
 
-        en_a_hdl.set_period_ns(20_000_000).unwrap();
-        en_b_hdl.set_period_ns(20_000_000).unwrap();
+        en_a_hdl.set_period_ns(self.period_ns).unwrap();
+        en_b_hdl.set_period_ns(self.period_ns).unwrap();
 
         match en_a_hdl.set_duty_cycle(0.0) {
             Ok(_) => (),

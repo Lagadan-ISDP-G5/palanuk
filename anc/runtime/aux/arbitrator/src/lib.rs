@@ -16,7 +16,7 @@ use opencv_splitter::NsmPayload;
 use opencv_iox2::{CornerDirection};
 use core::default::*;
 
-pub const R_WIND_COMP_LMTR: f32 = 1.0; // 1.17
+pub const R_WIND_COMP_LMTR: f32 = 0.85; // 1.17
 pub const R_WIND_COMP_RMTR: f32 = 0.85; // 0.85
 
 pub const BASELINE_SPEED: f32 = 0.7;
@@ -315,6 +315,7 @@ impl Arbitrator {
 
         // pid_output > 0 implies error >0, turn right: slow left, speed up right
         // // VERY IMPORTANT: apply compensation
+        // TODO rework control strategy into bangbang hybrid
         let base_speed = self.target_speed.unwrap_or(BASELINE_SPEED);
         let left_speed;
         let right_speed;

@@ -3,7 +3,6 @@ use serde::de::DeserializeOwned;
 use rmp_serde::from_slice;
 use zenoh::{Config, Session, handlers::{FifoChannel, FifoChannelHandler}, key_expr::KeyExpr, pubsub::Subscriber, sample::Sample};
 use core::marker::PhantomData;
-use std::ops::Sub;
 
 pub const CHANNEL_CAPACITY: usize = 2048;
 pub const DEFAULT_STALENESS_TIMEOUT_MS: f64 = 500.0;
@@ -47,7 +46,7 @@ where
 
         // let router_endpoint = config.get::<String>("router-endpoint").unwrap_or("tcp/localhost:7447".to_owned());
 
-        let mut def_cfg = Config::default();
+        let def_cfg = Config::default();
 
         // def_cfg.insert_json5("mode", r#""client""#)
         //     .map_err(|_| -> CuError {CuError::from("ZSrc: Failed to set client mode")})?;

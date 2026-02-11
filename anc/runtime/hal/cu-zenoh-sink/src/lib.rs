@@ -40,7 +40,7 @@ where
 
         // let router_endpoint = config.get::<String>("router-endpoint").unwrap_or("tcp/localhost:7447".to_owned());
 
-        let mut def_cfg = Config::default();
+        let def_cfg = Config::default();
         // def_cfg.insert_json5("mode", r#""client""#)
         //     .map_err(|_| -> CuError {CuError::from("ZSink: Failed to set client mode")})?;
 
