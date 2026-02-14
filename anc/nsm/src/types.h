@@ -51,6 +51,7 @@ struct PipelineConfig {
     // Thresholding
     int brightness_threshold = 200;
     int blur_kernel_size = 5;
+    bool invert_threshold = true;  // invert for black-lane-on-white tracks
 
     // Contour filtering
     float min_contour_length = 50.0f;

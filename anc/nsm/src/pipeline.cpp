@@ -21,6 +21,9 @@ const FrameResult& Pipeline::process(const cv::Mat& frame) {
 
     // Stage 1: Preprocessing
     result_.thresholded = threshold_white_line(input, config_);
+    if (config_.invert_threshold) {
+        cv::bitwise_not(result_.thresholded, result_.thresholded);
+    }
 
     // Stage 2: Line detection
     detect_line_sliding_window(result_.thresholded, config_, result_.center_line);

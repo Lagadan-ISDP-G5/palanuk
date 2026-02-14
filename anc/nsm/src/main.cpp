@@ -121,6 +121,11 @@ int runLiveMode(nsm::FrameSource& source, nsm::Pipeline& pipeline, bool headless
             std::cout << "Frame " << frame_count << " offset: " << *bridge_result.heading_error << std::endl;
         }
 
+        if (bridge_result.corner_detected) {
+            float* corner_y_coord = &bridge_result.corner_point.y;
+            std::cout << "Frame " << frame_count << " corner detected, y-coord: " << *corner_y_coord << std::endl;
+        }
+
         // Smooth FPS calculation
         double fps = 1000.0 / result.processing_time_ms;
         fps_smoothed = (fps_smoothed * 0.9) + (fps * 0.1);
