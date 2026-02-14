@@ -55,26 +55,25 @@ pub mod ec_5vrail_pubs {
     pub type ShuntVoltageMvoltsSink = ZSink<ec_pub::ShuntVoltageMvolts>;
 }
 
-// pub mod ec_lmtr_pubs {
-//     use cu_zenoh_sink::ZSink;
-//     use ec_pub::{PowerMwatts, LoadCurrentMamps, BusVoltageMvolts, ShuntVoltageMvolts};
+pub mod ec_lmtr_pubs {
+    use cu_zenoh_sink::ZSink;
+    use ec_pub::{PowerMwatts, LoadCurrentMamps, BusVoltageMvolts, ShuntVoltageMvolts};
 
-//     pub type PowerMwattsSink        = ZSink<ec_pub::PowerMwatts>;
-//     pub type LoadCurrentMampsSink   = ZSink<ec_pub::LoadCurrentMamps>;
-//     pub type BusVoltageMvoltsSink   = ZSink<ec_pub::BusVoltageMvolts>;
-//     pub type ShuntVoltageMvoltsSink = ZSink<ec_pub::ShuntVoltageMvolts>;
-// }
+    pub type PowerMwattsSink        = ZSink<ec_pub::PowerMwatts>;
+    pub type LoadCurrentMampsSink   = ZSink<ec_pub::LoadCurrentMamps>;
+    pub type BusVoltageMvoltsSink   = ZSink<ec_pub::BusVoltageMvolts>;
+    pub type ShuntVoltageMvoltsSink = ZSink<ec_pub::ShuntVoltageMvolts>;
+}
 
+pub mod ec_rmtr_pubs {
+    use cu_zenoh_sink::ZSink;
+    use ec_pub::{PowerMwatts, LoadCurrentMamps, BusVoltageMvolts, ShuntVoltageMvolts};
 
-// pub mod ec_rmtr_pubs {
-//     use cu_zenoh_sink::ZSink;
-//     use ec_pub::{PowerMwatts, LoadCurrentMamps, BusVoltageMvolts, ShuntVoltageMvolts};
-
-//     pub type PowerMwattsSink        = ZSink<ec_pub::PowerMwatts>;
-//     pub type LoadCurrentMampsSink   = ZSink<ec_pub::LoadCurrentMamps>;
-//     pub type BusVoltageMvoltsSink   = ZSink<ec_pub::BusVoltageMvolts>;
-//     pub type ShuntVoltageMvoltsSink = ZSink<ec_pub::ShuntVoltageMvolts>;
-// }
+    pub type PowerMwattsSink        = ZSink<ec_pub::PowerMwatts>;
+    pub type LoadCurrentMampsSink   = ZSink<ec_pub::LoadCurrentMamps>;
+    pub type BusVoltageMvoltsSink   = ZSink<ec_pub::BusVoltageMvolts>;
+    pub type ShuntVoltageMvoltsSink = ZSink<ec_pub::ShuntVoltageMvolts>;
+}
 
 #[copper_runtime(config = "taskdag.ron", sim_mode = false)]
 struct Palanuk {}

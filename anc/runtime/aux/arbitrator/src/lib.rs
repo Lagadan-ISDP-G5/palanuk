@@ -24,7 +24,7 @@ pub const HEADING_ERROR_END_STEERING_MANEUVER_THRESHOLD: f32 = 0.1;
 pub const OUTER_WHEEL_STEERING_SPEED: f32 = 0.95;
 pub const INNER_WHEEL_STEERING_SPEED: f32 = 0.95;
 
-pub const ON_AXIS_ROTATION_DURATION_MILLISEC_90_DEG: u64 = 625;
+pub const ON_AXIS_ROTATION_DURATION_MILLISEC_90_DEG: u64 = 313;
 
 /// r_wind_comp values can be between 0 and 2 for either motor, but not both. If one is > 1 another must be <1.
 pub struct Arbitrator {

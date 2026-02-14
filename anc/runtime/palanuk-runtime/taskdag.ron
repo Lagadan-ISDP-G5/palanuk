@@ -54,7 +54,7 @@
             config: {
                 "kp": 1.6,
                 "kd": 0.0,
-                "ki": 0.005,
+                "ki": 0.9,
                 "setpoint": 0.0,
                 "cutoff": 2.0,
             }
@@ -119,22 +119,104 @@
 
         // END: 5V rail supply power monitoring
 
+        // BEGIN: LMTR power monitoring
 
-        // (
-        //     id: "lmtr-power-monitoring",
-        //     type: "cu_powermon::CuIna219",
-        //     config: {
-        //         "target_addr": 0x40,
-        //     },
-        // ),
+        (
+            id: "lmtr-power-monitoring",
+            type: "cu_powermon::CuIna219",
+            config: {
+                "target_addr": 0x40,
+            },
+        ),
 
-        // (
-        //     id: "rmtr-power-monitoring",
-        //     type: "cu_powermon::CuIna219",
-        //     config: {
-        //         "target_addr": 0x41,
-        //     },
-        // ),
+        (
+            id: "ec-pub-lmtr",
+            type: "ec_pub::EcPub",
+        ),
+
+        (
+            id: "lmtr-power-mwatts",
+            type: "ec_lmtr_pubs::PowerMwattsSink",
+            config: {
+                "topic": "palanuk/ec/lmtr/power/mwatts",
+            },
+        ),
+
+        (
+            id: "lmtr-load-current-mamps",
+            type: "ec_lmtr_pubs::LoadCurrentMampsSink",
+            config: {
+                "topic": "palanuk/ec/lmtr/load_current/mamps",
+            },
+        ),
+
+        (
+            id: "lmtr-bus-voltage-mvolts",
+            type: "ec_lmtr_pubs::BusVoltageMvoltsSink",
+            config: {
+                "topic": "palanuk/ec/lmtr/bus_voltage/mvolts",
+            },
+        ),
+
+        (
+            id: "lmtr-shunt-voltage-mvolts",
+            type: "ec_lmtr_pubs::ShuntVoltageMvoltsSink",
+            config: {
+                "topic": "palanuk/ec/lmtr/shunt_voltage/mvolts",
+            },
+        ),
+
+        // END: LMTR power monitoring
+
+
+        // BEGIN: RMTR power monitoring
+
+        (
+            id: "rmtr-power-monitoring",
+            type: "cu_powermon::CuIna219",
+            config: {
+                "target_addr": 0x41,
+            },
+        ),
+
+        (
+            id: "ec-pub-rmtr",
+            type: "ec_pub::EcPub",
+        ),
+
+        (
+            id: "rmtr-power-mwatts",
+            type: "ec_rmtr_pubs::PowerMwattsSink",
+            config: {
+                "topic": "palanuk/ec/rmtr/power/mwatts",
+            },
+        ),
+
+        (
+            id: "rmtr-load-current-mamps",
+            type: "ec_rmtr_pubs::LoadCurrentMampsSink",
+            config: {
+                "topic": "palanuk/ec/rmtr/load_current/mamps",
+            },
+        ),
+
+        (
+            id: "rmtr-bus-voltage-mvolts",
+            type: "ec_rmtr_pubs::BusVoltageMvoltsSink",
+            config: {
+                "topic": "palanuk/ec/rmtr/bus_voltage/mvolts",
+            },
+        ),
+
+        (
+            id: "rmtr-shunt-voltage-mvolts",
+            type: "ec_rmtr_pubs::ShuntVoltageMvoltsSink",
+            config: {
+                "topic": "palanuk/ec/rmtr/shunt_voltage/mvolts",
+            },
+        ),
+
+        // END: RMTR power monitoring
 
         // BEGIN: Subscribers to ODD
 
@@ -234,11 +316,35 @@
             msg: "cu_powermon::Ina219Payload"
         ),
 
+        (
+            src: "lmtr-power-monitoring",
+            dst: "ec-pub-lmtr",
+            msg: "cu_powermon::Ina219Payload"
+        ),
+
+        (
+            src: "rmtr-power-monitoring",
+            dst: "ec-pub-rmtr",
+            msg: "cu_powermon::Ina219Payload"
+        ),
+
         // ec-pub-5vrail tails
         (src: "ec-pub-5vrail", dst: "5vrail-power-mwatts",         msg: "ec_pub::PowerMwatts"),
         (src: "ec-pub-5vrail", dst: "5vrail-load-current-mamps",   msg: "ec_pub::LoadCurrentMamps"),
         (src: "ec-pub-5vrail", dst: "5vrail-bus-voltage-mvolts",   msg: "ec_pub::BusVoltageMvolts"),
         (src: "ec-pub-5vrail", dst: "5vrail-shunt-voltage-mvolts", msg: "ec_pub::ShuntVoltageMvolts"),
+
+        // ec-pub-lmtr tails
+        (src: "ec-pub-lmtr", dst: "lmtr-power-mwatts",         msg: "ec_pub::PowerMwatts"),
+        (src: "ec-pub-lmtr", dst: "lmtr-load-current-mamps",   msg: "ec_pub::LoadCurrentMamps"),
+        (src: "ec-pub-lmtr", dst: "lmtr-bus-voltage-mvolts",   msg: "ec_pub::BusVoltageMvolts"),
+        (src: "ec-pub-lmtr", dst: "lmtr-shunt-voltage-mvolts", msg: "ec_pub::ShuntVoltageMvolts"),
+
+        // ec-pub-rmtr tails
+        (src: "ec-pub-rmtr", dst: "rmtr-power-mwatts",         msg: "ec_pub::PowerMwatts"),
+        (src: "ec-pub-rmtr", dst: "rmtr-load-current-mamps",   msg: "ec_pub::LoadCurrentMamps"),
+        (src: "ec-pub-rmtr", dst: "rmtr-bus-voltage-mvolts",   msg: "ec_pub::BusVoltageMvolts"),
+        (src: "ec-pub-rmtr", dst: "rmtr-shunt-voltage-mvolts", msg: "ec_pub::ShuntVoltageMvolts"),
 
         // zsrc-merger heads
         (src: "odd-openloop-speed",      dst: "zsrc-merger", msg: "zsrc_merger::OddOpenLoopSpeed"),
