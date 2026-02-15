@@ -52,9 +52,9 @@
             id: "dual-mtr-ctrlr",
             type: "dual_mtr_ctrlr::DualMtrCtrlr",
             config: {
-                "kp": 1.6,
+                "kp": 3.4,
                 "kd": 0.0,
-                "ki": 0.9,
+                "ki": 2.5,
                 "setpoint": 0.0,
                 "cutoff": 2.0,
             }
@@ -298,7 +298,7 @@
             config: {
                 "period_ns": 200000,
                 "l298n_en_a": 2, // PWM_CHAN2 = GPIO18
-                "l298n_en_b": 3, // PWM_CHAN1 = GPIO13, PWM_CHAN1 is somehow faulty, using PWM_CHAN3 = GPIO15, PIN10
+                "l298n_en_b": 3, // PWM_CHAN3 = GPIO15, PIN10
                 "l298n_in_1": 23,
                 "l298n_in_2": 24,
                 "l298n_in_3": 26,

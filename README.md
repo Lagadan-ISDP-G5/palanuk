@@ -11,10 +11,8 @@
 * Power monitoring for both motors
 
 <div style="text-align: center;">
-    <img src="./static/googly_eyed.png" width="400" alt="A picture of a work-in-progress unmanned ground vehicle"/>
+    <img src="./static/latest.jpg" width="400" alt="A picture of a work-in-progress unmanned ground vehicle"/>
 </div>
-
-_Googly eyes added with gen AI, we've yet to put it on. But rest assured it will be one silly little goober._
 
 
 # Team members
