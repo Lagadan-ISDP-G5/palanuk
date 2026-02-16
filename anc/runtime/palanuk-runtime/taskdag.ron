@@ -1,6 +1,6 @@
 (
     runtime: (
-        rate_target_hz: 20, // 50ms cycle time, lanekeeping and steering service runs at >= 24 fps.
+        rate_target_hz: 56, // 50ms cycle time, lanekeeping and steering service runs at >= 24 fps.
     ),
 
     tasks: [

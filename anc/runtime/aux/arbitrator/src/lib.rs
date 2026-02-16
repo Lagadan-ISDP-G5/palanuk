@@ -17,12 +17,12 @@ use opencv_iox2::{CornerDirection};
 use core::default::*;
 
 pub const R_WIND_COMP_LMTR: f32 = 1.0; // 1.17
-pub const R_WIND_COMP_RMTR: f32 = 0.90; // 0.85
+pub const R_WIND_COMP_RMTR: f32 = 1.0; // 0.85
 
 pub const BASELINE_SPEED: f32 = 0.7;
 pub const HEADING_ERROR_END_STEERING_MANEUVER_THRESHOLD: f32 = 0.1;
 pub const OUTER_WHEEL_STEERING_SPEED: f32 = 0.95;
-pub const INNER_WHEEL_STEERING_SPEED: f32 = 0.95;
+pub const INNER_WHEEL_STEERING_SPEED: f32 = 0.5;
 
 pub const ON_AXIS_ROTATION_DURATION_MILLISEC_90_DEG: u64 = 313;
 
