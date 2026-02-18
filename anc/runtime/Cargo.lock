@@ -2151,8 +2151,6 @@ dependencies = [
 [[package]]
 name = "hcsr04-gpio-cdev"
 version = "0.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e3d71a3d92a340f0766eab64a2083ce4c9f35c2c1c96727ef2ef1635e245eeb7"
 dependencies = [
  "gpio-cdev",
  "libc",

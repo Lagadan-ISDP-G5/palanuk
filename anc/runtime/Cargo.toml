@@ -36,8 +36,8 @@ cu-consolemon = "0.12.0"
 cu-pid = "0.12.0"
 cu-bincode = "=2.0.2"
 serde = "1.0.228"
-hcsr04-gpio-cdev = "0.1.4"
-# hcsr04-gpio-cdev = { path = "/Users/ander/Documents/proj/hc-sr04-gpio-cdev" }
+# hcsr04-gpio-cdev = "0.1.4"
+hcsr04-gpio-cdev = { path = "/Users/ander/Documents/proj/hc-sr04-gpio-cdev" }
 dumb-sysfs-pwm = { git = "https://github.com/andergisomon/dumb-sysfs-pwm.git" }
 # dumb-sysfs-pwm = { path = "/Users/ander/Documents/proj/dumb-sysfs-pwm" }
 gpio-cdev = "0.6.0"
