@@ -8,3 +8,7 @@ license.workspace = true
 keywords.workspace = true
 
 [dependencies]
+cu29 = { workspace = true }
+cu-irencoder = { workspace = true }
+speed-ctrlrs = { workspace = true }
+cu-propulsion = { workspace = true }

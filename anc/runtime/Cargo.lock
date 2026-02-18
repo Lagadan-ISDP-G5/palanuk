@@ -4976,6 +4976,12 @@ dependencies = [
 [[package]]
 name = "speed-err-adapter"
 version = "0.1.0"
+dependencies = [
+ "cu-irencoder",
+ "cu-propulsion",
+ "cu29",
+ "speed-ctrlrs",
+]
 
 [[package]]
 name = "spin"

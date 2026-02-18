@@ -13,8 +13,8 @@ pub struct CuIrEncoder {
 
 #[derive(Debug, Clone, Copy, Encode, Decode, Default, PartialEq, Serialize, Deserialize)]
 pub struct IrEncoderPayload {
-    pub lmtr_normalized_rpm: Option<f64>,
-    pub rmtr_normalized_rpm: Option<f64>,
+    pub lmtr_normalized_rpm: Option<f32>,
+    pub rmtr_normalized_rpm: Option<f32>,
 }
 
 impl Freezable for CuIrEncoder {}
@@ -71,8 +71,8 @@ impl CuSrcTask for CuIrEncoder {
             (Ok(lmtr_rpm), Ok(rmtr_rpm)) => {
                 self.last_value = Some(
                     IrEncoderPayload {
-                        lmtr_normalized_rpm: Some(lmtr_rpm as f64),
-                        rmtr_normalized_rpm: Some(rmtr_rpm as f64)
+                        lmtr_normalized_rpm: Some(lmtr_rpm),
+                        rmtr_normalized_rpm: Some(rmtr_rpm)
                     }
                 )
             },
