@@ -1,0 +1,13 @@
+[package]
+name = "speed-ctrlrs"
+publish.workspace = true
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+keywords.workspace = true
+
+[dependencies]
+cu-bincode = { workspace = true }
+serde = { workspace = true }
+cu-pid = { workspace = true }

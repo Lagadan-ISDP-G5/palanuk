@@ -17,7 +17,10 @@ members = [
     "aux/zsrc-merger",
     "aux/ec-pub",
     "aux/opencv-splitter",
-    "hal/cu-irencoder"
+    "hal/cu-irencoder",
+    "aux/speed-err-adapter",
+    "aux/speed-correction-summer",
+    "hal/speed-ctrlrs",
 ]
 
 [workspace.package]
@@ -63,10 +66,16 @@ opencv-iox2 = { path = "./aux/opencv-iox2" }
 cu-zenoh-sink = { path = "./hal/cu-zenoh-sink" }
 zsrc-merger = { path = "./aux/zsrc-merger" }
 panner-adapter = { path = "./aux/panner-adapter" }
-dual-mtr-ctrlr = { path = "./hal/dual-mtr-ctrlr" }
+
 arbitrator = { path = "./aux/arbitrator" }
 opencv-splitter = { path = "./aux/opencv-splitter" }
+
+dual-mtr-ctrlr = { path = "./hal/dual-mtr-ctrlr" }
+speed-ctrlrs = { path = "./hal/speed-ctrlrs" }
 cu-irencoder = { path = "./hal/cu-irencoder" }
+speed-err-adapter = { path = "./aux/speed-err-adapter" }
+speed-correction-summer = { path = "./aux/speed-correction-summer" }
+
 
 [build]
 target = "aarch64-unknown-linux-gnu"

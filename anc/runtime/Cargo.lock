@@ -4947,6 +4947,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "speed-correction-summer"
+version = "0.1.0"
+
+[[package]]
+name = "speed-ctrlrs"
+version = "0.1.0"
+dependencies = [
+ "cu-bincode",
+ "cu-pid",
+ "serde",
+]
+
+[[package]]
+name = "speed-err-adapter"
+version = "0.1.0"
+
+[[package]]
 name = "spin"
 version = "0.9.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
