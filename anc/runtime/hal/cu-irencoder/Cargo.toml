@@ -8,3 +8,7 @@ license.workspace = true
 keywords.workspace = true
 
 [dependencies]
+cu29 = { workspace = true }
+cu-bincode = { workspace = true }
+serde = { workspace = true }
+ir-encoder-gpio-cdev = { workspace = true }

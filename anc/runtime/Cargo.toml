@@ -76,6 +76,9 @@ cu-irencoder = { path = "./hal/cu-irencoder" }
 speed-err-adapter = { path = "./aux/speed-err-adapter" }
 speed-correction-summer = { path = "./aux/speed-correction-summer" }
 
+ir-encoder-gpio-cdev = { path = "/Users/ander/Documents/proj/ir-encoder-gpio-cdev" }
+# ir-encoder-gpio-cdev = "^0.1.0"
+
 
 [build]
 target = "aarch64-unknown-linux-gnu"

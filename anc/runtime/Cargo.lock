@@ -1019,6 +1019,12 @@ dependencies = [
 [[package]]
 name = "cu-irencoder"
 version = "0.1.0"
+dependencies = [
+ "cu-bincode",
+ "cu29",
+ "ir-encoder-gpio-cdev",
+ "serde",
+]
 
 [[package]]
 name = "cu-pid"
@@ -2692,6 +2698,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bf466541e9d546596ee94f9f69590f89473455f88372423e0008fc1a7daf100e"
 dependencies = [
  "serde",
+]
+
+[[package]]
+name = "ir-encoder-gpio-cdev"
+version = "0.1.0"
+dependencies = [
+ "gpio-cdev",
+ "libc",
 ]
 
 [[package]]
