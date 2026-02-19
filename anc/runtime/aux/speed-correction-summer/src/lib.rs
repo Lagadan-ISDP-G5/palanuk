@@ -3,8 +3,9 @@ use cu29::prelude::*;
 use cu_propulsion::PropulsionPayload;
 use cu_pid::PIDControlOutputPayload;
 
-pub const R_WIND_COMP_LMTR: f32 = 1.0;
+pub const R_WIND_COMP_LMTR: f32 = 1.1;
 pub const R_WIND_COMP_RMTR: f32 = 1.0;
+pub const MAX_PID_CORRECTION: f32 = 0.25;
 
 pub struct SpeedCorrectionSummer {
     last_output: Option<PropulsionPayload>,
@@ -66,35 +67,30 @@ impl CuTask for SpeedCorrectionSummer {
         let rmtr_speed_ctrlr_outpload = input.1.payload();
         let feedforward = input.2.payload();
 
-        let lmtr_summed_speed;
-        let rmtr_summed_speed;
+        if let Some(ff) = feedforward {
+            let lmtr_pid = lmtr_speed_ctrlr_outpload.map(|p| p.output).unwrap_or(0.0)
+                .clamp(-MAX_PID_CORRECTION, MAX_PID_CORRECTION);
+            let rmtr_pid = rmtr_speed_ctrlr_outpload.map(|p| p.output).unwrap_or(0.0)
+                .clamp(-MAX_PID_CORRECTION, MAX_PID_CORRECTION);
 
-        match (lmtr_speed_ctrlr_outpload, rmtr_speed_ctrlr_outpload, feedforward) {
-            (
-                Some(lmtr_speed_ctrlr),
-                Some(rmtr_speed_ctrlr),
-                Some(ff)
-            ) => {
-                let lmtr_ff = ff.left_speed;
-                let rmtr_ff = ff.right_speed;
+            let lmtr_ff = ff.left_speed;
+            let rmtr_ff = ff.right_speed;
 
-                lmtr_summed_speed = lmtr_speed_ctrlr.output + (self.k_ff_lmtr * lmtr_ff);
-                rmtr_summed_speed = rmtr_speed_ctrlr.output + (self.k_ff_rmtr * rmtr_ff);
+            let lmtr_summed_speed = lmtr_pid + (self.k_ff_lmtr * lmtr_ff);
+            let rmtr_summed_speed = rmtr_pid + (self.k_ff_rmtr * rmtr_ff);
 
-                let mut output_msg = ff.clone();
-                output_msg.left_speed = R_WIND_COMP_LMTR * lmtr_summed_speed.clamp(self.k_ff_lmtr * lmtr_ff, 1.0);
-                output_msg.right_speed = R_WIND_COMP_RMTR * rmtr_summed_speed.clamp(self.k_ff_rmtr * rmtr_ff, 1.0);
+            eprintln!("PID L={:.4} R={:.4} | FF L={:.4} R={:.4} | OUT L={:.4} R={:.4}",
+                lmtr_pid, rmtr_pid, lmtr_ff, rmtr_ff, lmtr_summed_speed, rmtr_summed_speed);
 
-                self.last_output = Some(output_msg);
-            },
-            _ => return Err(CuError::from(format!("last_output unset!")))
+            let mut output_msg = ff.clone();
+            output_msg.left_speed = (R_WIND_COMP_LMTR * lmtr_summed_speed).clamp(0.0, 1.0);
+            output_msg.right_speed = (R_WIND_COMP_RMTR * rmtr_summed_speed).clamp(0.0, 1.0);
+
+            self.last_output = Some(output_msg);
         }
 
-        match self.last_output {
-            Some(msg) => {
-                output.set_payload(msg);
-            },
-            None => return Err(CuError::from(format!("no cmd sent to mtrs!")))
+        if let Some(msg) = self.last_output {
+            output.set_payload(msg);
         }
         Ok(())
     }

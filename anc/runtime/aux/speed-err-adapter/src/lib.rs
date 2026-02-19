@@ -7,6 +7,8 @@ use cu_propulsion::PropulsionPayload;
 pub struct SpeedErrAdapter {
     lmtr_speed_err: Option<f32>,
     rmtr_speed_err: Option<f32>,
+    lmtr_actual: f32,
+    rmtr_actual: f32,
 }
 
 impl Freezable for SpeedErrAdapter {}
@@ -21,43 +23,38 @@ impl CuTask for SpeedErrAdapter {
     {
         Ok(Self {
             lmtr_speed_err: None,
-            rmtr_speed_err: None
+            rmtr_speed_err: None,
+            lmtr_actual: 0.0,
+            rmtr_actual: 0.0,
         })
     }
 
     fn process(&mut self, clock: &RobotClock, input: &Self::Input<'_>, output: &mut Self::Output<'_>,)
     -> CuResult<()>
     {
-        let (actual_speed, speed_setpoint) = (input.0.payload(), input.1.payload());
+        let actual_speed = input.0.payload();
         // used in pid output calculations
         output.0.tov = Tov::Time(clock.now());
         output.1.tov = Tov::Time(clock.now());
 
-        match (actual_speed, speed_setpoint) {
-            (Some(actual_speed), Some(speed_setpoint)) => {
-                let lmtr_actual_speed = actual_speed.lmtr_normalized_rpm;
-                let rmtr_actual_speed = actual_speed.rmtr_normalized_rpm;
-
-                match (lmtr_actual_speed, rmtr_actual_speed) {
-                    (Some(lmtr_actual_speed), Some(rmtr_actual_speed)) => {
-                        self.lmtr_speed_err = Some(speed_setpoint.left_speed - lmtr_actual_speed.clamp(0.0, 0.9));
-                        self.rmtr_speed_err = Some(speed_setpoint.right_speed - rmtr_actual_speed.clamp(0.0, 0.9));
-                    }
-                    _ => {
-                        return Err(CuError::from(format!("no actual rpm reached adapter!")))
-                    }
-                }
-            },
-            _ => ()
+        if let Some(actual_speed) = actual_speed {
+            if let Some(lmtr) = actual_speed.lmtr_normalized_rpm {
+                self.lmtr_actual = lmtr.clamp(0.0, 0.9);
+            }
+            if let Some(rmtr) = actual_speed.rmtr_normalized_rpm {
+                self.rmtr_actual = rmtr.clamp(0.0, 0.9);
+            }
         }
 
-        match (self.lmtr_speed_err, self.rmtr_speed_err) {
-            (Some(lmtr_speed_err), Some(rmtr_speed_err)) => {
-                output.0.set_payload(LmtrSpeedErrPayload { error: lmtr_speed_err });
-                output.1.set_payload(RmtrSpeedErrPayload { error: rmtr_speed_err });
-            },
-            _ => return Err(CuError::from(format!("adapter not sending anything!")))
+        let avg_speed = (self.lmtr_actual + self.rmtr_actual) / 2.0;
+        self.lmtr_speed_err = Some(self.lmtr_actual - avg_speed);
+        self.rmtr_speed_err = Some(self.rmtr_actual - avg_speed);
+
+        if let (Some(lmtr_speed_err), Some(rmtr_speed_err)) = (self.lmtr_speed_err, self.rmtr_speed_err) {
+            output.0.set_payload(LmtrSpeedErrPayload { error: lmtr_speed_err });
+            output.1.set_payload(RmtrSpeedErrPayload { error: rmtr_speed_err });
         }
+
         Ok(())
     }
 
