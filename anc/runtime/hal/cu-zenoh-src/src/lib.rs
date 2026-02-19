@@ -1,6 +1,7 @@
 use cu29::prelude::*;
 use serde::de::DeserializeOwned;
 use rmp_serde::from_slice;
+use std::sync::Arc;
 use zenoh::{Config, Session, handlers::{FifoChannel, FifoChannelHandler}, key_expr::KeyExpr, pubsub::Subscriber, sample::Sample};
 use core::marker::PhantomData;
 
@@ -25,7 +26,7 @@ pub struct ZCfg {
 }
 
 pub struct ZCtx {
-    session: Session,
+    _session: Arc<Session>,
     subscriber: Subscriber<FifoChannelHandler<Sample>>,
 }
 
@@ -44,15 +45,7 @@ where
     {
         let config = config.ok_or(CuError::from("ZSrc: missing config! provide at least no value for the \"topic\" field"))?;
 
-        // let router_endpoint = config.get::<String>("router-endpoint").unwrap_or("tcp/localhost:7447".to_owned());
-
         let def_cfg = Config::default();
-
-        // def_cfg.insert_json5("mode", r#""client""#)
-        //     .map_err(|_| -> CuError {CuError::from("ZSrc: Failed to set client mode")})?;
-
-        // def_cfg.insert_json5("connect/endpoints", &format!(r#"["{}"]"#, router_endpoint))
-        //     .map_err(|_| -> CuError {CuError::from("ZSrc: Failed to set router endpoint")})?;
 
         let session_config = config.get::<String>("zenoh_config_file").map_or(
             Ok(def_cfg),
@@ -79,10 +72,8 @@ where
     }
 
     fn start(&mut self, _clock: &RobotClock) -> CuResult<()> {
-        let session = zenoh::Wait::wait(zenoh::open(self.config.config.clone()))
-            .map_err(
-                |_| -> CuError {CuError::from("ZSrc: Failed to open session")}
-            )?;
+        let session = zenoh_session::shared_session(self.config.config.clone())
+            .map_err(|e| CuError::from(e.as_str()))?;
 
         let key_expr = KeyExpr::<'static>::new(self.config.topic.clone())
             .map_err(
@@ -95,7 +86,7 @@ where
                 |_| -> CuError {CuError::from("ZSrc: Failed to create subscriber")}
             )?;
 
-        self.ctx = Some(ZCtx { session, subscriber });
+        self.ctx = Some(ZCtx { _session: session, subscriber });
         Ok(())
     }
 
@@ -138,16 +129,12 @@ where
     }
 
     fn stop(&mut self, _clock: &RobotClock) -> CuResult<()> {
-        if let Some(ZCtx { session, subscriber }) = self.ctx.take() {
+        if let Some(ZCtx { _session, subscriber }) = self.ctx.take() {
             zenoh::Wait::wait(subscriber.undeclare())
                 .map_err(
                     |_| -> CuError {CuError::from("ZSrc: Failed to undeclare subscriber")}
                 )?;
-
-            zenoh::Wait::wait(session.close())
-                .map_err(
-                    |_| -> CuError {CuError::from("ZSrc: Failed to close session")}
-                )?;
+            // Session is shared; don't close it here.
         }
         Ok(())
     }
