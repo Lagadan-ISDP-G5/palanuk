@@ -9,6 +9,7 @@ keywords.workspace = true
 
 [dependencies]
 zenoh = { workspace = true }
+zenoh-session = { workspace = true }
 cu29 = { workspace = true }
 serde = { workspace = true }
 rmp-serde = { workspace = true }

@@ -1,5 +1,5 @@
 [package]
-name = "cu-zenoh-sink"
+name = "zenoh-session"
 publish.workspace = true
 version.workspace = true
 authors.workspace = true
@@ -9,10 +9,3 @@ keywords.workspace = true
 
 [dependencies]
 zenoh = { workspace = true }
-zenoh-session = { workspace = true }
-cu29 = { workspace = true }
-rmp-serde = { workspace = true }
-serde = { workspace = true }
-
-[build-dependencies]
-cfg_aliases = "0.2.1"

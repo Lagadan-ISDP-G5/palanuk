@@ -343,9 +343,9 @@
             id: "lmtr-speed-ctrlr",
             type: "speed_ctrlrs::LmtrSpeedCtrlr",
             config: {
-                "kp": 3.2,
-                "kd": 0.0,
-                "ki": 1.3,
+                "kp": 5.2,
+                "kd": 2.0,
+                "ki": 2.3,
                 "setpoint": 0.0,
                 "cutoff": 2.0,
             }
@@ -355,9 +355,9 @@
             id: "rmtr-speed-ctrlr",
             type: "speed_ctrlrs::RmtrSpeedCtrlr",
             config: {
-                "kp": 0.3,
-                "kd": 0.0,
-                "ki": 0.2,
+                "kp": 5.2,
+                "kd": 2.0,
+                "ki": 2.3,
                 "setpoint": 0.0,
                 "cutoff": 2.0,
             }
@@ -369,7 +369,7 @@
             // config optional for k_ff_lmtr and k_ff_rmtr
             config: {
                 "k_ff_lmtr": 1.0,
-                "k_ff_rmtr": 0.3,
+                "k_ff_rmtr": 0.1,
             }
         ),
 

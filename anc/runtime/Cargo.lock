@@ -1080,6 +1080,7 @@ dependencies = [
  "rmp-serde",
  "serde",
  "zenoh",
+ "zenoh-session",
 ]
 
 [[package]]
@@ -1091,6 +1092,7 @@ dependencies = [
  "rmp-serde",
  "serde",
  "zenoh",
+ "zenoh-session",
 ]
 
 [[package]]
@@ -7232,6 +7234,13 @@ dependencies = [
  "tracing",
  "zenoh-macros",
  "zenoh-result",
+]
+
+[[package]]
+name = "zenoh-session"
+version = "0.1.0"
+dependencies = [
+ "zenoh",
 ]
 
 [[package]]

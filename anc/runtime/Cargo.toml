@@ -21,6 +21,7 @@ members = [
     "aux/speed-err-adapter",
     "aux/speed-correction-summer",
     "hal/speed-ctrlrs",
+    "hal/zenoh-session",
 ]
 
 [workspace.package]
@@ -65,6 +66,7 @@ anc-pub = { path = "./aux/anc-pub" }
 ec-pub = { path = "./aux/ec-pub" }
 opencv-iox2 = { path = "./aux/opencv-iox2" }
 cu-zenoh-sink = { path = "./hal/cu-zenoh-sink" }
+zenoh-session = { path = "./hal/zenoh-session" }
 zsrc-merger = { path = "./aux/zsrc-merger" }
 panner-adapter = { path = "./aux/panner-adapter" }
 

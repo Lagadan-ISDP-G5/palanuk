@@ -1,6 +1,7 @@
 use cu29::prelude::*;
 use rmp_serde::to_vec_named;
 use serde::Serialize;
+use std::sync::Arc;
 use zenoh::{Session, Config, pubsub::Publisher, key_expr::{KeyExpr}, Wait};
 use core::marker::PhantomData;
 
@@ -19,7 +20,7 @@ pub struct ZCfg {
 }
 
 pub struct ZCtx {
-    session: Session,
+    _session: Arc<Session>,
     publisher: Publisher<'static>,
 }
 
@@ -38,14 +39,7 @@ where
     {
         let config = config.ok_or(CuError::from("ZSrc: missing config! provide at least no value for the \"topic\" field"))?;
 
-        // let router_endpoint = config.get::<String>("router-endpoint").unwrap_or("tcp/localhost:7447".to_owned());
-
         let def_cfg = Config::default();
-        // def_cfg.insert_json5("mode", r#""client""#)
-        //     .map_err(|_| -> CuError {CuError::from("ZSink: Failed to set client mode")})?;
-
-        // def_cfg.insert_json5("connect/endpoints", &format!(r#"["{}"]"#, router_endpoint))
-            // .map_err(|_| -> CuError {CuError::from("ZSink: Failed to set router endpoint")})?;
 
         let session_config = config.get::<String>("zenoh_config_file").map_or(
             Ok(def_cfg),
@@ -68,10 +62,8 @@ where
     }
 
     fn start(&mut self, _clock: &RobotClock) -> CuResult<()> {
-        let session = Wait::wait(zenoh::open(self.config.config.clone()))
-            .map_err(
-                |_| -> CuError {CuError::from("ZSink: Failed to open session")}
-            )?;
+        let session = zenoh_session::shared_session(self.config.config.clone())
+            .map_err(|e| CuError::from(e.as_str()))?;
 
         let key_expr = KeyExpr::<'static>::new(self.config.topic.clone())
             .map_err(
@@ -84,7 +76,7 @@ where
                 |_| -> CuError {CuError::from("ZSink: failed to declare publisher")}
             )?;
 
-        self.ctx = Some(ZCtx { session, publisher });
+        self.ctx = Some(ZCtx { _session: session, publisher });
         Ok(())
     }
 
@@ -108,16 +100,13 @@ where
     }
 
     fn stop(&mut self, _clock: &RobotClock) -> CuResult<()> {
-        if let Some(ZCtx { session, publisher }) = self.ctx.take() {
+        if let Some(ZCtx { _session, publisher }) = self.ctx.take() {
             Wait::wait(publisher.undeclare())
                 .map_err(
                     |_| -> CuError {CuError::from("ZSink: Failed to undeclare publisher")}
                 )?;
-
-            Wait::wait(session.close())
-                .map_err(
-                    |_| -> CuError {CuError::from("ZSink: Failed to close session")}
-                )?;
+            // Session is shared; don't close it here.
+            // It will be closed when the last Arc is dropped.
         }
         Ok(())
     }
