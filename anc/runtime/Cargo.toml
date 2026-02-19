@@ -37,6 +37,7 @@ cu29-runtime = "0.12.0"
 cu29-export = { version = "0.12.0" }
 cu29-helpers = "0.12.0"
 cu-consolemon = "0.12.0"
+cu-logmon = "0.12.0"
 cu-pid = "0.12.0"
 cu-bincode = "=2.0.2"
 serde = "1.0.228"

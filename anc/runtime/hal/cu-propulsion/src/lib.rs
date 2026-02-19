@@ -348,12 +348,12 @@ impl CuSinkTask for Propulsion {
 
         }
 
-        match en_a_hdl.set_duty_cycle(self.last_lmtr_duty_cycle.unwrap().clamp(0.0, 1.0)) {
+        match en_a_hdl.set_duty_cycle(self.last_lmtr_duty_cycle.unwrap_or(0.0).clamp(0.0, 1.0)) {
             Ok(_) => (),
             Err(_) => return Err(CuError::from(format!("Failed to set duty cycle")))
         };
 
-        match en_b_hdl.set_duty_cycle(self.last_rmtr_duty_cycle.unwrap().clamp(0.0, 1.0)) {
+        match en_b_hdl.set_duty_cycle(self.last_rmtr_duty_cycle.unwrap_or(0.0).clamp(0.0, 1.0)) {
             Ok(_) => (),
             Err(_) => return Err(CuError::from(format!("Failed to set duty cycle")))
         };

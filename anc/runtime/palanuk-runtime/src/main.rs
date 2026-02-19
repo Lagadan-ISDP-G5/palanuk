@@ -43,10 +43,12 @@ pub mod odd_subs {
 
 pub mod anc_pubs {
     use cu_zenoh_sink::ZSink;
-    use anc_pub::{ObstacleDetected, Distance};
+    use anc_pub::{ObstacleDetected, Distance, LmtrSpeed, RmtrSpeed};
 
     pub type ObstacleDetectedSink = ZSink<anc_pub::ObstacleDetected>;
     pub type DistanceSink         = ZSink<anc_pub::Distance>;
+    pub type LmtrSpeedSink        = ZSink<anc_pub::LmtrSpeed>;
+    pub type RmtrSpeedSink        = ZSink<anc_pub::RmtrSpeed>;
 }
 
 

@@ -3,6 +3,9 @@ use cu29::prelude::*;
 use cu_propulsion::PropulsionPayload;
 use cu_pid::PIDControlOutputPayload;
 
+pub const R_WIND_COMP_LMTR: f32 = 1.0;
+pub const R_WIND_COMP_RMTR: f32 = 1.0;
+
 pub struct SpeedCorrectionSummer {
     last_output: Option<PropulsionPayload>,
     k_ff_lmtr: f32,
@@ -79,19 +82,19 @@ impl CuTask for SpeedCorrectionSummer {
                 rmtr_summed_speed = rmtr_speed_ctrlr.output + (self.k_ff_rmtr * rmtr_ff);
 
                 let mut output_msg = ff.clone();
-                output_msg.left_speed = lmtr_summed_speed;
-                output_msg.right_speed = rmtr_summed_speed;
+                output_msg.left_speed = R_WIND_COMP_LMTR * lmtr_summed_speed.clamp(self.k_ff_lmtr * lmtr_ff, 1.0);
+                output_msg.right_speed = R_WIND_COMP_RMTR * rmtr_summed_speed.clamp(self.k_ff_rmtr * rmtr_ff, 1.0);
 
                 self.last_output = Some(output_msg);
             },
-            _ => ()
+            _ => return Err(CuError::from(format!("last_output unset!")))
         }
 
         match self.last_output {
             Some(msg) => {
                 output.set_payload(msg);
             },
-            None => ()
+            None => return Err(CuError::from(format!("no cmd sent to mtrs!")))
         }
         Ok(())
     }

@@ -290,6 +290,22 @@
             },
         ),
 
+        (
+            id: "lmtr-actual-speed",
+            type: "anc_pubs::LmtrSpeedSink",
+            config: {
+                "topic": "palanuk/anc/lmtr-actual-speed",
+            },
+        ),
+
+        (
+            id: "rmtr-actual-speed",
+            type: "anc_pubs::RmtrSpeedSink",
+            config: {
+                "topic": "palanuk/anc/rmtr-actual-speed",
+            },
+        ),
+
         // END: ANC publishers to ODD
 
         (
@@ -314,7 +330,7 @@
                 "lmtr_output_pin": 17,
                 "rmtr_output_pin": 27,
                 "num_of_slots": 20,
-                "max_rpm": 179
+                "max_rpm": 370
             }
         ),
 
@@ -327,9 +343,9 @@
             id: "lmtr-speed-ctrlr",
             type: "speed_ctrlrs::LmtrSpeedCtrlr",
             config: {
-                "kp": 0.4,
+                "kp": 3.2,
                 "kd": 0.0,
-                "ki": 0.2,
+                "ki": 1.3,
                 "setpoint": 0.0,
                 "cutoff": 2.0,
             }
@@ -339,7 +355,7 @@
             id: "rmtr-speed-ctrlr",
             type: "speed_ctrlrs::RmtrSpeedCtrlr",
             config: {
-                "kp": 0.4,
+                "kp": 0.3,
                 "kd": 0.0,
                 "ki": 0.2,
                 "setpoint": 0.0,
@@ -352,7 +368,7 @@
             type: "speed_correction_summer::SpeedCorrectionSummer",
             // config optional for k_ff_lmtr and k_ff_rmtr
             config: {
-                "k_ff_lmtr": 0.3,
+                "k_ff_lmtr": 1.0,
                 "k_ff_rmtr": 0.3,
             }
         ),
@@ -424,9 +440,12 @@
         (src: "opencv-splitter", dst: "arbitrator", msg: "opencv_splitter::NsmPayload"),
 
         (src: "encoder-pair", dst: "speed-err-adapter", msg: "cu_irencoder::IrEncoderPayload"),
+
         // arbitrator tails
         (src: "arbitrator", dst: "speed-err-adapter", msg: "cu_propulsion::PropulsionPayload"),
         (src: "arbitrator", dst: "anc-pub", msg: "anc_pub::AncPubPayload"),
+
+        (src: "encoder-pair", dst: "anc-pub", msg: "cu_irencoder::IrEncoderPayload"),
 
         (src: "speed-err-adapter", dst: "lmtr-speed-ctrlr", msg: "speed_ctrlrs::LmtrSpeedErrPayload"),
         (src: "speed-err-adapter", dst: "rmtr-speed-ctrlr", msg: "speed_ctrlrs::RmtrSpeedErrPayload"),
@@ -443,10 +462,12 @@
         // anc-pub tails
         (src: "anc-pub", dst: "obstacle-detected", msg: "anc_pub::ObstacleDetected"),
         (src: "anc-pub", dst: "distance-reading", msg: "anc_pub::Distance"),
+        (src: "anc-pub", dst: "lmtr-actual-speed", msg: "anc_pub::LmtrSpeed"),
+        (src: "anc-pub", dst: "rmtr-actual-speed", msg: "anc_pub::RmtrSpeed"),
 
     ],
     monitor: (
-          type: "cu_consolemon::CuConsoleMon",
+          type: "cu_logmon::CuLogMon",
     ),
     logging: ( file: "palanuk.copper", level: "debug" ),
 )

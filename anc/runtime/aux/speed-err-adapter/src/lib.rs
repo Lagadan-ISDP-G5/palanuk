@@ -40,23 +40,24 @@ impl CuTask for SpeedErrAdapter {
 
                 match (lmtr_actual_speed, rmtr_actual_speed) {
                     (Some(lmtr_actual_speed), Some(rmtr_actual_speed)) => {
-                        self.lmtr_speed_err = Some(speed_setpoint.left_speed - lmtr_actual_speed);
-                        self.rmtr_speed_err = Some(speed_setpoint.right_speed - rmtr_actual_speed);
+                        self.lmtr_speed_err = Some(speed_setpoint.left_speed - lmtr_actual_speed.clamp(0.0, 0.9));
+                        self.rmtr_speed_err = Some(speed_setpoint.right_speed - rmtr_actual_speed.clamp(0.0, 0.9));
                     }
-                    _ => ()
+                    _ => {
+                        return Err(CuError::from(format!("no actual rpm reached adapter!")))
+                    }
                 }
             },
-            _ => {
-                match (self.lmtr_speed_err, self.rmtr_speed_err) {
-                    (Some(lmtr_speed_err), Some(rmtr_speed_err)) => {
-                        output.0.set_payload(LmtrSpeedErrPayload { error: lmtr_speed_err });
-                        output.1.set_payload(RmtrSpeedErrPayload { error: rmtr_speed_err });
-                    },
-                    _ => ()
-                }
-            }
+            _ => ()
         }
 
+        match (self.lmtr_speed_err, self.rmtr_speed_err) {
+            (Some(lmtr_speed_err), Some(rmtr_speed_err)) => {
+                output.0.set_payload(LmtrSpeedErrPayload { error: lmtr_speed_err });
+                output.1.set_payload(RmtrSpeedErrPayload { error: rmtr_speed_err });
+            },
+            _ => return Err(CuError::from(format!("adapter not sending anything!")))
+        }
         Ok(())
     }
 

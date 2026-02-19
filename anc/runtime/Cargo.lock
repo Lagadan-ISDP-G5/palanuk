@@ -61,6 +61,7 @@ name = "anc-pub"
 version = "0.1.0"
 dependencies = [
  "cu-bincode",
+ "cu-irencoder",
  "cu-propulsion",
  "cu29",
  "propulsion-adapter",
@@ -1024,6 +1025,16 @@ dependencies = [
  "cu29",
  "ir-encoder-gpio-cdev",
  "serde",
+]
+
+[[package]]
+name = "cu-logmon"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2d08bc3d83ead978264b788fdd4d7a9e514d00a564945ef2446e29463f99846e"
+dependencies = [
+ "cu29",
+ "spin 0.10.0",
 ]
 
 [[package]]
@@ -3538,6 +3549,7 @@ dependencies = [
  "cu-consolemon",
  "cu-hcsr04",
  "cu-irencoder",
+ "cu-logmon",
  "cu-pid",
  "cu-powermon",
  "cu-propulsion",

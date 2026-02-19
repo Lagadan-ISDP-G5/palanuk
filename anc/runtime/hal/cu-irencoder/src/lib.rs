@@ -67,32 +67,30 @@ impl CuSrcTask for CuIrEncoder {
         let lmtr_normalized_rpm = self.lmtr_driver.get_normalized_rpm();
         let rmtr_normalized_rpm = self.rmtr_driver.get_normalized_rpm();
 
-        match (lmtr_normalized_rpm, rmtr_normalized_rpm) {
-            (Ok(lmtr_rpm), Ok(rmtr_rpm)) => {
-                self.last_value = Some(
-                    IrEncoderPayload {
-                        lmtr_normalized_rpm: Some(lmtr_rpm),
-                        rmtr_normalized_rpm: Some(rmtr_rpm)
-                    }
-                )
-            },
-            (Err(e_lmtr), Err(e_rmtr)) => {
-                match (e_lmtr, e_rmtr) {
-                    (IrEncoderErrors::FdTimeout, IrEncoderErrors::FdTimeout) => {
-                        self.last_value = Some(
-                            IrEncoderPayload {
-                                lmtr_normalized_rpm: Some(0.0),
-                                rmtr_normalized_rpm: Some(0.0)
-                            })
-                    },
-                    _ => ()
-                }
-            },
-            _ => ()
+        let lmtr = match lmtr_normalized_rpm {
+            Ok(rpm) => Some(rpm),
+            Err(IrEncoderErrors::FdTimeout) => Some(0.0),
+            Err(_) => self.last_value.and_then(|v| v.lmtr_normalized_rpm),
+        };
+
+        let rmtr = match rmtr_normalized_rpm {
+            Ok(rpm) => Some(rpm),
+            Err(IrEncoderErrors::FdTimeout) => Some(0.0),
+            Err(_) => self.last_value.and_then(|v| v.rmtr_normalized_rpm),
+        };
+
+        if lmtr.is_some() || rmtr.is_some() {
+            self.last_value = Some(IrEncoderPayload {
+                lmtr_normalized_rpm: lmtr.or(self.last_value.and_then(|v| v.lmtr_normalized_rpm)),
+                rmtr_normalized_rpm: rmtr.or(self.last_value.and_then(|v| v.rmtr_normalized_rpm)),
+            });
         }
 
         if let Some(payload) = self.last_value {
             output.set_payload(payload);
+        }
+        else {
+            return Err(CuError::from(format!("no rpm reading!")))
         }
 
         Ok(())

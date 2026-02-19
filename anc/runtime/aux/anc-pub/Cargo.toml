@@ -13,3 +13,4 @@ cu-bincode = { workspace = true }
 serde = { workspace = true }
 propulsion-adapter = { workspace = true }
 cu-propulsion = { workspace = true }
+cu-irencoder = { workspace = true }
