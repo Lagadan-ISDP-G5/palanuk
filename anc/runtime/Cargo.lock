@@ -3537,6 +3537,7 @@ dependencies = [
  "cu-cam-pan",
  "cu-consolemon",
  "cu-hcsr04",
+ "cu-irencoder",
  "cu-pid",
  "cu-powermon",
  "cu-propulsion",
@@ -3554,6 +3555,9 @@ dependencies = [
  "panner-adapter",
  "propulsion-adapter",
  "serde",
+ "speed-correction-summer",
+ "speed-ctrlrs",
+ "speed-err-adapter",
  "zsrc-merger",
 ]
 

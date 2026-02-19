@@ -33,6 +33,11 @@ arbitrator = { workspace = true }
 anc-pub = { workspace = true }
 opencv-splitter = { workspace = true }
 
+cu-irencoder = { workspace = true }
+speed-err-adapter = { workspace = true }
+speed-correction-summer = { workspace = true }
+speed-ctrlrs = { workspace = true }
+
 [[bin]]
 name = "palanuk-runtime"
 path = "src/main.rs"

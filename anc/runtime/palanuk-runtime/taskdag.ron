@@ -307,6 +307,55 @@
             logging: (enabled: true)
         ),
 
+        (
+            id: "encoder-pair",
+            type: "cu_irencoder::CuIrEncoder",
+            config: {
+                "lmtr_output_pin": 17,
+                "rmtr_output_pin": 27,
+                "num_of_slots": 20,
+                "max_rpm": 179
+            }
+        ),
+
+        (
+            id: "speed-err-adapter",
+            type: "speed_err_adapter::SpeedErrAdapter",
+        ),
+
+        (
+            id: "lmtr-speed-ctrlr",
+            type: "speed_ctrlrs::LmtrSpeedCtrlr",
+            config: {
+                "kp": 0.4,
+                "kd": 0.0,
+                "ki": 0.2,
+                "setpoint": 0.0,
+                "cutoff": 2.0,
+            }
+        ),
+
+        (
+            id: "rmtr-speed-ctrlr",
+            type: "speed_ctrlrs::RmtrSpeedCtrlr",
+            config: {
+                "kp": 0.4,
+                "kd": 0.0,
+                "ki": 0.2,
+                "setpoint": 0.0,
+                "cutoff": 2.0,
+            }
+        ),
+
+        (
+            id: "speed-correction-summer",
+            type: "speed_correction_summer::SpeedCorrectionSummer",
+            // config optional for k_ff_lmtr and k_ff_rmtr
+            config: {
+                "k_ff_lmtr": 0.3,
+                "k_ff_rmtr": 0.3,
+            }
+        ),
 
      ],
     cnx: [
@@ -374,9 +423,22 @@
         (src: "dual-mtr-ctrlr", dst: "arbitrator", msg: "cu_pid::PIDControlOutputPayload"),
         (src: "opencv-splitter", dst: "arbitrator", msg: "opencv_splitter::NsmPayload"),
 
+        (src: "encoder-pair", dst: "speed-err-adapter", msg: "cu_irencoder::IrEncoderPayload"),
         // arbitrator tails
-        (src: "arbitrator", dst: "propulsion", msg: "cu_propulsion::PropulsionPayload"),
+        (src: "arbitrator", dst: "speed-err-adapter", msg: "cu_propulsion::PropulsionPayload"),
         (src: "arbitrator", dst: "anc-pub", msg: "anc_pub::AncPubPayload"),
+
+        (src: "speed-err-adapter", dst: "lmtr-speed-ctrlr", msg: "speed_ctrlrs::LmtrSpeedErrPayload"),
+        (src: "speed-err-adapter", dst: "rmtr-speed-ctrlr", msg: "speed_ctrlrs::RmtrSpeedErrPayload"),
+
+        // speed-correction-summer heads
+        (src: "lmtr-speed-ctrlr", dst: "speed-correction-summer", msg: "cu_pid::PIDControlOutputPayload"),
+        (src: "rmtr-speed-ctrlr", dst: "speed-correction-summer", msg: "cu_pid::PIDControlOutputPayload"),
+        // residual connection
+        (src: "arbitrator", dst: "speed-correction-summer", msg: "cu_propulsion::PropulsionPayload"),
+
+        // speed-correction-summer tail
+        (src: "speed-correction-summer", dst: "propulsion", msg: "cu_propulsion::PropulsionPayload"),
 
         // anc-pub tails
         (src: "anc-pub", dst: "obstacle-detected", msg: "anc_pub::ObstacleDetected"),

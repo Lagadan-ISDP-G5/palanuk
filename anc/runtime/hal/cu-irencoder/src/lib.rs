@@ -76,12 +76,19 @@ impl CuSrcTask for CuIrEncoder {
                     }
                 )
             },
-            _ => self.last_value = Some(
-                IrEncoderPayload {
-                    lmtr_normalized_rpm: None,
-                    rmtr_normalized_rpm: None
+            (Err(e_lmtr), Err(e_rmtr)) => {
+                match (e_lmtr, e_rmtr) {
+                    (IrEncoderErrors::FdTimeout, IrEncoderErrors::FdTimeout) => {
+                        self.last_value = Some(
+                            IrEncoderPayload {
+                                lmtr_normalized_rpm: Some(0.0),
+                                rmtr_normalized_rpm: Some(0.0)
+                            })
+                    },
+                    _ => ()
                 }
-            )
+            },
+            _ => ()
         }
 
         if let Some(payload) = self.last_value {

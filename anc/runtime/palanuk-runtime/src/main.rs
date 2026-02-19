@@ -22,6 +22,11 @@ use dual_mtr_ctrlr::*;
 use cu_pid::*;
 use opencv_splitter::*;
 
+use cu_irencoder::*;
+use speed_err_adapter::*;
+use speed_correction_summer::*;
+use speed_ctrlrs::*;
+
 use core_affinity::*;
 use libc::*;
 
