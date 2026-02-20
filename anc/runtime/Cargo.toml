@@ -17,7 +17,11 @@ members = [
     "aux/zsrc-merger",
     "aux/ec-pub",
     "aux/opencv-splitter",
-    "hal/zenoh-session",
+    "hal/cu-irencoder",
+    "aux/speed-err-adapter",
+    "aux/speed-correction-summer",
+    "hal/speed-ctrlrs",
+    "hal/zenoh-session"
     ]
 
 [workspace.package]
@@ -34,11 +38,12 @@ cu29-runtime = "0.12.0"
 cu29-export = { version = "0.12.0" }
 cu29-helpers = "0.12.0"
 cu-consolemon = "0.12.0"
+cu-logmon = "0.12.0"
 cu-pid = "0.12.0"
 cu-bincode = "=2.0.2"
 serde = "1.0.228"
-hcsr04-gpio-cdev = "0.1.4"
-# hcsr04-gpio-cdev = { path = "/Users/ander/Documents/proj/hc-sr04-gpio-cdev" }
+# hcsr04-gpio-cdev = "0.1.4"
+hcsr04-gpio-cdev = { path = "/Users/ander/Documents/proj/hc-sr04-gpio-cdev" }
 dumb-sysfs-pwm = { git = "https://github.com/andergisomon/dumb-sysfs-pwm.git" }
 # dumb-sysfs-pwm = { path = "/Users/ander/Documents/proj/dumb-sysfs-pwm" }
 gpio-cdev = "0.6.0"
@@ -64,9 +69,19 @@ cu-zenoh-sink = { path = "./hal/cu-zenoh-sink" }
 zenoh-session = { path = "./hal/zenoh-session" }
 zsrc-merger = { path = "./aux/zsrc-merger" }
 panner-adapter = { path = "./aux/panner-adapter" }
-dual-mtr-ctrlr = { path = "./hal/dual-mtr-ctrlr" }
+
 arbitrator = { path = "./aux/arbitrator" }
 opencv-splitter = { path = "./aux/opencv-splitter" }
+
+dual-mtr-ctrlr = { path = "./hal/dual-mtr-ctrlr" }
+speed-ctrlrs = { path = "./hal/speed-ctrlrs" }
+cu-irencoder = { path = "./hal/cu-irencoder" }
+speed-err-adapter = { path = "./aux/speed-err-adapter" }
+speed-correction-summer = { path = "./aux/speed-correction-summer" }
+
+ir-encoder-gpio-cdev = { path = "/Users/ander/Documents/proj/ir-encoder-gpio-cdev" }
+# ir-encoder-gpio-cdev = "^0.1.0"
+
 
 [build]
 target = "aarch64-unknown-linux-gnu"

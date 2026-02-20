@@ -1,5 +1,6 @@
 extern crate cu_bincode as bincode;
 
+use std::time::Duration;
 use cu29::prelude::*;
 use bincode::{Decode, Encode};
 use hcsr04_gpio_cdev::*;
@@ -7,7 +8,7 @@ use hcsr04_gpio_cdev::*;
 use serde::{Deserialize, Serialize};
 
 pub struct CuHcSr04 {
-    driver_instance: HcSr04,
+    threaded_driver_instance: HcSr04Threaded,
     last_value: Option<HcSr04Payload>,
 }
 
@@ -46,19 +47,19 @@ impl CuSrcTask for CuHcSr04 {
             .clone()
             .into();
 
-        let driver_instance = HcSr04::new(trig_pin_offset, echo_pin_offset, DistanceUnit::Cm(dist_threshold_cm as f64)).expect("GPIO driver error");
+        let threaded_driver_instance = HcSr04Threaded::new(trig_pin_offset, echo_pin_offset, DistanceUnit::Cm(dist_threshold_cm as f64), None, Duration::from_millis(10)).expect("GPIO (threaded) driver error");
 
         Ok(Self {
-            driver_instance,
+            threaded_driver_instance,
             last_value: None,
         })
     }
 
     fn process(&mut self, _clock: &RobotClock, output: &mut Self::Output<'_>) -> CuResult<()> {
-        let dist_cm = self.driver_instance.dist_cm(None);
+        let dist_cm = self.threaded_driver_instance.dist_cm();
 
         match dist_cm {
-            Ok(dist) => {
+            Some(dist) => {
                 self.last_value = Some(HcSr04Payload { distance: Some(dist.to_val()) })
             },
             _ => self.last_value = Some(HcSr04Payload { distance: None })
@@ -66,7 +67,6 @@ impl CuSrcTask for CuHcSr04 {
 
         if let Some(payload) = self.last_value {
             output.set_payload(payload);
-            // output.metadata.set_status(format!("{:.2} cm", payload.distance));
         }
 
         Ok(())

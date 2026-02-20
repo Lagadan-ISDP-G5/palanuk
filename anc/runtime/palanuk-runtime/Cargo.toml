@@ -9,6 +9,7 @@ cu29-export = { workspace = true }
 cu29-runtime = { workspace = true }
 cu29-helpers = { workspace = true }
 cu-consolemon = { workspace = true }
+cu-logmon = { workspace = true }
 cu-pid = { workspace = true }
 
 cu-propulsion = { workspace = true }
@@ -32,6 +33,11 @@ dual-mtr-ctrlr = { workspace = true }
 arbitrator = { workspace = true }
 anc-pub = { workspace = true }
 opencv-splitter = { workspace = true }
+
+cu-irencoder = { workspace = true }
+speed-err-adapter = { workspace = true }
+speed-correction-summer = { workspace = true }
+speed-ctrlrs = { workspace = true }
 
 [[bin]]
 name = "palanuk-runtime"

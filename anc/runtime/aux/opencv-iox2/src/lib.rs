@@ -1,4 +1,5 @@
 extern crate cu_bincode as bincode;
+
 use cu29::prelude::*;
 use iceoryx2::prelude::*;
 use iceoryx2::prelude::ipc::Service;

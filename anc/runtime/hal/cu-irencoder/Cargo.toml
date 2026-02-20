@@ -1,5 +1,5 @@
 [package]
-name = "anc-pub"
+name = "cu-irencoder"
 publish.workspace = true
 version.workspace = true
 authors.workspace = true
@@ -11,6 +11,4 @@ keywords.workspace = true
 cu29 = { workspace = true }
 cu-bincode = { workspace = true }
 serde = { workspace = true }
-propulsion-adapter = { workspace = true }
-cu-propulsion = { workspace = true }
-cu-irencoder = { workspace = true }
+ir-encoder-gpio-cdev = { workspace = true }

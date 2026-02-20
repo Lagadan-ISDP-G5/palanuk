@@ -1,5 +1,5 @@
 [package]
-name = "anc-pub"
+name = "speed-err-adapter"
 publish.workspace = true
 version.workspace = true
 authors.workspace = true
@@ -9,8 +9,6 @@ keywords.workspace = true
 
 [dependencies]
 cu29 = { workspace = true }
-cu-bincode = { workspace = true }
-serde = { workspace = true }
-propulsion-adapter = { workspace = true }
-cu-propulsion = { workspace = true }
 cu-irencoder = { workspace = true }
+speed-ctrlrs = { workspace = true }
+cu-propulsion = { workspace = true }

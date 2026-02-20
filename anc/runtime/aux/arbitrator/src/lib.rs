@@ -22,7 +22,7 @@ pub const R_WIND_COMP_RMTR: f32 = 1.0; // 0.85
 pub const BASELINE_SPEED: f32 = 0.7;
 pub const HEADING_ERROR_END_STEERING_MANEUVER_THRESHOLD: f32 = 0.1;
 pub const OUTER_WHEEL_STEERING_SPEED: f32 = 0.95;
-pub const INNER_WHEEL_STEERING_SPEED: f32 = 0.5;
+pub const INNER_WHEEL_STEERING_SPEED: f32 = 0.0;
 
 pub const ON_AXIS_ROTATION_DURATION_MILLISEC_90_DEG: u64 = 313;
 
@@ -132,7 +132,7 @@ pub enum RotateOnAxisState {
     Done
 }
 
-#[derive(Default, PartialEq, Eq)]
+#[derive(Default, Debug, PartialEq, Eq)]
 pub enum SteererState {
     Steering,
     Done,
@@ -230,13 +230,22 @@ impl CuTask for Arbitrator {
 
                 // steering handler
                 if let Some(m) = nsm.payload() {
-                    if m.corner_coords.1 <= self.corner_y_coord_steering_trig && m.corner_detected {
+                    if m.corner_detected {
+                        eprintln!("CORNER detected dir={:?} y={:.4} trig={:.4} state={:?}",
+                            m.corner_direction, m.corner_coords.1,
+                            self.corner_y_coord_steering_trig, self.steerer_state);
+                    }
+                    if m.corner_coords.1 >= self.corner_y_coord_steering_trig && m.corner_detected {
                         if self.steerer_state != SteererState::Steering {
-                            self.steerer_state = SteererState::Steering; // sticky condition, will be mutated by steering handler
+                            self.steerer_state = SteererState::Steering;
                         }
                     }
 
                     if self.steerer_state == SteererState::Steering {
+                        eprintln!("STEERING: heading_err={:.4} L={:.4} R={:.4}",
+                            prop_adap_pload.weighted_error,
+                            closed_loop_prop_payload.left_speed,
+                            closed_loop_prop_payload.right_speed);
                         self.steering_handler(prop_adap_pload, *m, &mut closed_loop_prop_payload);
                     }
                 }
@@ -313,19 +322,12 @@ impl Arbitrator {
             return Ok(PropulsionPayload::default());
         }
 
-        // pid_output > 0 implies error >0, turn right: slow left, speed up right
-        // // VERY IMPORTANT: apply compensation
-        // TODO rework control strategy into bangbang hybrid
+        // cu-pid: output = kp * (setpoint - input), so positive error gives negative output
         let base_speed = self.target_speed.unwrap_or(BASELINE_SPEED);
-        let left_speed;
-        let right_speed;
-        left_speed = (
-                (base_speed*self.r_wind_comp_lmtr) - pid_output
-            ).clamp(BASELINE_SPEED * self.r_wind_comp_lmtr, 1.0);
+        let left_speed = (base_speed + pid_output).clamp(0.0, 1.0);
+        let right_speed = (base_speed - pid_output).clamp(0.0, 1.0);
 
-        right_speed = (
-                (base_speed*self.r_wind_comp_lmtr) + pid_output
-            ).clamp(BASELINE_SPEED * self.r_wind_comp_rmtr, 1.0);
+        eprintln!("LANE PID={:.4} | base={:.4} | L={:.4} R={:.4}", pid_output, base_speed, left_speed, right_speed);
 
         Ok(PropulsionPayload {
             left_enable: true,
@@ -354,13 +356,13 @@ impl Arbitrator {
         else {
             match steering_msg.corner_direction {
                 CornerDirection::Right => {
-                    right_speed = INNER_WHEEL_STEERING_SPEED * self.r_wind_comp_rmtr;
-                    left_speed = OUTER_WHEEL_STEERING_SPEED * self.r_wind_comp_lmtr;
+                    left_speed = INNER_WHEEL_STEERING_SPEED * self.r_wind_comp_lmtr;
+                    right_speed = OUTER_WHEEL_STEERING_SPEED * self.r_wind_comp_rmtr;
                 },
                 CornerDirection::Left => {
-                    right_speed = OUTER_WHEEL_STEERING_SPEED * self.r_wind_comp_rmtr;
-                    left_speed = INNER_WHEEL_STEERING_SPEED * self.r_wind_comp_lmtr;
-                } // unimplemented
+                    left_speed = OUTER_WHEEL_STEERING_SPEED * self.r_wind_comp_lmtr;
+                    right_speed = INNER_WHEEL_STEERING_SPEED * self.r_wind_comp_rmtr;
+                }
             }
             res.left_speed = left_speed.clamp(0.0, 1.0);
             res.right_speed = right_speed.clamp(0.0, 1.0);

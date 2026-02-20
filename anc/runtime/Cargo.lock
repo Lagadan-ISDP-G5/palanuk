@@ -61,6 +61,7 @@ name = "anc-pub"
 version = "0.1.0"
 dependencies = [
  "cu-bincode",
+ "cu-irencoder",
  "cu-propulsion",
  "cu29",
  "propulsion-adapter",
@@ -1014,6 +1015,26 @@ dependencies = [
  "cu29",
  "hcsr04-gpio-cdev",
  "serde",
+]
+
+[[package]]
+name = "cu-irencoder"
+version = "0.1.0"
+dependencies = [
+ "cu-bincode",
+ "cu29",
+ "ir-encoder-gpio-cdev",
+ "serde",
+]
+
+[[package]]
+name = "cu-logmon"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2d08bc3d83ead978264b788fdd4d7a9e514d00a564945ef2446e29463f99846e"
+dependencies = [
+ "cu29",
+ "spin 0.10.0",
 ]
 
 [[package]]
@@ -2153,8 +2174,6 @@ dependencies = [
 [[package]]
 name = "hcsr04-gpio-cdev"
 version = "0.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e3d71a3d92a340f0766eab64a2083ce4c9f35c2c1c96727ef2ef1635e245eeb7"
 dependencies = [
  "gpio-cdev",
  "libc",
@@ -2692,6 +2711,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bf466541e9d546596ee94f9f69590f89473455f88372423e0008fc1a7daf100e"
 dependencies = [
  "serde",
+]
+
+[[package]]
+name = "ir-encoder-gpio-cdev"
+version = "0.1.0"
+dependencies = [
+ "gpio-cdev",
+ "libc",
 ]
 
 [[package]]
@@ -3523,6 +3550,8 @@ dependencies = [
  "cu-cam-pan",
  "cu-consolemon",
  "cu-hcsr04",
+ "cu-irencoder",
+ "cu-logmon",
  "cu-pid",
  "cu-powermon",
  "cu-propulsion",
@@ -3540,6 +3569,9 @@ dependencies = [
  "panner-adapter",
  "propulsion-adapter",
  "serde",
+ "speed-correction-summer",
+ "speed-ctrlrs",
+ "speed-err-adapter",
  "zsrc-merger",
 ]
 
@@ -4944,6 +4976,34 @@ checksum = "17129e116933cf371d018bb80ae557e889637989d8638274fb25622827b03881"
 dependencies = [
  "libc",
  "windows-sys 0.60.2",
+]
+
+[[package]]
+name = "speed-correction-summer"
+version = "0.1.0"
+dependencies = [
+ "cu-pid",
+ "cu-propulsion",
+ "cu29",
+]
+
+[[package]]
+name = "speed-ctrlrs"
+version = "0.1.0"
+dependencies = [
+ "cu-bincode",
+ "cu-pid",
+ "serde",
+]
+
+[[package]]
+name = "speed-err-adapter"
+version = "0.1.0"
+dependencies = [
+ "cu-irencoder",
+ "cu-propulsion",
+ "cu29",
+ "speed-ctrlrs",
 ]
 
 [[package]]

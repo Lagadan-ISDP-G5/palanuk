@@ -1,5 +1,5 @@
 [package]
-name = "anc-pub"
+name = "speed-ctrlrs"
 publish.workspace = true
 version.workspace = true
 authors.workspace = true
@@ -8,9 +8,6 @@ license.workspace = true
 keywords.workspace = true
 
 [dependencies]
-cu29 = { workspace = true }
 cu-bincode = { workspace = true }
 serde = { workspace = true }
-propulsion-adapter = { workspace = true }
-cu-propulsion = { workspace = true }
-cu-irencoder = { workspace = true }
+cu-pid = { workspace = true }

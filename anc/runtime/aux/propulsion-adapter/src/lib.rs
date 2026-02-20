@@ -49,14 +49,6 @@ pub struct PropulsionAdapterOutputPayload {
     pub distance: Option<f64>,
 }
 
-// impl From<&PropulsionAdapterOutputPayload> for DualMtrCtrlrPayload {
-//     fn from(value: &PropulsionAdapterOutputPayload) -> Self {
-//         Self {
-//             error : value.weighted_error
-//         }
-//     }
-// }
-
 #[derive(Default, Debug, Clone, Copy, Encode, Decode, PartialEq, Serialize, Deserialize)]
 pub struct ZenohTopicsAdapterOutputPayload {
     pub loop_state: LoopState,
