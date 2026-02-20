@@ -132,7 +132,7 @@ pub enum RotateOnAxisState {
     Done
 }
 
-#[derive(Default, PartialEq, Eq)]
+#[derive(Default, Debug, PartialEq, Eq)]
 pub enum SteererState {
     Steering,
     Done,
@@ -230,13 +230,22 @@ impl CuTask for Arbitrator {
 
                 // steering handler
                 if let Some(m) = nsm.payload() {
-                    if m.corner_coords.1 <= self.corner_y_coord_steering_trig && m.corner_detected {
+                    if m.corner_detected {
+                        eprintln!("CORNER detected dir={:?} y={:.4} trig={:.4} state={:?}",
+                            m.corner_direction, m.corner_coords.1,
+                            self.corner_y_coord_steering_trig, self.steerer_state);
+                    }
+                    if m.corner_coords.1 >= self.corner_y_coord_steering_trig && m.corner_detected {
                         if self.steerer_state != SteererState::Steering {
-                            self.steerer_state = SteererState::Steering; // sticky condition, will be mutated by steering handler
+                            self.steerer_state = SteererState::Steering;
                         }
                     }
 
                     if self.steerer_state == SteererState::Steering {
+                        eprintln!("STEERING: heading_err={:.4} L={:.4} R={:.4}",
+                            prop_adap_pload.weighted_error,
+                            closed_loop_prop_payload.left_speed,
+                            closed_loop_prop_payload.right_speed);
                         self.steering_handler(prop_adap_pload, *m, &mut closed_loop_prop_payload);
                     }
                 }
@@ -347,13 +356,13 @@ impl Arbitrator {
         else {
             match steering_msg.corner_direction {
                 CornerDirection::Right => {
-                    right_speed = INNER_WHEEL_STEERING_SPEED * self.r_wind_comp_rmtr;
-                    left_speed = OUTER_WHEEL_STEERING_SPEED * self.r_wind_comp_lmtr;
+                    left_speed = INNER_WHEEL_STEERING_SPEED * self.r_wind_comp_lmtr;
+                    right_speed = OUTER_WHEEL_STEERING_SPEED * self.r_wind_comp_rmtr;
                 },
                 CornerDirection::Left => {
-                    right_speed = OUTER_WHEEL_STEERING_SPEED * self.r_wind_comp_rmtr;
-                    left_speed = INNER_WHEEL_STEERING_SPEED * self.r_wind_comp_lmtr;
-                } // unimplemented
+                    left_speed = OUTER_WHEEL_STEERING_SPEED * self.r_wind_comp_lmtr;
+                    right_speed = INNER_WHEEL_STEERING_SPEED * self.r_wind_comp_rmtr;
+                }
             }
             res.left_speed = left_speed.clamp(0.0, 1.0);
             res.right_speed = right_speed.clamp(0.0, 1.0);
