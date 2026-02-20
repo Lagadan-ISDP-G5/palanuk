@@ -22,7 +22,7 @@ pub const R_WIND_COMP_RMTR: f32 = 1.0; // 0.85
 pub const BASELINE_SPEED: f32 = 0.7;
 pub const HEADING_ERROR_END_STEERING_MANEUVER_THRESHOLD: f32 = 0.1;
 pub const OUTER_WHEEL_STEERING_SPEED: f32 = 0.95;
-pub const INNER_WHEEL_STEERING_SPEED: f32 = 0.5;
+pub const INNER_WHEEL_STEERING_SPEED: f32 = 0.0;
 
 pub const ON_AXIS_ROTATION_DURATION_MILLISEC_90_DEG: u64 = 313;
 
@@ -313,19 +313,12 @@ impl Arbitrator {
             return Ok(PropulsionPayload::default());
         }
 
-        // pid_output > 0 implies error >0, turn right: slow left, speed up right
-        // // VERY IMPORTANT: apply compensation
-        // TODO rework control strategy into bangbang hybrid
+        // cu-pid: output = kp * (setpoint - input), so positive error gives negative output
         let base_speed = self.target_speed.unwrap_or(BASELINE_SPEED);
-        let left_speed;
-        let right_speed;
-        left_speed = (
-                (base_speed*self.r_wind_comp_lmtr) - pid_output
-            ).clamp(BASELINE_SPEED * self.r_wind_comp_lmtr, 1.0);
+        let left_speed = (base_speed + pid_output).clamp(0.0, 1.0);
+        let right_speed = (base_speed - pid_output).clamp(0.0, 1.0);
 
-        right_speed = (
-                (base_speed*self.r_wind_comp_lmtr) + pid_output
-            ).clamp(BASELINE_SPEED * self.r_wind_comp_rmtr, 1.0);
+        eprintln!("LANE PID={:.4} | base={:.4} | L={:.4} R={:.4}", pid_output, base_speed, left_speed, right_speed);
 
         Ok(PropulsionPayload {
             left_enable: true,

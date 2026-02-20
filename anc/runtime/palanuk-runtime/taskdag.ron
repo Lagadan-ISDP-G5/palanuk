@@ -52,9 +52,9 @@
             id: "dual-mtr-ctrlr",
             type: "dual_mtr_ctrlr::DualMtrCtrlr",
             config: {
-                "kp": 3.4,
-                "kd": 0.0,
-                "ki": 2.5,
+                "kp": 0.33,
+                "kd": 0.002,
+                "ki": 0.0003,
                 "setpoint": 0.0,
                 "cutoff": 2.0,
             }
@@ -66,7 +66,7 @@
             config: {
                 // "r_wind_comp_lmtr": 1.17,
                 // "r_wind_comp_rmtr": 0.85,
-                "corner_y_coord_steering_trig": 0.15,
+                "corner_y_coord_steering_trig": 0.09,
             }
         ),
 
@@ -345,7 +345,7 @@
             config: {
                 "kp": 0.3,
                 "kd": 0.0,
-                "ki": 0.0,
+                "ki": 0.00,
                 "setpoint": 0.0,
                 "cutoff": 10.0,
             }

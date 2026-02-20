@@ -79,8 +79,8 @@ impl CuTask for SpeedCorrectionSummer {
             let lmtr_summed_speed = lmtr_pid + (self.k_ff_lmtr * lmtr_ff);
             let rmtr_summed_speed = rmtr_pid + (self.k_ff_rmtr * rmtr_ff);
 
-            eprintln!("PID L={:.4} R={:.4} | FF L={:.4} R={:.4} | OUT L={:.4} R={:.4}",
-                lmtr_pid, rmtr_pid, lmtr_ff, rmtr_ff, lmtr_summed_speed, rmtr_summed_speed);
+            // eprintln!("PID L={:.4} R={:.4} | FF L={:.4} R={:.4} | OUT L={:.4} R={:.4}",
+                // lmtr_pid, rmtr_pid, lmtr_ff, rmtr_ff, lmtr_summed_speed, rmtr_summed_speed);
 
             let mut output_msg = ff.clone();
             output_msg.left_speed = (R_WIND_COMP_LMTR * lmtr_summed_speed).clamp(0.0, 1.0);
