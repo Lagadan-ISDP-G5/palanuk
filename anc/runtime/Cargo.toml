@@ -21,8 +21,8 @@ members = [
     "aux/speed-err-adapter",
     "aux/speed-correction-summer",
     "hal/speed-ctrlrs",
-    "hal/zenoh-session",
-]
+    "hal/zenoh-session"
+    ]
 
 [workspace.package]
 publish = false
