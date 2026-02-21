@@ -25,6 +25,7 @@ pub const OUTER_WHEEL_STEERING_SPEED: f32 = 1.0;
 pub const INNER_WHEEL_STEERING_SPEED: f32 = 0.0;
 
 pub const ON_AXIS_ROTATION_DURATION_MILLISEC_90_DEG: u64 = 400;
+pub const STEERING_MIN_HOLD_MS: u64 = 500;
 
 /// r_wind_comp values can be between 0 and 2 for either motor, but not both. If one is > 1 another must be <1.
 pub struct Arbitrator {
@@ -37,6 +38,7 @@ pub struct Arbitrator {
     /// normalized corner y coord to trigger steering handler and override lanekeeping for the maneuver
     corner_y_coord_steering_trig: f32,
     steerer_state: SteererState,
+    steering_started: CuInstant,
     on_axis_rotator: OnAxisRotator,
     last_pid_output: f32,
 }
@@ -149,6 +151,7 @@ impl Default for Arbitrator {
             r_wind_comp_rmtr: 0.0,
             corner_y_coord_steering_trig: 0.0,
             steerer_state: SteererState::default(),
+            steering_started: CuInstant::now(),
             on_axis_rotator: OnAxisRotator::default(),
             last_pid_output: 0.0,
         }
@@ -238,6 +241,7 @@ impl CuTask for Arbitrator {
                     if m.corner_coords.1 >= self.corner_y_coord_steering_trig && m.corner_detected {
                         if self.steerer_state != SteererState::Steering {
                             self.steerer_state = SteererState::Steering;
+                            self.steering_started = CuInstant::now();
                         }
                     }
 
@@ -350,7 +354,13 @@ impl Arbitrator {
         let left_speed;
         let right_speed;
 
-        if heading_error.abs() < HEADING_ERROR_END_STEERING_MANEUVER_THRESHOLD {
+        let elapsed_ns = CuInstant::now().as_nanos()
+            .checked_sub(self.steering_started.as_nanos())
+            .unwrap_or(0);
+        let hold_expired = CuDuration::from_nanos(elapsed_ns)
+            >= CuDuration::from_millis(STEERING_MIN_HOLD_MS);
+
+        if hold_expired && heading_error.abs() < HEADING_ERROR_END_STEERING_MANEUVER_THRESHOLD {
             self.steerer_state = SteererState::Done;
         }
         else {
