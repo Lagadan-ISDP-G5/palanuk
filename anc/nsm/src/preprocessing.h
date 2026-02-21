@@ -6,6 +6,7 @@
 
 namespace nsm {
 
+void mask_out_yellow(const cv::Mat& img, const PipelineConfig& config, cv::Mat& out);
 cv::Mat threshold_white_line(const cv::Mat& img, const PipelineConfig& config);
 void warp_birdseye(const cv::Mat& frame, const PipelineConfig& config, cv::Mat& out);
 

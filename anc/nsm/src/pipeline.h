@@ -22,6 +22,7 @@ private:
     // reused each frame to avoid allocations
     FrameResult result_;
     cv::Mat warped_scratch_;
+    cv::Mat yellow_masked_scratch_;
     LineDetectionResult horiz_line_scratch_;
     std::vector<cv::Point2f> harris_corners_scratch_;
 };

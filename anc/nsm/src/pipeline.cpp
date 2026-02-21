@@ -17,7 +17,13 @@ const FrameResult& Pipeline::process(const cv::Mat& frame) {
     if (config_.warp_enabled) {
         warp_birdseye(frame, config_, warped_scratch_);
     }
-    const cv::Mat& input = config_.warp_enabled ? warped_scratch_ : frame;
+    const cv::Mat& after_warp = config_.warp_enabled ? warped_scratch_ : frame;
+
+    // Stage 0.5: Mask out yellow regions (e.g. yellow-taped bumps)
+    if (config_.mask_yellow) {
+        mask_out_yellow(after_warp, config_, yellow_masked_scratch_);
+    }
+    const cv::Mat& input = config_.mask_yellow ? yellow_masked_scratch_ : after_warp;
 
     // Stage 1: Preprocessing
     result_.thresholded = threshold_white_line(input, config_);

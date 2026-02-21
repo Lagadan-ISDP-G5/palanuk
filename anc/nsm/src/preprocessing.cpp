@@ -3,6 +3,17 @@
 
 namespace nsm {
 
+void mask_out_yellow(const cv::Mat& img, const PipelineConfig& config, cv::Mat& out) {
+    cv::Mat hsv, yellow_mask;
+    cv::cvtColor(img, hsv, cv::COLOR_BGR2HSV);
+    cv::inRange(hsv,
+        cv::Scalar(config.yellow_h_low, config.yellow_s_low, config.yellow_v_low),
+        cv::Scalar(config.yellow_h_high, 255, 255),
+        yellow_mask);
+    img.copyTo(out);
+    out.setTo(cv::Scalar(0, 0, 0), yellow_mask);
+}
+
 cv::Mat threshold_white_line(const cv::Mat& img, const PipelineConfig& config) {
     cv::Mat gray, blurred, thresh_raw;
     cv::cvtColor(img, gray, cv::COLOR_BGR2GRAY);

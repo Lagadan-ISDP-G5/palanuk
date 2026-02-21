@@ -53,6 +53,13 @@ struct PipelineConfig {
     int blur_kernel_size = 5;
     bool invert_threshold = false;  // invert for black-lane-on-white tracks
 
+    // Yellow masking (suppress yellow bumps/tape before thresholding)
+    bool mask_yellow = true;
+    int yellow_h_low = 47;
+    int yellow_h_high = 69;
+    int yellow_s_low = 62;
+    int yellow_v_low = 62;
+
     // Contour filtering
     float min_contour_length = 50.0f;
     float min_aspect_ratio = 2.5f;
