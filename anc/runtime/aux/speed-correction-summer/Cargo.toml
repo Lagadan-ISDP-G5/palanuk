@@ -11,3 +11,4 @@ keywords.workspace = true
 cu29 = { workspace = true }
 cu-pid = { workspace = true }
 cu-propulsion = { workspace = true }
+cu-irencoder = { workspace = true }

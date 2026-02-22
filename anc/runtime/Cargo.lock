@@ -4982,6 +4982,7 @@ dependencies = [
 name = "speed-correction-summer"
 version = "0.1.0"
 dependencies = [
+ "cu-irencoder",
  "cu-pid",
  "cu-propulsion",
  "cu29",

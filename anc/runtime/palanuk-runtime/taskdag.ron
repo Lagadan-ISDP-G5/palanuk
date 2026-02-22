@@ -456,6 +456,8 @@
         (src: "rmtr-speed-ctrlr", dst: "speed-correction-summer", msg: "cu_pid::PIDControlOutputPayload"),
         // residual connection
         (src: "arbitrator", dst: "speed-correction-summer", msg: "cu_propulsion::PropulsionPayload"),
+        // encoder feedback for stall detection
+        (src: "encoder-pair", dst: "speed-correction-summer", msg: "cu_irencoder::IrEncoderPayload"),
 
         // speed-correction-summer tail
         (src: "speed-correction-summer", dst: "propulsion", msg: "cu_propulsion::PropulsionPayload"),
