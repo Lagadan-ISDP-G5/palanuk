@@ -7,11 +7,12 @@
 ## What sets our team apart
 
 * Continuous vision-based PID controller for lanekeeping and cornering
+* Closed-loop motor speed PID controllers
 * Consolidated control and local compute with real-time Linux (PREEMPT_RT), no separate microcontroller
 * Power monitoring for both motors
 
 <div style="text-align: center;">
-    <img src="./static/latest.jpg" width="400" alt="A picture of a work-in-progress unmanned ground vehicle"/>
+    <img src="./static/latest.png" width="400" alt="A picture of a work-in-progress unmanned ground vehicle rover thingy with googly eyes"/>
 </div>
 
 
@@ -29,7 +30,7 @@ Dr. Nurul Fauzana Bt Imran Gulcharan / [@FauzanaImran](https://github.com/Fauzan
 # Actual owned subsystems
 
 ## Ander
-Image transmission backend, control runtime, sensor and actuator drivers, lanekeeping and steering
+Image transmission backend, control runtime, sensor and actuator drivers, lanekeeping and steering, design and tuning of PID loops
 
 ## Mclaren
 Vision model training and inference pipeline, parking maneuver
