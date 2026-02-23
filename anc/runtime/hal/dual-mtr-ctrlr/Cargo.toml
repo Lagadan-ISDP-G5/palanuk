@@ -11,3 +11,4 @@ keywords.workspace = true
 cu-bincode = { workspace = true }
 serde = { workspace = true }
 cu-pid = { workspace = true }
+cu29 = { workspace = true }

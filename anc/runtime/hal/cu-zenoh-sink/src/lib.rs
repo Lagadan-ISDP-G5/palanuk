@@ -5,12 +5,17 @@ use std::sync::Arc;
 use zenoh::{Session, Config, pubsub::Publisher, key_expr::{KeyExpr}, Wait};
 use core::marker::PhantomData;
 
+#[derive(Reflect)]
+#[reflect(no_field_bounds, from_reflect = false)]
 pub struct ZSink<P>
 where
     P: CuMsgPayload,
 {
+    #[reflect(ignore)]
     _marker: PhantomData<P>,
+    #[reflect(ignore)]
     config: ZCfg,
+    #[reflect(ignore)]
     ctx: Option<ZCtx>,
 }
 
@@ -28,7 +33,7 @@ impl<P> Freezable for ZSink<P> where P: CuMsgPayload {}
 
 impl<P> CuSinkTask for ZSink<P>
 where
-    P: CuMsgPayload + 'static + Serialize,
+    P: CuMsgPayload + 'static + Serialize + Reflect + TypePath,
 {
     type Input<'m> = input_msg!(P);
     type Resources<'r> = ();
@@ -41,15 +46,15 @@ where
 
         let def_cfg = Config::default();
 
-        let session_config = config.get::<String>("zenoh_config_file").map_or(
-            Ok(def_cfg),
-            |s| -> CuResult<Config> {
-                Config::from_file(&s)
-                    .map_err(|_| -> CuError {CuError::from("ZSink: Failed to create zenoh config")} )
-            },
-        )?;
+        let session_config = match config.get::<String>("zenoh_config_file").map_err(|e| CuError::from(format!("{e}")))? {
+            Some(s) => Config::from_file(&s)
+                .map_err(|_| -> CuError {CuError::from("ZSink: Failed to create zenoh config")})?,
+            None => def_cfg,
+        };
 
-        let topic = config.get::<String>("topic").unwrap_or("palanuk".to_owned());
+        let topic = config.get::<String>("topic")
+            .map_err(|e| CuError::from(format!("{e}")))?
+            .unwrap();
 
         Ok(Self {
             _marker: Default::default(),

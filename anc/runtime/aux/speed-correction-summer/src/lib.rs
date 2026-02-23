@@ -12,7 +12,10 @@ pub const STALL_CMD_THRESHOLD: f32 = 0.15;
 pub const STALL_SPEED_THRESHOLD: f32 = 0.05;
 pub const STALL_BOOST: f32 = 0.3;
 
+#[derive(Reflect)]
+#[reflect(no_field_bounds, from_reflect = false)]
 pub struct SpeedCorrectionSummer {
+    #[reflect(ignore)]
     last_output: Option<PropulsionPayload>,
     k_ff_lmtr: f32,
     k_ff_rmtr: f32

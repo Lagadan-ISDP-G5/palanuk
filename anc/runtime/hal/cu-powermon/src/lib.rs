@@ -6,12 +6,17 @@ use cu29::prelude::*;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
+#[derive(Reflect)]
+#[reflect(no_field_bounds, from_reflect = false)]
 pub struct CuIna219 {
-    driver_instance: Ina219,
+    #[reflect(ignore)]
+    driver_instance: Option<Ina219>,
     target_addr: u8,
 }
 
 #[derive(Debug, Clone, Copy, Encode, Decode, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Reflect)]
+#[reflect(no_field_bounds, from_reflect = false)]
 pub struct Ina219Payload {
     pub power: f64,
     pub load_current: f64,
@@ -49,7 +54,7 @@ impl CuSrcTask for CuIna219 {
             None => panic!("INA219 driver instantiation error"),
             Some(mut driver_instance) => {
                 match driver_instance.init().ok() {
-                    Some(_) => return Ok(Self { driver_instance, target_addr }),
+                    Some(_) => return Ok(Self { driver_instance: Some(driver_instance), target_addr }),
                     None => panic!("INA219 init error (instantiation successful). Check I2C wiring.")
                 }
             }
@@ -59,19 +64,19 @@ impl CuSrcTask for CuIna219 {
     fn process(&mut self, _clock: &RobotClock, msg: &mut Self::Output<'_>) -> CuResult<()> {
         let dev = &mut self.driver_instance;
 
-        let power_reading = dev.power().map_err(|_| {
+        let power_reading = dev.as_mut().unwrap().power().map_err(|_| {
             CuError::from(format!("failed to get power reading"))
         })?;
 
-        let current_reading = dev.load_current().map_err(|_| {
+        let current_reading = dev.as_mut().unwrap().load_current().map_err(|_| {
             CuError::from(format!("failed to get current reading"))
         })?;
 
-        let shunt_voltage_reading = dev.shunt_voltage().map_err(|_| {
+        let shunt_voltage_reading = dev.as_mut().unwrap().shunt_voltage().map_err(|_| {
             CuError::from(format!("failed to get shunt voltage reading"))
         })?;
 
-        let bus_voltage_reading = dev.bus_voltage().map_err(|_| {
+        let bus_voltage_reading = dev.as_mut().unwrap().bus_voltage().map_err(|_| {
             CuError::from(format!("failed to get bus voltage reading"))
         })?;
 

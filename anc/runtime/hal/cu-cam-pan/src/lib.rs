@@ -21,11 +21,15 @@ const IPOLATE_DIV: f32 = 1000.0;
 
 /// this payload has no HW feedback
 #[derive(Debug, Clone, Copy, Default, Encode, Decode, PartialEq, Serialize, Deserialize)]
+#[derive(Reflect)]
+#[reflect(no_field_bounds, from_reflect = false)]
 pub struct CameraPanningPayload {
     pub pos_cmd: PositionCommand,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Encode, Decode, Serialize, Deserialize)]
+#[derive(Reflect)]
+#[reflect(no_field_bounds, from_reflect = false)]
 pub enum PositionCommand {
     #[default]
     Front,
@@ -58,10 +62,14 @@ pub struct CameraPanningControllerInstances {
     sg90_pos_cmd: Pwm
 }
 
+#[derive(Reflect)]
+#[reflect(no_field_bounds, from_reflect = false)]
 pub struct CameraPanning {
     task_running: Arc<AtomicBool>,
     recvd_pos_cmd: Arc<AtomicU8>,
+    #[reflect(ignore)]
     pin_controller_instances: Arc<Mutex<CameraPanningControllerInstances>>,
+    #[reflect(ignore)]
     ipolate_thread_hdl: Option<JoinHandle<Result<(), cu29::CuError>>>,
 }
 

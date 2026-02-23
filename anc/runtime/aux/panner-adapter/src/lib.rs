@@ -4,7 +4,10 @@ use bincode::{Decode, Encode};
 use cu_cam_pan::{CameraPanningPayload, PositionCommand};
 use propulsion_adapter::PropulsionAdapterOutputPayload;
 
+#[derive(Reflect)]
+#[reflect(no_field_bounds, from_reflect = false)]
 pub struct PannerAdapter {
+    #[reflect(ignore)]
     cmd: PositionCommand
 }
 

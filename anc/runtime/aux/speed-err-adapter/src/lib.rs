@@ -4,6 +4,8 @@ use cu_irencoder::IrEncoderPayload;
 use speed_ctrlrs::{LmtrSpeedErrPayload, RmtrSpeedErrPayload};
 use cu_propulsion::PropulsionPayload;
 
+#[derive(Reflect)]
+#[reflect(no_field_bounds, from_reflect = false)]
 pub struct SpeedErrAdapter {
     lmtr_speed_err: Option<f32>,
     rmtr_speed_err: Option<f32>,

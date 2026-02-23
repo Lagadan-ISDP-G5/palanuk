@@ -16,6 +16,8 @@ use dual_mtr_ctrlr::DualMtrCtrlrPayload;
 /// which doesnt do anything because Closed has value 0 and somehow somewhere that 0 is mapped back to Closed,
 /// when it shouldn've been open
 #[derive(Debug, Clone, Copy, Default, Encode, Decode, PartialEq, Serialize, Deserialize)]
+#[derive(Reflect)]
+#[reflect(no_field_bounds, from_reflect = false)]
 pub enum LoopState {
     #[default]
     Open,
@@ -23,6 +25,8 @@ pub enum LoopState {
 }
 
 #[derive(Debug, Clone, Copy, Default, Encode, Decode, PartialEq, Serialize, Deserialize)]
+#[derive(Reflect)]
+#[reflect(no_field_bounds, from_reflect = false)]
 pub enum WorkOrRestState {
     #[default]
     AtRest,
@@ -30,6 +34,8 @@ pub enum WorkOrRestState {
 }
 
 #[derive(Debug, Clone, Copy, Default, Encode, Decode, PartialEq, Serialize, Deserialize)]
+#[derive(Reflect)]
+#[reflect(no_field_bounds, from_reflect = false)]
 pub enum SteerDirection {
     #[default]
     Free,
@@ -40,6 +46,8 @@ pub enum SteerDirection {
 }
 
 #[derive(Debug, Clone, Copy, Default, Encode, Decode, PartialEq, Serialize, Deserialize)]
+#[derive(Reflect)]
+#[reflect(no_field_bounds, from_reflect = false)]
 pub struct PropulsionAdapterOutputPayload {
     pub loop_state: LoopState,
     pub propulsion_payload: PropulsionPayload,
@@ -50,6 +58,8 @@ pub struct PropulsionAdapterOutputPayload {
 }
 
 #[derive(Default, Debug, Clone, Copy, Encode, Decode, PartialEq, Serialize, Deserialize)]
+#[derive(Reflect)]
+#[reflect(no_field_bounds, from_reflect = false)]
 pub struct ZenohTopicsAdapterOutputPayload {
     pub loop_state: LoopState,
     pub left_enable: bool,
@@ -63,6 +73,8 @@ pub struct ZenohTopicsAdapterOutputPayload {
     pub camera_position: PositionCommand,
 }
 
+#[derive(Reflect)]
+#[reflect(no_field_bounds, from_reflect = false)]
 pub struct PropulsionAdapter {
     e_stop_threshold_cm: f64
 }

@@ -7,20 +7,25 @@ use cu_powermon::Ina219Payload;
 use bincode::{Encode, Decode};
 use serde::{Serialize, Deserialize};
 
+#[derive(Reflect)]
 pub struct EcPub {}
 
 impl Freezable for EcPub {}
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, Encode, Decode)]
+#[derive(Reflect)]
 pub struct PowerMwatts(pub f64);
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, Encode, Decode)]
+#[derive(Reflect)]
 pub struct LoadCurrentMamps(pub f64);
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, Encode, Decode)]
+#[derive(Reflect)]
 pub struct BusVoltageMvolts(pub f64);
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, Encode, Decode)]
+#[derive(Reflect)]
 pub struct ShuntVoltageMvolts(pub f64);
 
 impl CuTask for EcPub {

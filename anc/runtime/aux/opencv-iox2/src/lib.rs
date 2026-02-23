@@ -2,7 +2,7 @@ extern crate cu_bincode as bincode;
 
 use cu29::prelude::*;
 use iceoryx2::prelude::*;
-use iceoryx2::prelude::ipc::Service;
+use iceoryx2::prelude::ipc_threadsafe::Service;
 use iceoryx2::port::subscriber::*;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
@@ -11,6 +11,7 @@ use crate::ipc::{AbsLineGradientMsg, CornerDetectedMsg, CornerDirectionMsg, Corn
 mod ipc;
 
 #[derive(Default, Debug, Clone, Copy, Encode, Decode, PartialEq, Serialize, Deserialize)]
+#[derive(Reflect)]
 pub enum CornerDirection {
     Left,
     #[default]
@@ -18,6 +19,8 @@ pub enum CornerDirection {
 }
 
 #[derive(Default, Debug, Clone, Copy, Encode, Decode, PartialEq, Serialize, Deserialize)]
+#[derive(Reflect)]
+#[reflect(no_field_bounds, from_reflect = false)]
 pub struct OpenCViox2Payload {
     pub abs_line_gradient: f32,
     pub heading_error: f32,
@@ -27,13 +30,21 @@ pub struct OpenCViox2Payload {
     pub vertical_line_valid: bool
 }
 
+#[derive(Reflect)]
+#[reflect(no_field_bounds, from_reflect = false)]
 pub struct OpenCViox2 {
+    #[reflect(ignore)]
     heading_error_sub: Subscriber<Service, HeadingErrorMsg, ()>,
+    #[reflect(ignore)]
     abs_line_gradient_sub: Subscriber<Service, AbsLineGradientMsg, ()>,
+    #[reflect(ignore)]
     corner_detected_sub: Subscriber<Service, CornerDetectedMsg, ()>,
+    #[reflect(ignore)]
     corner_direction_sub: Subscriber<Service, CornerDirectionMsg, ()>,
+    #[reflect(ignore)]
     corner_point_sub: Subscriber<Service, CornerPointMsg, ()>
 }
+
 
 impl Freezable for OpenCViox2 {}
 

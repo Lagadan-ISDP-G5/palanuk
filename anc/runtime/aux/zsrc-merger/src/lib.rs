@@ -6,6 +6,8 @@ use propulsion_adapter::{LoopState, SteerDirection, WorkOrRestState, ZenohTopics
 use cu_propulsion::WheelDirection;
 use cu_cam_pan::PositionCommand;
 
+#[derive(Reflect)]
+#[reflect(no_field_bounds, from_reflect = false)]
 pub struct ZSrcMerger {}
 
 impl Freezable for ZSrcMerger {}
@@ -16,22 +18,27 @@ impl Freezable for ZSrcMerger {}
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, Encode, Decode)]
 #[serde(transparent)]
+#[derive(Reflect)]
 pub struct OddOpenLoopSpeed(pub f64);
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, Encode, Decode)]
 #[serde(transparent)]
+#[derive(Reflect)]
 pub struct OddLoopMode(pub u8);
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, Encode, Decode)]
 #[serde(transparent)]
+#[derive(Reflect)]
 pub struct OddOpenLoopDriveState(pub u8);
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, Encode, Decode)]
 #[serde(transparent)]
+#[derive(Reflect)]
 pub struct OddOpenLoopForcepan(pub u8);
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, Encode, Decode)]
 #[serde(transparent)]
+#[derive(Reflect)]
 pub struct OddOpenLoopSteerCmd(pub u8);
 
 impl CuTask for ZSrcMerger {

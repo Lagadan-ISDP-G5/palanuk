@@ -8,6 +8,8 @@ use propulsion_adapter::LoopState;
 use cu_irencoder::IrEncoderPayload;
 
 #[derive(Default, Debug, Clone, Copy, Encode, Decode, PartialEq, Serialize, Deserialize)]
+#[derive(Reflect)]
+#[reflect(no_field_bounds, from_reflect = false)]
 pub struct AncPubPayload {
     pub e_stop_trig_fdbk: bool,
     pub loop_mode_fdbk: LoopState,
@@ -15,17 +17,23 @@ pub struct AncPubPayload {
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, Encode, Decode)]
+#[derive(Reflect)]
 pub struct ObstacleDetected(pub u8);
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, Encode, Decode)]
+#[derive(Reflect)]
 pub struct Distance(pub f64);
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, Encode, Decode)]
+#[derive(Reflect)]
 pub struct LmtrSpeed(pub f32);
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, Encode, Decode)]
+#[derive(Reflect)]
 pub struct RmtrSpeed(pub f32);
 
+#[derive(Reflect)]
+#[reflect(no_field_bounds, from_reflect = false)]
 pub struct AncPub {}
 
 impl Freezable for AncPub {}

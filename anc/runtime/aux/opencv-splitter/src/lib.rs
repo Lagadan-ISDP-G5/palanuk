@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use opencv_iox2::OpenCViox2Payload;
 
 #[derive(Default, Debug, Clone, Copy, Encode, Decode, PartialEq, Serialize, Deserialize)]
+#[derive(Reflect)]
 pub struct NsmPayload {
     pub abs_line_gradient: f32,
     pub heading_error: f32,
@@ -30,6 +31,7 @@ impl From<&OpenCViox2Payload> for NsmPayload {
     }
 }
 
+#[derive(Reflect)]
 pub struct OpenCvSplitter {
     last_value: Option<NsmPayload>,
 }

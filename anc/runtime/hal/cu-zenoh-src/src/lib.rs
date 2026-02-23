@@ -8,14 +8,21 @@ use core::marker::PhantomData;
 pub const CHANNEL_CAPACITY: usize = 2048;
 pub const DEFAULT_STALENESS_TIMEOUT_MS: f64 = 500.0;
 
+#[derive(Reflect)]
+#[reflect(no_field_bounds, from_reflect = false)]
 pub struct ZSrc<S>
 where
     S: CuMsgPayload,
 {
+    #[reflect(ignore)]
     _marker: PhantomData<S>,
+    #[reflect(ignore)]
     config: ZCfg,
+    #[reflect(ignore)]
     ctx: Option<ZCtx>,
+    #[reflect(ignore)]
     last_value: Option<S>,
+    #[reflect(ignore)]
     last_recv_instant: Option<CuInstant>,
     staleness_timeout: CuDuration,
 }
@@ -34,7 +41,7 @@ impl<S> Freezable for ZSrc<S> where S: CuMsgPayload {}
 
 impl<S> CuSrcTask for ZSrc<S>
 where
-    S: CuMsgPayload + 'static + DeserializeOwned + Copy,
+    S: CuMsgPayload + 'static + DeserializeOwned + Copy + TypePath + Reflect,
 {
     type Output<'m> = output_msg!(S);
     type Resources<'r> = ();
@@ -47,16 +54,19 @@ where
 
         let def_cfg = Config::default();
 
-        let session_config = config.get::<String>("zenoh_config_file").map_or(
-            Ok(def_cfg),
-            |s| -> CuResult<Config> {
-                Config::from_file(&s)
-                    .map_err(|_| -> CuError {CuError::from("ZSrc: Failed to create zenoh config")} )
-            },
-        )?;
+        let session_config = match config.get::<String>("zenoh_config_file").map_err(|e| CuError::from(format!("{e}")))? {
+            Some(s) => Config::from_file(&s)
+                .map_err(|_| -> CuError {CuError::from("ZSrc: Failed to create zenoh config")})?,
+            None => def_cfg,
+        };
 
-        let topic = config.get::<String>("topic").unwrap_or("palanuk".to_owned());
-        let staleness_timeout_ms = config.get::<f64>("staleness_timeout_ms").unwrap_or(DEFAULT_STALENESS_TIMEOUT_MS);
+        let topic = config.get::<String>("topic")
+            .map_err(|e| CuError::from(format!("{e}")))?
+            .unwrap();
+
+        let staleness_timeout_ms = config.get::<f64>("staleness_timeout_ms")
+            .map_err(|e| CuError::from(format!("{e}")))?
+            .unwrap_or(DEFAULT_STALENESS_TIMEOUT_MS);
 
         Ok(Self {
             _marker: Default::default(),

@@ -28,6 +28,8 @@ pub const ON_AXIS_ROTATION_DURATION_MILLISEC_90_DEG: u64 = 400;
 pub const STEERING_MIN_HOLD_MS: u64 = 500;
 
 /// r_wind_comp values can be between 0 and 2 for either motor, but not both. If one is > 1 another must be <1.
+#[derive(Reflect)]
+#[reflect(no_field_bounds, from_reflect = false)]
 pub struct Arbitrator {
     e_stop_trig_fdbk: bool,
     target_speed: Option<f32>,
@@ -37,8 +39,11 @@ pub struct Arbitrator {
     r_wind_comp_rmtr: f32,
     /// normalized corner y coord to trigger steering handler and override lanekeeping for the maneuver
     corner_y_coord_steering_trig: f32,
+    #[reflect(ignore)]
     steerer_state: SteererState,
+    #[reflect(ignore)]
     steering_started: CuInstant,
+    #[reflect(ignore)]
     on_axis_rotator: OnAxisRotator,
     last_pid_output: f32,
 }
