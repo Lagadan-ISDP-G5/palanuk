@@ -26,6 +26,7 @@ use cu_irencoder::*;
 use speed_err_adapter::*;
 use speed_correction_summer::*;
 use speed_ctrlrs::*;
+use itp_merger::*;
 
 use core_affinity::*;
 use libc::*;
@@ -39,6 +40,11 @@ pub mod odd_subs {
     pub type OddOpenLoopDriveStateSrc = ZSrc<zsrc_merger::OddOpenLoopDriveState>;
     pub type OddOpenLoopForcepanSrc   = ZSrc<zsrc_merger::OddOpenLoopForcepan>;
     pub type OddOpenLoopSteerCmdSrc   = ZSrc<zsrc_merger::OddOpenLoopSteerCmd>;
+}
+
+pub mod itp_subs {
+    use cu_zenoh_src::ZSrc;
+    pub type ItpAccelerateCmdSrc = ZSrc<itp_merger::ItpAccelerateCmd>;
 }
 
 pub mod anc_pubs {

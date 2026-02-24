@@ -3,14 +3,22 @@ use cu29::prelude::*;
 use cu_propulsion::PropulsionPayload;
 use cu_pid::PIDControlOutputPayload;
 use cu_irencoder::IrEncoderPayload;
+use itp_merger::ItpTopicsOutputPayload;
 
 pub const R_WIND_COMP_LMTR: f32 = 1.1;
 pub const R_WIND_COMP_RMTR: f32 = 1.0;
 pub const MAX_PID_CORRECTION: f32 = 0.25;
 
 pub const STALL_CMD_THRESHOLD: f32 = 0.15;
-pub const STALL_SPEED_THRESHOLD: f32 = 0.05;
-pub const STALL_BOOST: f32 = 0.3;
+pub const STALL_SPEED_THRESHOLD: f32 = 0.2;
+pub const STALL_BOOST: f32 = 0.5;
+
+pub const SLIP_CMD_THRESHOLD: f32 = 0.15;
+pub const SLIP_RATIO_THRESHOLD: f32 = 0.15;
+pub const SLIP_REDUCTION: f32 = 1.0;
+
+pub const ACCELERATE_MIN_DURATION_MS: u64 = 6000;
+pub const ACCELERATE_MAX_DURATION_MS: u64 = 9000;
 
 #[derive(Reflect)]
 #[reflect(no_field_bounds, from_reflect = false)]
@@ -18,7 +26,11 @@ pub struct SpeedCorrectionSummer {
     #[reflect(ignore)]
     last_output: Option<PropulsionPayload>,
     k_ff_lmtr: f32,
-    k_ff_rmtr: f32
+    k_ff_rmtr: f32,
+    #[reflect(ignore)]
+    accelerating: bool,
+    #[reflect(ignore)]
+    accelerate_started: CuInstant,
 }
 
 impl Default for SpeedCorrectionSummer {
@@ -26,7 +38,9 @@ impl Default for SpeedCorrectionSummer {
         Self {
             last_output: None,
             k_ff_lmtr: 1.0,
-            k_ff_rmtr: 1.0
+            k_ff_rmtr: 1.0,
+            accelerating: false,
+            accelerate_started: CuInstant::now(),
         }
     }
 }
@@ -34,7 +48,7 @@ impl Default for SpeedCorrectionSummer {
 impl Freezable for SpeedCorrectionSummer {}
 
 impl CuTask for SpeedCorrectionSummer {
-    type Input<'m> = input_msg!('m, PIDControlOutputPayload, PIDControlOutputPayload, PropulsionPayload, IrEncoderPayload);
+    type Input<'m> = input_msg!('m, PIDControlOutputPayload, PIDControlOutputPayload, PropulsionPayload, IrEncoderPayload, ItpTopicsOutputPayload);
     type Output<'m> = output_msg!(PropulsionPayload);
     type Resources<'r> = ();
 
@@ -75,24 +89,32 @@ impl CuTask for SpeedCorrectionSummer {
         let rmtr_speed_ctrlr_outpload = input.1.payload();
         let feedforward = input.2.payload();
         let encoder = input.3.payload();
+        let itp = input.4.payload();
 
-        let (lmtr_stall_boost, rmtr_stall_boost) = self.motor_stall_handler(encoder);
+        let accelerate = self.accelerate_handler(itp);
 
         if let Some(ff) = feedforward {
-            let lmtr_pid = lmtr_speed_ctrlr_outpload.map(|p| p.output).unwrap_or(0.0)
-                .clamp(-MAX_PID_CORRECTION, MAX_PID_CORRECTION);
-            let rmtr_pid = rmtr_speed_ctrlr_outpload.map(|p| p.output).unwrap_or(0.0)
-                .clamp(-MAX_PID_CORRECTION, MAX_PID_CORRECTION);
-
-            let lmtr_ff = ff.left_speed;
-            let rmtr_ff = ff.right_speed;
-
-            let lmtr_summed_speed = lmtr_pid + (self.k_ff_lmtr * lmtr_ff) + lmtr_stall_boost;
-            let rmtr_summed_speed = rmtr_pid + (self.k_ff_rmtr * rmtr_ff) + rmtr_stall_boost;
-
             let mut output_msg = ff.clone();
-            output_msg.left_speed = (R_WIND_COMP_LMTR * lmtr_summed_speed).clamp(0.0, 1.0);
-            output_msg.right_speed = (R_WIND_COMP_RMTR * rmtr_summed_speed).clamp(0.0, 1.0);
+
+            if accelerate {
+                output_msg.left_speed = 1.0;
+                output_msg.right_speed = 1.0;
+                eprintln!("ACCEL: overriding L=1.0 R=1.0");
+            } else {
+                let lmtr_pid = lmtr_speed_ctrlr_outpload.map(|p| p.output).unwrap_or(0.0)
+                    .clamp(-MAX_PID_CORRECTION, MAX_PID_CORRECTION);
+                let rmtr_pid = rmtr_speed_ctrlr_outpload.map(|p| p.output).unwrap_or(0.0)
+                    .clamp(-MAX_PID_CORRECTION, MAX_PID_CORRECTION);
+
+                let lmtr_ff = ff.left_speed;
+                let rmtr_ff = ff.right_speed;
+
+                let lmtr_summed_speed = lmtr_pid + (self.k_ff_lmtr * lmtr_ff);
+                let rmtr_summed_speed = rmtr_pid + (self.k_ff_rmtr * rmtr_ff);
+
+                output_msg.left_speed = (R_WIND_COMP_LMTR * lmtr_summed_speed).clamp(0.0, 1.0);
+                output_msg.right_speed = (R_WIND_COMP_RMTR * rmtr_summed_speed).clamp(0.0, 1.0);
+            }
 
             self.last_output = Some(output_msg);
         }
@@ -105,38 +127,29 @@ impl CuTask for SpeedCorrectionSummer {
 
 }
 
-// TODO: test this
-// if it doesnt work then we probably need a timer based subroutine that goes like this:
-// stop motor, wait, then go full blast until cu-irencoder registers movement past a certain threshold
 impl SpeedCorrectionSummer {
-    fn motor_stall_handler(&self, encoder: Option<&IrEncoderPayload>) -> (f32, f32) {
-        let last = match self.last_output {
-            Some(ref lo) => lo,
-            None => return (0.0, 0.0),
-        };
+    fn accelerate_handler(&mut self, itp: Option<&ItpTopicsOutputPayload>) -> bool {
+        if let Some(itp_pload) = itp {
+            if itp_pload.accelerate_cmd {
+                self.accelerating = true;
+                self.accelerate_started = CuInstant::now();
+                eprintln!("ACCEL: started");
+            }
+        }
 
-        let enc = match encoder {
-            Some(e) => e,
-            None => return (0.0, 0.0),
-        };
+        if self.accelerating {
+            let elapsed_ns = CuInstant::now().as_nanos()
+                .checked_sub(self.accelerate_started.as_nanos())
+                .unwrap_or(0);
+            let elapsed = CuDuration::from_nanos(elapsed_ns);
+            if elapsed >= CuDuration::from_millis(ACCELERATE_MAX_DURATION_MS) {
+                self.accelerating = false;
+                eprintln!("ACCEL: timed out after {}ms", ACCELERATE_MAX_DURATION_MS);
+            } else if elapsed < CuDuration::from_millis(ACCELERATE_MIN_DURATION_MS) {
+                // keep accelerating regardless of cmd state
+            }
+        }
 
-        let lmtr_actual = enc.lmtr_normalized_rpm.unwrap_or(0.0);
-        let rmtr_actual = enc.rmtr_normalized_rpm.unwrap_or(0.0);
-
-        let lmtr_boost = if last.left_speed >= STALL_CMD_THRESHOLD && lmtr_actual < STALL_SPEED_THRESHOLD {
-            // eprintln!("STALL L: cmd={:.4} actual={:.4}", last.left_speed, lmtr_actual);
-            STALL_BOOST
-        } else {
-            0.0
-        };
-
-        let rmtr_boost = if last.right_speed >= STALL_CMD_THRESHOLD && rmtr_actual < STALL_SPEED_THRESHOLD {
-            // eprintln!("STALL R: cmd={:.4} actual={:.4}", last.right_speed, rmtr_actual);
-            STALL_BOOST
-        } else {
-            0.0
-        };
-
-        (lmtr_boost, rmtr_boost)
+        self.accelerating
     }
 }

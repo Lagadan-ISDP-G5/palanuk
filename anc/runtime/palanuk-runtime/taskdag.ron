@@ -52,9 +52,9 @@
             id: "dual-mtr-ctrlr",
             type: "dual_mtr_ctrlr::DualMtrCtrlr",
             config: {
-                "kp": 0.33,
-                "kd": 0.002,
-                "ki": 0.0003,
+                "kp": 0.2,
+                "kd": 0.0,
+                "ki": 0.00002,
                 "setpoint": 0.0,
                 "cutoff": 2.0,
             }
@@ -66,7 +66,7 @@
             config: {
                 // "r_wind_comp_lmtr": 1.17,
                 // "r_wind_comp_rmtr": 0.85,
-                "corner_y_coord_steering_trig": 0.7,
+                "corner_y_coord_steering_trig": 0.8,
             }
         ),
 
@@ -267,6 +267,23 @@
 
         // END: Subscribers to ODD
 
+        // BEGIN: Subscribers to ITP
+
+        (
+            id: "itp-accelerate-cmd",
+            type: "itp_subs::ItpAccelerateCmdSrc",
+            config: {
+                "topic": "palanuk/itp/accelerate",
+            },
+        ),
+
+        (
+            id: "itp-merger",
+            type: "itp_merger::ItpMerger",
+        ),
+
+        // END: Subscribers to ITP
+
         // BEGIN: ANC publishers to ODD
 
         (
@@ -343,9 +360,9 @@
             id: "lmtr-speed-ctrlr",
             type: "speed_ctrlrs::LmtrSpeedCtrlr",
             config: {
-                "kp": 0.3,
-                "kd": 0.0,
-                "ki": 0.000001,
+                "kp": 0.35,
+                "kd": 0.000000001,
+                "ki": 0.0000016,
                 "setpoint": 0.0,
                 "cutoff": 10.0,
             }
@@ -355,9 +372,9 @@
             id: "rmtr-speed-ctrlr",
             type: "speed_ctrlrs::RmtrSpeedCtrlr",
             config: {
-                "kp": 0.3,
-                "kd": 0.0,
-                "ki": 0.000001,
+                "kp": 0.35,
+                "kd": 0.00000001,
+                "ki": 0.0000016,
                 "setpoint": 0.0,
                 "cutoff": 10.0,
             }
@@ -368,8 +385,8 @@
             type: "speed_correction_summer::SpeedCorrectionSummer",
             // config optional for k_ff_lmtr and k_ff_rmtr
             config: {
-                "k_ff_lmtr": 0.6,
-                "k_ff_rmtr": 0.1,
+                "k_ff_lmtr": 0.631,
+                "k_ff_rmtr": 0.2,
             },
             logging: (enabled: true)
         ),
@@ -451,6 +468,9 @@
         (src: "speed-err-adapter", dst: "lmtr-speed-ctrlr", msg: "speed_ctrlrs::LmtrSpeedErrPayload"),
         (src: "speed-err-adapter", dst: "rmtr-speed-ctrlr", msg: "speed_ctrlrs::RmtrSpeedErrPayload"),
 
+        // itp-merger heads
+        (src: "itp-accelerate-cmd", dst: "itp-merger", msg: "itp_merger::ItpAccelerateCmd"),
+
         // speed-correction-summer heads
         (src: "lmtr-speed-ctrlr", dst: "speed-correction-summer", msg: "cu_pid::PIDControlOutputPayload"),
         (src: "rmtr-speed-ctrlr", dst: "speed-correction-summer", msg: "cu_pid::PIDControlOutputPayload"),
@@ -458,6 +478,8 @@
         (src: "arbitrator", dst: "speed-correction-summer", msg: "cu_propulsion::PropulsionPayload"),
         // encoder feedback for stall detection
         (src: "encoder-pair", dst: "speed-correction-summer", msg: "cu_irencoder::IrEncoderPayload"),
+        // itp accelerate command
+        (src: "itp-merger", dst: "speed-correction-summer", msg: "itp_merger::ItpTopicsOutputPayload"),
 
         // speed-correction-summer tail
         (src: "speed-correction-summer", dst: "propulsion", msg: "cu_propulsion::PropulsionPayload"),

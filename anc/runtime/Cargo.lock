@@ -4498,6 +4498,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4a5f13b858c8d314ee3e8f639011f7ccefe71f97f96e50151fb991f267928e2c"
 
 [[package]]
+name = "itp-merger"
+version = "0.1.0"
+dependencies = [
+ "cu-bincode",
+ "cu29",
+ "serde",
+]
+
+[[package]]
 name = "jiff"
 version = "0.2.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5646,6 +5655,7 @@ dependencies = [
  "cu29-runtime",
  "dual-mtr-ctrlr",
  "ec-pub",
+ "itp-merger",
  "libc",
  "opencv-iox2",
  "opencv-splitter",
@@ -8180,6 +8190,7 @@ dependencies = [
  "cu-pid",
  "cu-propulsion",
  "cu29",
+ "itp-merger",
 ]
 
 [[package]]

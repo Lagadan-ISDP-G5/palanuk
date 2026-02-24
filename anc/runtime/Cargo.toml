@@ -21,8 +21,9 @@ members = [
     "aux/speed-err-adapter",
     "aux/speed-correction-summer",
     "hal/speed-ctrlrs",
-    "hal/zenoh-session"
-    ]
+    "hal/zenoh-session",
+    "aux/itp-merger"
+]
 
 [workspace.package]
 publish = false
@@ -79,6 +80,7 @@ speed-ctrlrs = { path = "./hal/speed-ctrlrs" }
 cu-irencoder = { path = "./hal/cu-irencoder" }
 speed-err-adapter = { path = "./aux/speed-err-adapter" }
 speed-correction-summer = { path = "./aux/speed-correction-summer" }
+itp-merger = { path = "./aux/itp-merger" }
 
 ir-encoder-gpio-cdev = { path = "/Users/ander/Documents/proj/ir-encoder-gpio-cdev" }
 # ir-encoder-gpio-cdev = "^0.1.0"

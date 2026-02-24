@@ -296,6 +296,7 @@ impl CuSinkTask for Propulsion {
             }
             self.last_lmtr_duty_cycle = Some(payload.left_speed);
             self.last_rmtr_duty_cycle = Some(payload.right_speed);
+            eprintln!("PROP: L={:.4} R={:.4} Ldir={:?} Rdir={:?}", payload.left_speed, payload.right_speed, payload.left_direction, payload.right_direction);
 
             let dir_hdl = &mut self.pin_controller_instances.direction_pins;
 

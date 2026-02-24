@@ -44,6 +44,7 @@ cu-irencoder = { workspace = true }
 speed-err-adapter = { workspace = true }
 speed-correction-summer = { workspace = true }
 speed-ctrlrs = { workspace = true }
+itp-merger = { workspace = true }
 
 [[bin]]
 name = "palanuk-runtime"
