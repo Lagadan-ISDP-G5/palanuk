@@ -226,42 +226,42 @@
         ),
 
         (
-            id: "odd-openloop-speed",
-            type: "odd_subs::OddOpenLoopSpeedSrc",
+            id: "bstn-openloop-speed",
+            type: "bstn_subs::BstnOpenLoopSpeedSrc",
             config: {
-                "topic": "palanuk/odd/speed",
+                "topic": "palanuk/bstn/speed",
             },
         ),
 
         (
-            id: "odd-loopmode",
-            type: "odd_subs::OddOpenLoopModeSrc",
+            id: "bstn-loopmode",
+            type: "bstn_subs::BstnOpenLoopModeSrc",
             config: {
-                "topic": "palanuk/odd/loopmode",
+                "topic": "palanuk/bstn/loopmode",
             },
         ),
 
         (
-            id: "odd-openloop-drivestate",
-            type: "odd_subs::OddOpenLoopDriveStateSrc",
+            id: "bstn-openloop-drivestate",
+            type: "bstn_subs::BstnOpenLoopDriveStateSrc",
             config: {
-                "topic": "palanuk/odd/drivestate",
+                "topic": "palanuk/bstn/drivestate",
             },
         ),
 
         (
-            id: "odd-openloop-forcepan",
-            type: "odd_subs::OddOpenLoopForcepanSrc",
+            id: "bstn-openloop-forcepan",
+            type: "bstn_subs::BstnOpenLoopForcepanSrc",
             config: {
-                "topic": "palanuk/odd/forcepan",
+                "topic": "palanuk/bstn/forcepan",
             },
         ),
 
         (
-            id: "odd-openloop-steercmd",
-            type: "odd_subs::OddOpenLoopSteerCmdSrc",
+            id: "bstn-openloop-steercmd",
+            type: "bstn_subs::BstnOpenLoopSteerCmdSrc",
             config: {
-                "topic": "palanuk/odd/steercmd",
+                "topic": "palanuk/bstn/steercmd",
             },
         ),
 
@@ -430,11 +430,11 @@
         (src: "ec-pub-rmtr", dst: "rmtr-shunt-voltage-mvolts", msg: "ec_pub::ShuntVoltageMvolts"),
 
         // zsrc-merger heads
-        (src: "odd-openloop-speed",      dst: "zsrc-merger", msg: "zsrc_merger::OddOpenLoopSpeed"),
-        (src: "odd-loopmode",            dst: "zsrc-merger", msg: "zsrc_merger::OddLoopMode"),
-        (src: "odd-openloop-drivestate", dst: "zsrc-merger", msg: "zsrc_merger::OddOpenLoopDriveState"),
-        (src: "odd-openloop-forcepan",   dst: "zsrc-merger", msg: "zsrc_merger::OddOpenLoopForcepan"),
-        (src: "odd-openloop-steercmd",   dst: "zsrc-merger", msg: "zsrc_merger::OddOpenLoopSteerCmd"),
+        (src: "bstn-openloop-speed",      dst: "zsrc-merger", msg: "zsrc_merger::BstnOpenLoopSpeed"),
+        (src: "bstn-loopmode",            dst: "zsrc-merger", msg: "zsrc_merger::BstnLoopMode"),
+        (src: "bstn-openloop-drivestate", dst: "zsrc-merger", msg: "zsrc_merger::BstnOpenLoopDriveState"),
+        (src: "bstn-openloop-forcepan",   dst: "zsrc-merger", msg: "zsrc_merger::BstnOpenLoopForcepan"),
+        (src: "bstn-openloop-steercmd",   dst: "zsrc-merger", msg: "zsrc_merger::BstnOpenLoopSteerCmd"),
 
         // propulsion-adapter tails
         (src: "propulsion-adapter", dst: "panner-adapter", msg: "propulsion_adapter::PropulsionAdapterOutputPayload"),

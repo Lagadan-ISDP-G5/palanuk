@@ -31,15 +31,15 @@ use itp_merger::*;
 use core_affinity::*;
 use libc::*;
 
-pub mod odd_subs {
+pub mod bstn_subs {
     use cu_zenoh_src::ZSrc;
-    use zsrc_merger::{OddOpenLoopSpeed, OddLoopMode, OddOpenLoopDriveState, OddOpenLoopForcepan, OddOpenLoopSteerCmd};
+    use zsrc_merger::{BstnOpenLoopSpeed, BstnLoopMode, BstnOpenLoopDriveState, BstnOpenLoopForcepan, BstnOpenLoopSteerCmd};
 
-    pub type OddOpenLoopSpeedSrc      = ZSrc<zsrc_merger::OddOpenLoopSpeed>;
-    pub type OddOpenLoopModeSrc       = ZSrc<zsrc_merger::OddLoopMode>;
-    pub type OddOpenLoopDriveStateSrc = ZSrc<zsrc_merger::OddOpenLoopDriveState>;
-    pub type OddOpenLoopForcepanSrc   = ZSrc<zsrc_merger::OddOpenLoopForcepan>;
-    pub type OddOpenLoopSteerCmdSrc   = ZSrc<zsrc_merger::OddOpenLoopSteerCmd>;
+    pub type BstnOpenLoopSpeedSrc      = ZSrc<zsrc_merger::BstnOpenLoopSpeed>;
+    pub type BstnOpenLoopModeSrc       = ZSrc<zsrc_merger::BstnLoopMode>;
+    pub type BstnOpenLoopDriveStateSrc = ZSrc<zsrc_merger::BstnOpenLoopDriveState>;
+    pub type BstnOpenLoopForcepanSrc   = ZSrc<zsrc_merger::BstnOpenLoopForcepan>;
+    pub type BstnOpenLoopSteerCmdSrc   = ZSrc<zsrc_merger::BstnOpenLoopSteerCmd>;
 }
 
 pub mod itp_subs {
