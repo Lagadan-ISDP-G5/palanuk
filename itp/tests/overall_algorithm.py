@@ -13,18 +13,27 @@ This service does NOT:
 This service DOES:
   - Run YOLO inference on camera frames
   - Detect bumpers → send ACCELERATE_FOR_BUMP to AnC
-  - Detect valid parking slots → send PARKING_SLOTS_DETECTED to AnC
+  - Detect valid parking slots → trigger state transition internally
   - Wait for prepare_to_park ACK before panning camera / starting parking SM
   - Manage the parking state machine (slot detection, alignment)
   - Send detection events and nav commands to AnC via Zenoh
 
-Zenoh Topics Published:
-  anc/state             — current navigation state (JSON)
-  anc/nav_command       — navigational commands for AnC (JSON)
-  anc/detections        — per-frame detection summary (JSON)
+Zenoh Topics (Core — always active, per zenoh_topics.md):
+  palanuk/bstn/stop       — stop / resume (u8: 1=stop, 0=resume)
+  palanuk/bstn/loopmode   — loop mode (u8: 0=Open, 1=Closed)
+  palanuk/bstn/speed      — speed setpoint (f64)
+  palanuk/bstn/steercmd   — steering command (u8: 0=Free, 1=Hard Left, 2=Hard Right)
+  palanuk/bstn/drivestate — drive state (u8: 0=Rest, 1=Forward, 2=Reverse)
+  palanuk/bstn/forcepan   — camera pan (u8: 0=Center, 1=Left, 2=Right)
+  palanuk/itp/accelerate  — bumper acceleration (u8: 0/1, rising edge)
+  anc/ack                 — acknowledgments from AnC (JSON)  [toggle via ENABLE_ACK]
 
-Zenoh Topics Subscribed:
-  anc/ack               — acknowledgments from AnC (JSON)  [toggle via ENABLE_ACK]
+  Each nav command publishes a *recipe* — a combination of the above
+  topics — defined in NAV_CMD_RECIPES (parking_service.py).
+
+Zenoh Topics (Debug — toggle via DEBUG_PUBLISH):
+  anc/state             — current navigation state (JSON)
+  anc/detections        — per-frame detection summary (JSON)
 
 Overall States:
   LANE_FOLLOWING        — Pi handles lane tracking; vision watches for bumpers
@@ -50,6 +59,7 @@ from parking_service import (
     ParkingConfig,
     ParkingState,
     NavCommand,
+    NAV_CMD_TOPICS,
     parse_detections,
     Detection,
     DebounceTracker,
@@ -90,6 +100,11 @@ class VisionConfig:
     DEVICE: str = "0"
     TASK: str = "segment"
 
+    # FP16 / TensorRT
+    USE_FP16: bool = True                              # half-precision inference
+    USE_TENSORRT: bool = True                          # export & load TensorRT engine
+    TENSORRT_ENGINE_PATH: str = "tests/best.engine"    # auto-generated from ONNX
+
     # Stream
     STREAM_URL: str = "rtsp://raspberrypi.local:8554/camera"
     MAX_RETRIES: int = 5
@@ -120,11 +135,14 @@ class VisionConfig:
     # ACK handling — set to False to skip waiting for AnC acknowledgments
     ENABLE_ACK: bool = False
 
-    # Zenoh topics
-    ZENOH_TOPIC_STATE: str = "anc/state"
-    ZENOH_TOPIC_NAV_CMD: str = "anc/nav_command"
-    ZENOH_TOPIC_DETECTIONS: str = "anc/detections"
-    ZENOH_TOPIC_ACK: str = "anc/ack"
+    # Zenoh topics — core (always active)
+    # Nav command topics are defined per-command in NAV_CMD_RECIPES (parking_service.py)
+    ZENOH_TOPIC_ACK: str = "anc/ack"               # AnC → ITP: acknowledgments
+
+    # Zenoh topics — debug only (toggle with DEBUG_PUBLISH)
+    DEBUG_PUBLISH: bool = False                      # set True to publish state & detections
+    ZENOH_TOPIC_STATE: str = "anc/state"             # debug: current overall state
+    ZENOH_TOPIC_DETECTIONS: str = "anc/detections"   # debug: per-frame detection summary
 
     # Logging
     LOG_DIR: str = "tests/logs"
@@ -184,13 +202,20 @@ class ZenohBridge:
             logger.info(f"Subscriber declared: {topic}")
 
     def publish(self, topic: str, data: Any):
-        """Publish dict or string to a Zenoh topic."""
+        """Publish dict or string to a Zenoh topic (debug / telemetry)."""
         payload = json.dumps(data) if isinstance(data, dict) else str(data)
 
         if topic in self.publishers:
             self.publishers[topic].put(payload)
         else:
             logger.info(f"[PUB {topic}] {payload}")
+
+    def publish_bytes(self, topic: str, data: bytes):
+        """Publish raw bytes to a Zenoh topic (nav commands)."""
+        if topic in self.publishers:
+            self.publishers[topic].put(data)
+        else:
+            logger.info(f"[PUB {topic}] {data.hex()}")
 
     def get_acks(self) -> List[dict]:
         """Return and clear buffered ACK messages from AnC."""
@@ -317,6 +342,7 @@ class VisionService:
                 imgsz=self.vcfg.IMG_SIZE,
                 conf=self.vcfg.CONF_THRES,
                 device=self.vcfg.DEVICE,
+                half=self.vcfg.USE_FP16,
                 verbose=False,
             )[0]
             self._infer_ms = (time.time() - t0) * 1000
@@ -326,8 +352,9 @@ class VisionService:
             # Log
             self._log_frame(detections)
 
-            # Publish raw detections to AnC
-            self._publish_detections(detections)
+            # Publish raw detections (debug only)
+            if self.vcfg.DEBUG_PUBLISH:
+                self._publish_detections(detections)
 
             # Process state machine
             self._process_state(result, detections)
@@ -412,17 +439,17 @@ class VisionService:
         slot_status = self.valid_slot_tracker.update(len(valid_slots) > 0)
         if slot_status == "CONFIRMED_FOUND":  # fires only once
             best = max(valid_slots, key=lambda s: s.area)
-            logger.info(f"Valid parking slot confirmed (area={best.area/frame_area:.2%})")
-            self._send_nav(NavCommand(
-                command="PARKING_SLOTS_DETECTED",
-                metadata={
-                    "center_x": round(best.center_x, 1),
-                    "center_y": round(best.center_y, 1),
-                    "area_pct": round(best.area / frame_area, 4),
-                },
-            ))
+            logger.info(
+                f"Valid parking slot confirmed "
+                f"(area={best.area/frame_area:.2%}, "
+                f"cx={best.center_x:.1f}, cy={best.center_y:.1f})"
+            )
+            # PARKING_SLOTS_DETECTED is handled internally by ITP.
             # Transition happens when AnC sends prepare_to_park ACK
-            # (see _process_acks)
+            # (see _process_acks)  — or auto-transition if ACK is disabled.
+            if not self.vcfg.ENABLE_ACK:
+                logger.info("ACK disabled — auto-transitioning to APPROACH_PARKING")
+                self._set_state(OverallState.APPROACH_PARKING)
 
     def _state_approach_parking(self, result):
         """
@@ -485,8 +512,9 @@ class VisionService:
     # ----------------------------------------------------------
 
     def _send_nav(self, cmd: NavCommand):
-        """Send a navigation command to AnC via Zenoh."""
-        self.zenoh.publish(self.vcfg.ZENOH_TOPIC_NAV_CMD, cmd.to_dict())
+        """Send a navigation command to AnC via Zenoh (recipe of topic+value pairs)."""
+        logger.info(f"NAV >> {cmd.command}  {cmd.to_dict()['topics']}")
+        cmd.publish_all(self.zenoh)
 
     def _parking_command_handler(self, cmd: NavCommand):
         """Callback from ParkingStateMachine — forward to AnC."""
@@ -522,21 +550,34 @@ class VisionService:
     def _set_state(self, new_state: OverallState):
         logger.info(f"State: {self.state.name} → {new_state.name}")
         self.state = new_state
-        self.zenoh.publish(self.vcfg.ZENOH_TOPIC_STATE, {
-            "state": new_state.name,
-            "timestamp": time.time(),
-        })
+        if self.vcfg.DEBUG_PUBLISH:
+            self.zenoh.publish(self.vcfg.ZENOH_TOPIC_STATE, {
+                "state": new_state.name,
+                "timestamp": time.time(),
+            })
 
     # ----------------------------------------------------------
     # Initialization
     # ----------------------------------------------------------
 
     def _load_model(self):
-        logger.info(f"Loading model: {self.vcfg.MODEL_PATH}")
-        self.model = YOLO(self.vcfg.MODEL_PATH, task=self.vcfg.TASK)
+        """Load YOLO model — TensorRT engine if available, else ONNX."""
+        engine_path = self.vcfg.TENSORRT_ENGINE_PATH
+
+        if self.vcfg.USE_TENSORRT and os.path.exists(engine_path):
+            logger.info(f"Loading TensorRT engine: {engine_path}")
+            self.model = YOLO(engine_path, task=self.vcfg.TASK)
+        else:
+            if self.vcfg.USE_TENSORRT:
+                logger.warning(f"TensorRT engine not found at {engine_path} — falling back to ONNX")
+                logger.warning("Export via: yolo export model=best.pt format=engine half=True device=0 imgsz=640 task=segment")
+            logger.info(f"Loading ONNX model: {self.vcfg.MODEL_PATH}")
+            self.model = YOLO(self.vcfg.MODEL_PATH, task=self.vcfg.TASK)
+
         self.class_names = self.model.names
         self.class_colors = generate_colors(len(self.class_names))
-        logger.info(f"Model loaded — {len(self.class_names)} classes: {self.class_names}")
+        logger.info(f"Model loaded — {len(self.class_names)} classes, "
+                     f"FP16={self.vcfg.USE_FP16}, TensorRT={self.vcfg.USE_TENSORRT}")
 
     def _connect_camera(self):
         logger.info(f"Connecting to: {self.vcfg.STREAM_URL}")
@@ -553,10 +594,18 @@ class VisionService:
 
     def _setup_zenoh(self):
         self.zenoh.open()
-        self.zenoh.declare_publisher(self.vcfg.ZENOH_TOPIC_STATE)
-        self.zenoh.declare_publisher(self.vcfg.ZENOH_TOPIC_NAV_CMD)
-        self.zenoh.declare_publisher(self.vcfg.ZENOH_TOPIC_DETECTIONS)
-        self.zenoh.declare_subscriber(self.vcfg.ZENOH_TOPIC_ACK, self.zenoh._on_ack)
+        # Declare a publisher for every nav-command topic from zenoh_topics.md
+        for topic in NAV_CMD_TOPICS:
+            self.zenoh.declare_publisher(topic)
+        if self.vcfg.ENABLE_ACK:
+            self.zenoh.declare_subscriber(self.vcfg.ZENOH_TOPIC_ACK, self.zenoh._on_ack)
+        if self.vcfg.DEBUG_PUBLISH:
+            self.zenoh.declare_publisher(self.vcfg.ZENOH_TOPIC_STATE)
+            self.zenoh.declare_publisher(self.vcfg.ZENOH_TOPIC_DETECTIONS)
+
+        # Initialise all bstn topics to safe state (zenoh_topics.md requirement)
+        logger.info("Initialising Zenoh topics to safe state")
+        NavCommand(command="INIT_SAFE_STATE").publish_all(self.zenoh)
 
     def _setup_logging(self):
         os.makedirs(self.vcfg.LOG_DIR, exist_ok=True)

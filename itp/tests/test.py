@@ -19,6 +19,7 @@ import sys
 import time
 import json
 import glob
+import struct
 import numpy as np
 from datetime import datetime
 from collections import deque
@@ -32,6 +33,8 @@ from parking_service import (
     ParkingConfig,
     ParkingState,
     NavCommand,
+    NAV_CMD_RECIPES,
+    NAV_CMD_TOPICS,
     parse_detections,
     Detection,
     DebounceTracker,
@@ -52,12 +55,22 @@ from overall_algorithm import (
 # Configuration
 # ============================================================
 
-FOOTAGE_DIR = os.path.join(os.path.dirname(__file__), "parking_footage")
-MODEL_PATH  = os.path.join(os.path.dirname(__file__), "best.onnx")
+FOOTAGE_DIR  = os.path.join(os.path.dirname(__file__), "parking_footage")
+ONNX_PATH    = os.path.join(os.path.dirname(__file__), "best.onnx")
+ENGINE_PATH  = os.path.join(os.path.dirname(__file__), "best.engine")
 IMG_SIZE     = 640
 CONF_THRES   = 0.4
 DEVICE       = "0"        # GPU; change to "cpu" if no CUDA
 TASK         = "segment"
+USE_FP16     = True       # half-precision inference
+
+# Auto-select TensorRT engine if available, else fall back to ONNX
+if os.path.exists(ENGINE_PATH):
+    MODEL_PATH = ENGINE_PATH
+    print(f"[INFO] Using TensorRT engine: {ENGINE_PATH}")
+else:
+    MODEL_PATH = ONNX_PATH
+    print(f"[INFO] TensorRT engine not found, using ONNX: {ONNX_PATH}")
 
 WINDOW_NAME  = "Offline Test — Model + Zenoh"
 SAVE_DIR     = os.path.join(os.path.dirname(__file__), "captured_frames",
@@ -70,7 +83,7 @@ VIDEO_OUT_DIR = os.path.join(os.path.dirname(__file__), "output_videos",
                              f"run_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}")
 
 # Frame skipping — only run inference every N frames (1 = every frame)
-PROCESS_EVERY_N_FRAMES: int = 1
+PROCESS_EVERY_N_FRAMES: int = 2
 
 # Valid parking area threshold — fraction of frame area.
 # When any VALID parking slot exceeds this, auto-trigger APPROACH_PARKING.
@@ -86,8 +99,8 @@ ZENOH_LOG_MAX = 8
 
 class TestZenohBridge(ZenohBridge):
     """
-    Subclass that captures every publish() call into a visible log
-    so we can render it on the video overlay.
+    Subclass that captures every publish() / publish_bytes() call
+    into a visible log so we can render it on the video overlay.
     """
 
     def __init__(self):
@@ -106,6 +119,20 @@ class TestZenohBridge(ZenohBridge):
         else:
             short = str(data)[:120]
         self.publish_log.append(f"[{ts}] {topic}: {short}")
+
+    def publish_bytes(self, topic: str, data: bytes):
+        # Call parent
+        super().publish_bytes(topic, data)
+        # Decode value for human-readable log
+        ts = datetime.now().strftime("%H:%M:%S.%f")[:-3]
+        if len(data) == 1:
+            val = struct.unpack("B", data)[0]
+            self.publish_log.append(f"[{ts}] {topic}: {val}")
+        elif len(data) == 8:
+            val = struct.unpack("d", data)[0]
+            self.publish_log.append(f"[{ts}] {topic}: {val:.3f}")
+        else:
+            self.publish_log.append(f"[{ts}] {topic}: {data.hex()}")
 
 
 # ============================================================
@@ -228,21 +255,12 @@ def test_zenoh_bridge():
     bridge = ZenohBridge()
     bridge.open()
 
-    topics = [
-        VisionConfig.ZENOH_TOPIC_STATE,
-        VisionConfig.ZENOH_TOPIC_NAV_CMD,
-        VisionConfig.ZENOH_TOPIC_DETECTIONS,
-    ]
-    for t in topics:
+    for t in NAV_CMD_TOPICS:
         bridge.declare_publisher(t)
 
-    # Send a test heartbeat
-    bridge.publish(VisionConfig.ZENOH_TOPIC_STATE, {
-        "state": "TEST_HEARTBEAT",
-        "timestamp": time.time(),
-    })
-    bridge.publish(VisionConfig.ZENOH_TOPIC_NAV_CMD, NavCommand(
-        command="TEST_PING").to_dict())
+    # Send a test ping (STOP=0 → harmless resume)
+    test_cmd = NavCommand(command="RESUME_LANE_TRACKING")
+    test_cmd.publish_all(bridge)
 
     print(f"  -> Zenoh available: {bridge._zenoh_available}")
     print(f"  -> Publishers: {list(bridge.publishers.keys())}")
@@ -274,6 +292,7 @@ def main():
     class_names = model.names
     class_colors = make_colors(len(class_names))
     print(f"Loaded — {len(class_names)} classes: {class_names}")
+    print(f"FP16={USE_FP16}, TensorRT={'yes' if MODEL_PATH.endswith('.engine') else 'no'}")
     print(f"Processing every {PROCESS_EVERY_N_FRAMES} frame(s)")
     print(f"Valid parking area threshold: {VALID_PARKING_AREA_THRESHOLD*100:.1f}%")
 
@@ -290,9 +309,14 @@ def main():
     # ── Zenoh bridge for live publishing during playback ──
     zenoh = TestZenohBridge()
     zenoh.open()
-    zenoh.declare_publisher(vcfg.ZENOH_TOPIC_STATE)
-    zenoh.declare_publisher(vcfg.ZENOH_TOPIC_NAV_CMD)
-    zenoh.declare_publisher(vcfg.ZENOH_TOPIC_DETECTIONS)
+    for topic in NAV_CMD_TOPICS:
+        zenoh.declare_publisher(topic)
+    if vcfg.DEBUG_PUBLISH:
+        zenoh.declare_publisher(vcfg.ZENOH_TOPIC_STATE)
+        zenoh.declare_publisher(vcfg.ZENOH_TOPIC_DETECTIONS)
+
+    # Initialise all bstn topics to safe state
+    NavCommand(command="INIT_SAFE_STATE").publish_all(zenoh)
 
     # ── Log file setup ──
     os.makedirs(LOG_DIR, exist_ok=True)
@@ -351,12 +375,13 @@ def main():
         parking_state_name = None
         parked_triggered = False
 
-        # Publish initial state
-        zenoh.publish(vcfg.ZENOH_TOPIC_STATE, {
-            "state": overall_state.name,
-            "video": video_name,
-            "timestamp": time.time(),
-        })
+        # Publish initial state (debug only)
+        if vcfg.DEBUG_PUBLISH:
+            zenoh.publish(vcfg.ZENOH_TOPIC_STATE, {
+                "state": overall_state.name,
+                "video": video_name,
+                "timestamp": time.time(),
+            })
 
         while True:
             if not paused:
@@ -380,33 +405,36 @@ def main():
                     imgsz=IMG_SIZE,
                     conf=CONF_THRES,
                     device=DEVICE,
+                    half=USE_FP16,
                     verbose=False,
                 )[0]
                 infer_ms = (time.time() - t0) * 1000
 
                 detections = parse_detections(result, class_names, CONF_THRES)
 
-                # ── Publish detections via Zenoh ──
                 frame_area = IMG_SIZE ** 2
-                det_payload = {
-                    "frame_id": frame_no,
-                    "timestamp": time.time(),
-                    "state": overall_state.name,
-                    "video": video_name,
-                    "count": len(detections),
-                    "inference_ms": round(infer_ms, 1),
-                    "objects": [
-                        {
-                            "class": d.class_name,
-                            "conf": round(d.confidence, 3),
-                            "cx": round(d.center_x, 1),
-                            "cy": round(d.center_y, 1),
-                            "area_pct": round(d.area / frame_area, 4),
-                        }
-                        for d in detections
-                    ],
-                }
-                zenoh.publish(vcfg.ZENOH_TOPIC_DETECTIONS, det_payload)
+
+                # ── Publish detections via Zenoh (debug only) ──
+                if vcfg.DEBUG_PUBLISH:
+                    det_payload = {
+                        "frame_id": frame_no,
+                        "timestamp": time.time(),
+                        "state": overall_state.name,
+                        "video": video_name,
+                        "count": len(detections),
+                        "inference_ms": round(infer_ms, 1),
+                        "objects": [
+                            {
+                                "class": d.class_name,
+                                "conf": round(d.confidence, 3),
+                                "cx": round(d.center_x, 1),
+                                "cy": round(d.center_y, 1),
+                                "area_pct": round(d.area / frame_area, 4),
+                            }
+                            for d in detections
+                        ],
+                    }
+                    zenoh.publish(vcfg.ZENOH_TOPIC_DETECTIONS, det_payload)
 
                 # ── Classify all parking slots this frame ──
                 slot_status_map = classify_all_slots(detections, pcfg)
@@ -459,14 +487,8 @@ def main():
                     bmp_status = bumper_tracker.update(len(bumpers) > 0)
                     if bmp_status == "CONFIRMED_FOUND":  # fires only once
                         b = bumpers[0]
-                        zenoh.publish(vcfg.ZENOH_TOPIC_NAV_CMD, NavCommand(
-                            command="ACCELERATE_FOR_BUMP",
-                            metadata={
-                                "center_x": round(b.center_x, 1),
-                                "y2": round(b.y2, 1),
-                                "area_pct": round(b.area / frame_area, 4),
-                            },
-                        ).to_dict())
+                        cmd = NavCommand(command="ACCELERATE_FOR_BUMP")
+                        cmd.publish_all(zenoh)
                         print(f"    [!] Bumper detected (y2={b.y2:.0f}) → ACCELERATE_FOR_BUMP @ frame {frame_no}")
 
                     # Watch for valid parking slots exceeding area threshold
@@ -479,42 +501,36 @@ def main():
                     slot_status = valid_slot_tracker.update(len(valid_slots) > 0)
                     if slot_status == "CONFIRMED_FOUND":  # fires only once
                         best = max(valid_slots, key=lambda s: s.area)
-                        zenoh.publish(vcfg.ZENOH_TOPIC_NAV_CMD, NavCommand(
-                            command="PARKING_SLOTS_DETECTED",
-                            metadata={
-                                "center_x": round(best.center_x, 1),
-                                "center_y": round(best.center_y, 1),
-                                "area_pct": round(best.area / frame_area, 4),
-                            },
-                        ).to_dict())
+                        # PARKING_SLOTS_DETECTED is internal — no Zenoh publish
                         # In test mode, auto-transition (no real ACK from AnC)
                         overall_state = OverallState.APPROACH_PARKING
-                        zenoh.publish(vcfg.ZENOH_TOPIC_STATE, {
-                            "state": overall_state.name,
-                            "timestamp": time.time(),
-                            "trigger": "valid_parking_area",
-                        })
+                        if vcfg.DEBUG_PUBLISH:
+                            zenoh.publish(vcfg.ZENOH_TOPIC_STATE, {
+                                "state": overall_state.name,
+                                "timestamp": time.time(),
+                                "trigger": "valid_parking_area",
+                            })
                         print(f"    [!] Valid parking slot confirmed @ frame {frame_no} "
                               f"(area={best.area/frame_area:.2%}) → APPROACH_PARKING")
 
                 elif overall_state == OverallState.APPROACH_PARKING:
                     # Pan camera right for parking scan
-                    zenoh.publish(vcfg.ZENOH_TOPIC_NAV_CMD, NavCommand(
-                        command="PAN_CAMERA_RIGHT").to_dict())
+                    pan_cmd = NavCommand(command="PAN_CAMERA_RIGHT")
+                    pan_cmd.publish_all(zenoh)
                     print(f"    [!] PAN_CAMERA_RIGHT sent @ frame {frame_no}")
 
                     # Initialize parking SM
                     parking_sm = ParkingStateMachine(
                         pcfg,
-                        on_command=lambda cmd: zenoh.publish(
-                            vcfg.ZENOH_TOPIC_NAV_CMD, cmd.to_dict()),
+                        on_command=lambda cmd: cmd.publish_all(zenoh),
                     )
                     parked_triggered = False  # fire-once guard for PARKED
                     overall_state = OverallState.PARKING
-                    zenoh.publish(vcfg.ZENOH_TOPIC_STATE, {
-                        "state": overall_state.name,
-                        "timestamp": time.time(),
-                    })
+                    if vcfg.DEBUG_PUBLISH:
+                        zenoh.publish(vcfg.ZENOH_TOPIC_STATE, {
+                            "state": overall_state.name,
+                            "timestamp": time.time(),
+                        })
                     print(f"    [!] Parking SM initialized @ frame {frame_no}")
 
                 elif overall_state == OverallState.PARKING and parking_sm:
@@ -526,17 +542,19 @@ def main():
                         print(f"    [!] PARKED @ frame {frame_no}")
                     elif p_state == ParkingState.COMPLETE:
                         overall_state = OverallState.FINISHED
-                        zenoh.publish(vcfg.ZENOH_TOPIC_STATE, {
-                            "state": overall_state.name,
-                            "timestamp": time.time(),
-                        })
+                        if vcfg.DEBUG_PUBLISH:
+                            zenoh.publish(vcfg.ZENOH_TOPIC_STATE, {
+                                "state": overall_state.name,
+                                "timestamp": time.time(),
+                            })
                         print(f"    [!] Parking COMPLETE @ frame {frame_no}")
                     elif p_state == ParkingState.FAILED:
                         overall_state = OverallState.ERROR
-                        zenoh.publish(vcfg.ZENOH_TOPIC_STATE, {
-                            "state": overall_state.name,
-                            "timestamp": time.time(),
-                        })
+                        if vcfg.DEBUG_PUBLISH:
+                            zenoh.publish(vcfg.ZENOH_TOPIC_STATE, {
+                                "state": overall_state.name,
+                                "timestamp": time.time(),
+                            })
                         print(f"    [!] Parking FAILED @ frame {frame_no}")
 
                 # ── Draw annotations ──
@@ -604,11 +622,12 @@ def main():
                 # Manual state advance for testing
                 if overall_state == OverallState.LANE_FOLLOWING:
                     overall_state = OverallState.APPROACH_PARKING
-                    zenoh.publish(vcfg.ZENOH_TOPIC_STATE, {
-                        "state": overall_state.name,
-                        "timestamp": time.time(),
-                        "note": "manual_advance",
-                    })
+                    if vcfg.DEBUG_PUBLISH:
+                        zenoh.publish(vcfg.ZENOH_TOPIC_STATE, {
+                            "state": overall_state.name,
+                            "timestamp": time.time(),
+                            "note": "manual_advance",
+                        })
                     print(f"    [MANUAL] Advanced → APPROACH_PARKING")
                 elif overall_state == OverallState.APPROACH_PARKING:
                     print(f"    [MANUAL] Will init parking SM on next frame")

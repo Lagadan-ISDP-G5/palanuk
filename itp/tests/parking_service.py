@@ -28,13 +28,143 @@ Commands sent to AnC:
 """
 
 import time
+import struct
 import logging
 from enum import Enum, auto
 from dataclasses import dataclass, field
-from typing import Optional, List, Dict, Any, Tuple
+from typing import Optional, List, Dict, Any, Tuple, Union
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
 logger = logging.getLogger("ParkingService")
+
+
+# ============================================================
+# Zenoh Topic Recipes for nav commands
+# ============================================================
+#
+# Each ITP command maps to one or more (topic, value) pairs that
+# must be published together.  Topics + values follow zenoh_topics.md.
+#
+# Value types:
+#   int   → encoded as u8  (struct "B", 1 byte)
+#   float → encoded as f64 (struct "d", 8 bytes)
+
+NAV_CMD_RECIPES: Dict[str, List[Tuple[str, Union[int, float]]]] = {
+    # ── Full stop (safe state) ──
+    "STOP": [
+        ("palanuk/bstn/stop",       1),
+        ("palanuk/bstn/loopmode",   0),
+        ("palanuk/bstn/speed",      0.0),
+        ("palanuk/bstn/drivestate", 0),
+        ("palanuk/bstn/steercmd",   0),
+    ],
+
+    # ── Resume lane tracking (release control to Pi) ──
+    "RESUME_LANE_TRACKING": [
+        ("palanuk/bstn/loopmode",       1),
+        ("palanuk/bstn/speed",      0.3),
+    ],
+
+    # ── Safe-state initialisation (all zeros, publish at startup) ──
+    "INIT_SAFE_STATE": [
+        ("palanuk/bstn/stop",       0),
+        ("palanuk/bstn/loopmode",   0),
+        ("palanuk/bstn/speed",      0.0),
+        ("palanuk/bstn/drivestate", 0),
+        ("palanuk/bstn/steercmd",   0),
+        ("palanuk/bstn/forcepan",   0),
+    ],
+
+    # ── Bumper acceleration (ITP-specific, rising-edge trigger) ──
+    "ACCELERATE_FOR_BUMP": [
+        ("palanuk/itp/accelerate",   1),
+    ],
+
+    # ── Steer left  (zenoh_topics.md: steercmd=1, drivestate=1) ──
+    "ALIGN_LEFT": [
+        ("palanuk/bstn/loopmode",   0),
+        ("palanuk/bstn/speed",      0.3),
+        ("palanuk/bstn/steercmd",   1),
+        ("palanuk/bstn/drivestate", 1),
+    ],
+
+    # ── Steer right (zenoh_topics.md: steercmd=1, drivestate=2) ──
+    "ALIGN_RIGHT": [
+        ("palanuk/bstn/loopmode",   0),
+        ("palanuk/bstn/speed",      0.3),
+        ("palanuk/bstn/steercmd",   1),
+        ("palanuk/bstn/drivestate", 2),
+    ],
+
+    # ── Turn right 90° (same steer-right recipe; AnC measures angle) ──
+    "TURN_RIGHT_90": [
+        ("palanuk/bstn/loopmode",   0),
+        ("palanuk/bstn/speed",      0.3),
+        ("palanuk/bstn/steercmd",   1),
+        ("palanuk/bstn/drivestate", 2),
+    ],
+
+    # ── Rotate 180° (same steer-right recipe; AnC measures angle) ──
+    "ROTATE_180": [
+        ("palanuk/bstn/loopmode",   0),
+        ("palanuk/bstn/speed",      0.3),
+        ("palanuk/bstn/steercmd",   1),
+        ("palanuk/bstn/drivestate", 2),
+    ],
+
+    # ── Release steering (free) ──
+    "STEER_FREE": [
+        ("palanuk/bstn/steercmd",   0),
+    ],
+
+    # ── Enter parking slot (forward, no steer) ──
+    "ENTER_SLOT": [
+        ("palanuk/bstn/loopmode",   0),
+        ("palanuk/bstn/speed",      0.3),
+        ("palanuk/bstn/drivestate", 1),
+        ("palanuk/bstn/steercmd",   0),
+    ],
+
+    # ── Drive forward ──
+    "DRIVE_FORWARD": [
+        ("palanuk/bstn/loopmode",   0),
+        ("palanuk/bstn/speed",      0.3),
+        ("palanuk/bstn/drivestate", 1),
+        ("palanuk/bstn/steercmd",   0),
+    ],
+
+    # ── Drive reverse ──
+    "DRIVE_REVERSE": [
+        ("palanuk/bstn/loopmode",   0),
+        ("palanuk/bstn/speed",      0.3),
+        ("palanuk/bstn/drivestate", 2),
+        ("palanuk/bstn/steercmd",   0),
+    ],
+
+    # ── Drive at rest ──
+    "DRIVE_REST": [
+        ("palanuk/bstn/loopmode",   0),
+        ("palanuk/bstn/speed",      0.0),
+        ("palanuk/bstn/drivestate", 0),
+        ("palanuk/bstn/steercmd",   0),
+    ],
+
+    # ── Camera pan ──
+    "PAN_CAMERA_RIGHT": [
+        ("palanuk/bstn/forcepan",   2),
+    ],
+    "PAN_CAMERA_CENTER": [
+        ("palanuk/bstn/forcepan",   0),
+    ],
+    "PAN_CAMERA_LEFT": [
+        ("palanuk/bstn/forcepan",   1),
+    ],
+}
+
+# All unique Zenoh topics ITP publishes nav commands to
+NAV_CMD_TOPICS: List[str] = sorted(
+    set(topic for recipe in NAV_CMD_RECIPES.values() for topic, _ in recipe)
+)
 
 
 # ============================================================
@@ -140,13 +270,42 @@ class NavCommand:
     """
     Navigational command sent to AnC.
     AnC decides how to translate this into motor/servo actions.
+
+    Over Zenoh, each command maps to a *recipe* — a list of
+    (topic, value) pairs published together — defined in
+    NAV_CMD_RECIPES (matching zenoh_topics.md).
     """
     command: str
     magnitude: float = 0.0  # 0-1 scale where applicable
     metadata: Dict[str, Any] = field(default_factory=dict)
 
+    @property
+    def recipe(self) -> List[Tuple[str, Union[int, float]]]:
+        """Return the list of (topic, value) pairs for this command."""
+        return NAV_CMD_RECIPES[self.command]
+
+    # ── Wire helpers ──
+
+    @staticmethod
+    def _encode(value: Union[int, float]) -> bytes:
+        """Encode a single value: int → u8 (1 B), float → f64 (8 B)."""
+        if isinstance(value, float):
+            return struct.pack("d", value)
+        return struct.pack("B", value)
+
+    def publish_all(self, bridge) -> None:
+        """Publish every (topic, value) in the recipe via *bridge*."""
+        for topic, value in self.recipe:
+            bridge.publish_bytes(topic, self._encode(value))
+
+    # ── Logging ──
+
     def to_dict(self) -> dict:
-        d = {"command": self.command}
+        """Dict representation for logging / debug display."""
+        d: Dict[str, Any] = {
+            "command": self.command,
+            "topics": {t: v for t, v in self.recipe},
+        }
         if self.magnitude != 0.0:
             d["magnitude"] = round(self.magnitude, 4)
         if self.metadata:
