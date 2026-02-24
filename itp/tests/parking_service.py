@@ -27,7 +27,6 @@ Commands sent to AnC:
   RESUME_LANE_TRACKING   — hand control back to Pi's lane tracker
 """
 
-import math
 import time
 import logging
 from enum import Enum, auto
@@ -190,35 +189,28 @@ def _foot_point(det: Detection) -> Tuple[float, float]:
     return (det.center_x, det.y2)
 
 
-def _dist_to_slot(det: Detection, slot: Detection, cfg: ParkingConfig) -> float:
-    """
-    Distance from an object's foot-point to a slot's center.
-    For P signs, the foot-point (y2) may be above the slot, so we
-    only measure horizontal + vertical proximity to the slot top.
-    """
-    fx, fy = _foot_point(det)
-    sx = slot.center_x
-    sy = slot.center_y
-    return math.hypot(fx - sx, fy - sy)
-
-
 def classify_all_slots(
     all_detections: List[Detection],
     cfg: ParkingConfig,
 ) -> Dict[int, str]:
     """
-    Classify every parking slot in *all_detections* at once.
+    Classify every parking slot by its **single nearest** object.
 
-    Instead of checking every object against every slot, each non-slot
-    object is assigned to its **nearest** slot (by foot-point distance to
-    slot center).  Then each slot is classified using only its own objects:
+    Algorithm:
+      1. Compute the slot's center_x.
+      2. Among all non-slot objects (cones, signs), find the one with the
+         smallest ``|object.center_x − slot.center_x|``.
+      3. That single nearest object alone determines the slot's status:
+           • cone / disabled-person sign  →  INVALID
+           • P signboard (with proximity check)  →  VALID
+      4. All other objects are left unassigned — their slot may be out of
+         frame.
+      5. If no objects exist  →  UNKNOWN.
 
-      - cone or disabled-person sign assigned → INVALID
-      - P signboard assigned (center_x in slot x-range, base_y within
-        P_SIGN_PROXIMITY_PX of slot top) → VALID
-      - nothing assigned → UNKNOWN
+    Each slot is assigned **1 type only** so that signs from adjacent bays
+    cannot override the correct classification.
 
-    Returns a dict mapping the slot Detection's id() → status string.
+    Returns ``{ id(slot_detection) : status_string }``.
     """
     slots = [d for d in all_detections if d.class_name == cfg.CLASS_PARKING_SLOT]
     others = [
@@ -229,42 +221,28 @@ def classify_all_slots(
     if not slots:
         return {}
 
-    # Assign each non-slot object to the nearest slot
-    # slot_objects:  id(slot) → list of Detection
-    slot_objects: Dict[int, List[Detection]] = {id(s): [] for s in slots}
-
-    for obj in others:
-        best_slot = min(slots, key=lambda s: _dist_to_slot(obj, s, cfg))
-        slot_objects[id(best_slot)].append(obj)
-
-    # Classify each slot based on its assigned objects only
     result: Dict[int, str] = {}
+
     for slot in slots:
-        has_p_sign = False
-        has_cone = False
-        has_disabled = False
+        if not others:
+            result[id(slot)] = "UNKNOWN"
+            continue
 
-        for det in slot_objects[id(slot)]:
-            if det.class_name in (cfg.CLASS_DISABLED_SIGN, cfg.CLASS_CONE):
-                fx, fy = _foot_point(det)
-                if slot.contains_point(fx, fy):
-                    if det.class_name == cfg.CLASS_DISABLED_SIGN:
-                        has_disabled = True
-                    else:
-                        has_cone = True
+        # Find the single nearest object by center_x distance to slot center
+        nearest = min(others, key=lambda o: abs(o.center_x - slot.center_x))
 
-            elif det.class_name == cfg.CLASS_P_SIGN:
-                sign_cx = det.center_x
-                sign_base_y = det.y2
-                in_x = slot.x1 <= sign_cx <= slot.x2
-                in_y = (slot.y1 - cfg.P_SIGN_PROXIMITY_PX) <= sign_base_y <= slot.y2
-                if in_x and in_y:
-                    has_p_sign = True
-
-        if has_disabled or has_cone:
+        if nearest.class_name in (cfg.CLASS_DISABLED_SIGN, cfg.CLASS_CONE):
             result[id(slot)] = "INVALID"
-        elif has_p_sign:
-            result[id(slot)] = "VALID"
+
+        elif nearest.class_name == cfg.CLASS_P_SIGN:
+            sign_cx = nearest.center_x
+            sign_base_y = nearest.y2
+            in_x = slot.x1 <= sign_cx <= slot.x2
+            in_y = (slot.y1 - cfg.P_SIGN_PROXIMITY_PX) <= sign_base_y <= slot.y2
+            if in_x and in_y:
+                result[id(slot)] = "VALID"
+            else:
+                result[id(slot)] = "UNKNOWN"
         else:
             result[id(slot)] = "UNKNOWN"
 

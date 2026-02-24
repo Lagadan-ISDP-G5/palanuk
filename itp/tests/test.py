@@ -145,6 +145,10 @@ def draw_detections(frame, detections, class_colors, class_names, cfg: ParkingCo
             label += f" [{slot_status} {area_pct:.1f}%]"
             # Highlight the slot border with status color
             cv2.rectangle(frame, (x1, y1), (x2, y2), status_color, 3)
+            # Draw slot center marker
+            scx, scy = int(d.center_x), int(d.center_y)
+            cv2.drawMarker(frame, (scx, scy), status_color,
+                           cv2.MARKER_TILTED_CROSS, 16, 2)
 
         # Draw foot-point (center_x, y2) for cones, disabled signs, P signs
         if d.class_name in (cfg.CLASS_CONE, cfg.CLASS_DISABLED_SIGN, cfg.CLASS_P_SIGN):
