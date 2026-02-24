@@ -5,13 +5,20 @@ use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use ir_encoder_gpio_cdev::*;
 
+#[derive(Reflect)]
+#[reflect(no_field_bounds, from_reflect = false)]
 pub struct CuIrEncoder {
+    #[reflect(ignore)]
     lmtr_driver: IrEncoder,
+    #[reflect(ignore)]
     rmtr_driver: IrEncoder,
+    #[reflect(ignore)]
     last_value: Option<IrEncoderPayload>,
 }
 
 #[derive(Debug, Clone, Copy, Encode, Decode, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Reflect)]
+#[reflect(no_field_bounds, from_reflect = false)]
 pub struct IrEncoderPayload {
     pub lmtr_normalized_rpm: Option<f32>,
     pub rmtr_normalized_rpm: Option<f32>,

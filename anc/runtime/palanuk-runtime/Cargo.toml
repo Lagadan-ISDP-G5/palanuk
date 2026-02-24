@@ -3,10 +3,14 @@ name = "palanuk-runtime"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+logviz = ["cu29/logviz"]
+
 [dependencies]
 cu29 = { workspace = true }
-cu29-export = { workspace = true }
 cu29-runtime = { workspace = true }
+cu29-export = { workspace = true }
+cu29-logviz = { workspace = true }
 cu29-helpers = { workspace = true }
 cu-consolemon = { workspace = true }
 cu-logmon = { workspace = true }
@@ -23,6 +27,8 @@ serde = { workspace = true }
 ctrlc = { workspace = true }
 libc = { workspace = true }
 core_affinity = { workspace = true }
+rerun = { version = "0.29", default-features = false, features = ["sdk", "server", "web_viewer"] }
+clap = { version = "4.5", features = ["derive"] }
 
 ec-pub = { workspace = true }
 zsrc-merger = { workspace = true }
@@ -38,6 +44,7 @@ cu-irencoder = { workspace = true }
 speed-err-adapter = { workspace = true }
 speed-correction-summer = { workspace = true }
 speed-ctrlrs = { workspace = true }
+itp-merger = { workspace = true }
 
 [[bin]]
 name = "palanuk-runtime"
@@ -46,3 +53,4 @@ path = "src/main.rs"
 [[bin]]
 name = "palanuk-logreader"
 path = "src/logreader.rs"
+required-features = ["logviz"]

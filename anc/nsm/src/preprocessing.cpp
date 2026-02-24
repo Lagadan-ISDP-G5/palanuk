@@ -48,6 +48,13 @@ cv::Mat threshold_white_line(const cv::Mat& img, const PipelineConfig& config) {
         }
     }
 
+    // Morphological opening to remove thin streaks (e.g. glossy tape reflections)
+    if (config.morph_enabled) {
+        cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE,
+            cv::Size(config.morph_kernel_size, config.morph_kernel_size));
+        cv::morphologyEx(thresh, thresh, cv::MORPH_OPEN, kernel);
+    }
+
     return thresh;
 }
 

@@ -22,6 +22,8 @@ pub enum Speed {
 
 /// `left_speed` and `right_speed` are the percentage duty cycles for the Pwm controllers of each wheel.
 #[derive(Debug, Clone, Copy, Default, Encode, Decode, PartialEq, Serialize, Deserialize)]
+#[derive(Reflect)]
+#[reflect(no_field_bounds, from_reflect = false)]
 pub struct PropulsionPayload {
     pub left_enable: bool,
     pub right_enable: bool,
@@ -32,6 +34,7 @@ pub struct PropulsionPayload {
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Encode, Decode, Serialize, Deserialize)]
+#[derive(Reflect)]
 pub enum WheelDirection {
     Forward,
     Reverse,
@@ -40,6 +43,7 @@ pub enum WheelDirection {
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Encode, Decode, Serialize, Deserialize)]
+#[derive(Reflect)]
 pub struct WheelState {
     enable: bool,
     direction: WheelDirection,
@@ -53,6 +57,7 @@ impl WheelState {
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Encode, Decode, Serialize, Deserialize)]
+#[derive(Reflect)]
 pub struct PropulsionPinAssignments {
     l298n_en_a_pin: u32,
     l298n_en_b_pin: u32,
@@ -62,11 +67,17 @@ pub struct PropulsionPinAssignments {
     l298n_in_4_pin: u32,
 }
 
+#[derive(Reflect)]
+#[reflect(no_field_bounds, from_reflect = false)]
 pub struct PropulsionControllerInstances {
     #[allow(unused)]
+    #[reflect(ignore)]
     gpio_inst: Chip,
+    #[reflect(ignore)]
     direction_pins: DirectionPinHdls,
+    #[reflect(ignore)]
     lmtr_en_a: Pwm,
+    #[reflect(ignore)]
     rmtr_en_b: Pwm,
 }
 
@@ -77,6 +88,8 @@ struct DirectionPinHdls {
     in_4_pin: LineHandle,
 }
 
+#[derive(Reflect)]
+#[reflect(no_field_bounds, from_reflect = false)]
 pub struct Propulsion {
     left_wheel: WheelState,
     right_wheel: WheelState,
@@ -283,6 +296,7 @@ impl CuSinkTask for Propulsion {
             }
             self.last_lmtr_duty_cycle = Some(payload.left_speed);
             self.last_rmtr_duty_cycle = Some(payload.right_speed);
+            eprintln!("PROP: L={:.4} R={:.4} Ldir={:?} Rdir={:?}", payload.left_speed, payload.right_speed, payload.left_direction, payload.right_direction);
 
             let dir_hdl = &mut self.pin_controller_instances.direction_pins;
 

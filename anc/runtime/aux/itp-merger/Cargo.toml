@@ -1,5 +1,5 @@
 [package]
-name = "dual-mtr-ctrlr"
+name = "itp-merger"
 publish.workspace = true
 version.workspace = true
 authors.workspace = true
@@ -8,7 +8,6 @@ license.workspace = true
 keywords.workspace = true
 
 [dependencies]
+cu29 = { workspace = true }
 cu-bincode = { workspace = true }
 serde = { workspace = true }
-cu-pid = { workspace = true }
-cu29 = { workspace = true }

@@ -2,11 +2,14 @@ extern crate cu_bincode as bincode;
 use cu_pid::GenericPIDTask;
 use bincode::{Encode, Decode};
 use serde::{Serialize, Deserialize};
+use cu29::prelude::*;
 
 pub type LmtrSpeedCtrlr = GenericPIDTask<LmtrSpeedErrPayload>;
 pub type RmtrSpeedCtrlr = GenericPIDTask<RmtrSpeedErrPayload>;
 
 #[derive(Debug, Clone, Copy, Default, Encode, Decode, PartialEq, Serialize, Deserialize)]
+#[derive(Reflect)]
+#[reflect(no_field_bounds, from_reflect = false)]
 pub struct LmtrSpeedErrPayload {
     pub error: f32
 }
@@ -18,6 +21,8 @@ impl From<&LmtrSpeedErrPayload> for f32 {
 }
 
 #[derive(Debug, Clone, Copy, Default, Encode, Decode, PartialEq, Serialize, Deserialize)]
+#[derive(Reflect)]
+#[reflect(no_field_bounds, from_reflect = false)]
 pub struct RmtrSpeedErrPayload {
     pub error: f32
 }

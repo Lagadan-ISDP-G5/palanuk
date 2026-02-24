@@ -25,9 +25,12 @@ pub const OUTER_WHEEL_STEERING_SPEED: f32 = 1.0;
 pub const INNER_WHEEL_STEERING_SPEED: f32 = 0.0;
 
 pub const ON_AXIS_ROTATION_DURATION_MILLISEC_90_DEG: u64 = 400;
-pub const STEERING_MIN_HOLD_MS: u64 = 500;
+pub const STEERING_MIN_HOLD_MS: u64 = 280;
+pub const STEERING_DELAY_MS: u64 = 400;
 
 /// r_wind_comp values can be between 0 and 2 for either motor, but not both. If one is > 1 another must be <1.
+#[derive(Reflect)]
+#[reflect(no_field_bounds, from_reflect = false)]
 pub struct Arbitrator {
     e_stop_trig_fdbk: bool,
     target_speed: Option<f32>,
@@ -37,8 +40,13 @@ pub struct Arbitrator {
     r_wind_comp_rmtr: f32,
     /// normalized corner y coord to trigger steering handler and override lanekeeping for the maneuver
     corner_y_coord_steering_trig: f32,
+    #[reflect(ignore)]
     steerer_state: SteererState,
+    #[reflect(ignore)]
+    steering_triggered: CuInstant,
+    #[reflect(ignore)]
     steering_started: CuInstant,
+    #[reflect(ignore)]
     on_axis_rotator: OnAxisRotator,
     last_pid_output: f32,
 }
@@ -136,6 +144,7 @@ pub enum RotateOnAxisState {
 
 #[derive(Default, Debug, PartialEq, Eq)]
 pub enum SteererState {
+    WaitingToSteer,
     Steering,
     Done,
     #[default]
@@ -151,6 +160,7 @@ impl Default for Arbitrator {
             r_wind_comp_rmtr: 0.0,
             corner_y_coord_steering_trig: 0.0,
             steerer_state: SteererState::default(),
+            steering_triggered: CuInstant::now(),
             steering_started: CuInstant::now(),
             on_axis_rotator: OnAxisRotator::default(),
             last_pid_output: 0.0,
@@ -239,9 +249,21 @@ impl CuTask for Arbitrator {
                             self.corner_y_coord_steering_trig, self.steerer_state);
                     }
                     if m.corner_coords.1 >= self.corner_y_coord_steering_trig && m.corner_detected {
-                        if self.steerer_state != SteererState::Steering {
+                        if self.steerer_state == SteererState::NotSteering {
+                            self.steerer_state = SteererState::WaitingToSteer;
+                            self.steering_triggered = CuInstant::now();
+                            eprintln!("STEERING: waiting {}ms before maneuver", STEERING_DELAY_MS);
+                        }
+                    }
+
+                    if self.steerer_state == SteererState::WaitingToSteer {
+                        let elapsed_ns = CuInstant::now().as_nanos()
+                            .checked_sub(self.steering_triggered.as_nanos())
+                            .unwrap_or(0);
+                        if CuDuration::from_nanos(elapsed_ns) >= CuDuration::from_millis(STEERING_DELAY_MS) {
                             self.steerer_state = SteererState::Steering;
                             self.steering_started = CuInstant::now();
+                            eprintln!("STEERING: delay elapsed, starting maneuver");
                         }
                     }
 
@@ -328,10 +350,13 @@ impl Arbitrator {
 
         // cu-pid: output = kp * (setpoint - input), so positive error gives negative output
         let base_speed = self.target_speed.unwrap_or(BASELINE_SPEED);
-        let left_speed = (base_speed + pid_output).clamp(0.0, 1.0);
-        let right_speed = (base_speed - pid_output).clamp(0.0, 1.0);
+        // Anti-windup: clamp PID output so neither motor saturates at 0,
+        // preventing the integrator from winding up against the clamp
+        let pid_clamped = pid_output.clamp(-base_speed, base_speed);
+        let left_speed = (base_speed + pid_clamped).clamp(0.0, 1.0);
+        let right_speed = (base_speed - pid_clamped).clamp(0.0, 1.0);
 
-        eprintln!("LANE PID={:.4} | base={:.4} | L={:.4} R={:.4}", pid_output, base_speed, left_speed, right_speed);
+        eprintln!("LANE PID={:.4} (clamped={:.4}) | base={:.4} | L={:.4} R={:.4}", pid_output, pid_clamped, base_speed, left_speed, right_speed);
 
         Ok(PropulsionPayload {
             left_enable: true,

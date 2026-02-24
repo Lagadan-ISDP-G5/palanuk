@@ -21,8 +21,9 @@ members = [
     "aux/speed-err-adapter",
     "aux/speed-correction-summer",
     "hal/speed-ctrlrs",
-    "hal/zenoh-session"
-    ]
+    "hal/zenoh-session",
+    "aux/itp-merger"
+]
 
 [workspace.package]
 publish = false
@@ -33,13 +34,14 @@ license = "GPL-3.0-only"
 keywords = ["autonomous", "copper-rs", "robotics", "real-time"]
 
 [workspace.dependencies]
-cu29 = { version = "0.12.0", features = ["macro_debug"] }
-cu29-runtime = "0.12.0"
-cu29-export = { version = "0.12.0" }
-cu29-helpers = "0.12.0"
-cu-consolemon = "0.12.0"
-cu-logmon = "0.12.0"
-cu-pid = "0.12.0"
+cu29 = { version = "0.13.0", features = ["macro_debug"] }
+cu29-runtime = "0.13.0"
+cu29-export = "0.13.0"
+cu29-logviz = "0.13.0"
+cu29-helpers = "0.13.0"
+cu-consolemon = "0.13.0"
+cu-logmon = "0.13.0"
+cu-pid = "0.13.0"
 cu-bincode = "=2.0.2"
 serde = "1.0.228"
 # hcsr04-gpio-cdev = "0.1.4"
@@ -78,6 +80,7 @@ speed-ctrlrs = { path = "./hal/speed-ctrlrs" }
 cu-irencoder = { path = "./hal/cu-irencoder" }
 speed-err-adapter = { path = "./aux/speed-err-adapter" }
 speed-correction-summer = { path = "./aux/speed-correction-summer" }
+itp-merger = { path = "./aux/itp-merger" }
 
 ir-encoder-gpio-cdev = { path = "/Users/ander/Documents/proj/ir-encoder-gpio-cdev" }
 # ir-encoder-gpio-cdev = "^0.1.0"

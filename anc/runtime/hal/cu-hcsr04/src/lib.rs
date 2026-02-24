@@ -7,12 +7,18 @@ use hcsr04_gpio_cdev::*;
 
 use serde::{Deserialize, Serialize};
 
+#[derive(Reflect)]
+#[reflect(no_field_bounds, from_reflect = false)]
 pub struct CuHcSr04 {
+    #[reflect(ignore)]
     threaded_driver_instance: HcSr04Threaded,
+    #[reflect(ignore)]
     last_value: Option<HcSr04Payload>,
 }
 
 #[derive(Debug, Clone, Copy, Encode, Decode, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Reflect)]
+#[reflect(no_field_bounds, from_reflect = false)]
 pub struct HcSr04Payload {
     pub distance: Option<f64>,
 }
@@ -47,7 +53,13 @@ impl CuSrcTask for CuHcSr04 {
             .clone()
             .into();
 
-        let threaded_driver_instance = HcSr04Threaded::new(trig_pin_offset, echo_pin_offset, DistanceUnit::Cm(dist_threshold_cm as f64), None, Duration::from_millis(10)).expect("GPIO (threaded) driver error");
+        let threaded_driver_instance = HcSr04Threaded::new(
+            trig_pin_offset,
+            echo_pin_offset,
+            DistanceUnit::Cm(dist_threshold_cm as f64),
+            None,
+            Duration::from_millis(10))
+        .expect("GPIO (threaded) driver error");
 
         Ok(Self {
             threaded_driver_instance,
