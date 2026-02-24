@@ -12,7 +12,9 @@ This service does NOT:
 
 This service DOES:
   - Run YOLO inference on camera frames
-  - Detect bumpers → notify AnC
+  - Detect bumpers → send ACCELERATE_FOR_BUMP to AnC
+  - Detect valid parking slots → send PARKING_SLOTS_DETECTED to AnC
+  - Wait for prepare_to_park ACK before panning camera / starting parking SM
   - Manage the parking state machine (slot detection, alignment)
   - Send detection events and nav commands to AnC via Zenoh
 
@@ -51,6 +53,7 @@ from parking_service import (
     parse_detections,
     Detection,
     DebounceTracker,
+    classify_all_slots,
 )
 
 logging.basicConfig(
@@ -83,16 +86,16 @@ class VisionConfig:
     # Model
     MODEL_PATH: str = "tests/best.onnx"
     IMG_SIZE: int = 640
-    CONF_THRES: float = 0.4
+    CONF_THRES: float = 0.6
     DEVICE: str = "0"
     TASK: str = "segment"
 
     # Stream
-    STREAM_URL: str = "rtsp://192.168.93.163:8554/camera"
+    STREAM_URL: str = "rtsp://raspberrypi.local:8554/camera"
     MAX_RETRIES: int = 5
 
     # Processing
-    SKIP_FRAMES: int = 1
+    SKIP_FRAMES: int = 5
     USE_ONLY_BOXES: bool = True
 
     # Class names (must match YOLO model)
@@ -102,11 +105,17 @@ class VisionConfig:
     CLASS_DISABLED_SIGN: str = "disabled person signboard"
     CLASS_CONE: str = "cone"
 
-    # Detection thresholds (fraction of frame area)
-    BUMPER_AREA_THRESHOLD: float = 0.08
+    # Bumper detection — send ACCELERATE_FOR_BUMP when bumper y2 is
+    # in the bottom portion of the frame (close to robot).
+    # Value is fraction of frame height from the top; 0.95 = bottom 5%.
+    BUMPER_Y2_THRESHOLD: float = 0.95  # bumper base in bottom 5% of frame
+
+    # Parking slot detection — minimum area as fraction of frame
+    VALID_PARKING_AREA_THRESHOLD: float = 0.20  # 10% of frame
 
     # Debounce frame counts
     BUMPER_DEBOUNCE_FRAMES: int = 3
+    SLOT_DEBOUNCE_FRAMES: int = 3
 
     # ACK handling — set to False to skip waiting for AnC acknowledgments
     ENABLE_ACK: bool = False
@@ -242,6 +251,12 @@ class VisionService:
         self.bumper_tracker = DebounceTracker(
             found_thresh=vcfg.BUMPER_DEBOUNCE_FRAMES, lost_thresh=3
         )
+        self.valid_slot_tracker = DebounceTracker(
+            found_thresh=vcfg.SLOT_DEBOUNCE_FRAMES, lost_thresh=5
+        )
+
+        # Fire-once guards
+        self._parked_triggered: bool = False
 
         # Logging
         self.log_file = None
@@ -250,6 +265,9 @@ class VisionService:
         # Stats
         self.frame_id = 0
         self.processed_count = 0
+        self._prev_time: float = time.time()
+        self._fps: float = 0.0
+        self._infer_ms: float = 0.0
 
     # ----------------------------------------------------------
     # Lifecycle
@@ -293,6 +311,7 @@ class VisionService:
             frame_resized = cv2.resize(frame, (self.vcfg.IMG_SIZE, self.vcfg.IMG_SIZE))
 
             # Inference
+            t0 = time.time()
             result = self.model.predict(
                 source=frame_resized,
                 imgsz=self.vcfg.IMG_SIZE,
@@ -300,6 +319,7 @@ class VisionService:
                 device=self.vcfg.DEVICE,
                 verbose=False,
             )[0]
+            self._infer_ms = (time.time() - t0) * 1000
 
             detections = parse_detections(result, self.class_names, self.vcfg.CONF_THRES)
 
@@ -315,6 +335,11 @@ class VisionService:
             # Handle ACKs from AnC (if enabled)
             if self.vcfg.ENABLE_ACK:
                 self._process_acks()
+
+            # FPS
+            now = time.time()
+            self._fps = 1.0 / max(now - self._prev_time, 1e-6)
+            self._prev_time = now
 
             # Visualize locally
             self._visualize(frame_resized, result, detections)
@@ -341,40 +366,78 @@ class VisionService:
     def _state_lane_following(self, detections: List[Detection]):
         """
         LANE_FOLLOWING: Pi is lane tracking autonomously.
-        Vision watches for bumpers and notifies AnC.
+        Vision watches for bumpers and parking slots.
+
+        Bumper: sends ACCELERATE_FOR_BUMP once when bumper y2 is near
+                the top of the frame (far away → accelerate early).
+        Parking: sends PARKING_SLOTS_DETECTED once when a valid slot is
+                 confirmed. Waits for prepare_to_park ACK before
+                 transitioning.
         """
         frame_area = self.vcfg.IMG_SIZE ** 2
+        frame_h = self.vcfg.IMG_SIZE
 
-        # Report bumper if seen
+        # ── Bumper detection ──
+        # Trigger when bumper base (y2) is in the bottom 5% of the frame
+        # (very close to the robot) so AnC accelerates to cross it.
         bumpers = [
             d for d in detections
             if d.class_name == self.vcfg.CLASS_BUMPER
-            and d.area / frame_area >= self.vcfg.BUMPER_AREA_THRESHOLD
+            and d.y2 >= frame_h * self.vcfg.BUMPER_Y2_THRESHOLD
         ]
 
-        status = self.bumper_tracker.update(len(bumpers) > 0)
-        if status == "CONFIRMED_FOUND":
+        bmp_status = self.bumper_tracker.update(len(bumpers) > 0)
+        if bmp_status == "CONFIRMED_FOUND":  # fires only once
             b = bumpers[0]
-            logger.info(f"Bumper confirmed (area={b.area/frame_area:.4f})")
+            logger.info(f"Bumper detected (y2={b.y2:.0f}, threshold={frame_h * self.vcfg.BUMPER_Y2_THRESHOLD:.0f})")
             self._send_nav(NavCommand(
-                command="BUMPER_DETECTED",
+                command="ACCELERATE_FOR_BUMP",
                 metadata={
                     "center_x": round(b.center_x, 1),
-                    "center_y": round(b.center_y, 1),
+                    "y2": round(b.y2, 1),
                     "area_pct": round(b.area / frame_area, 4),
                 },
             ))
 
+        # ── Parking slot detection ──
+        # When a valid slot is confirmed, notify AnC and wait for ACK.
+        slot_status_map = classify_all_slots(detections, self.pcfg)
+        valid_slots = [
+            d for d in detections
+            if d.class_name == self.pcfg.CLASS_PARKING_SLOT
+            and slot_status_map.get(id(d), "UNKNOWN") == "VALID"
+            and d.area / frame_area >= self.vcfg.VALID_PARKING_AREA_THRESHOLD
+        ]
+
+        slot_status = self.valid_slot_tracker.update(len(valid_slots) > 0)
+        if slot_status == "CONFIRMED_FOUND":  # fires only once
+            best = max(valid_slots, key=lambda s: s.area)
+            logger.info(f"Valid parking slot confirmed (area={best.area/frame_area:.2%})")
+            self._send_nav(NavCommand(
+                command="PARKING_SLOTS_DETECTED",
+                metadata={
+                    "center_x": round(best.center_x, 1),
+                    "center_y": round(best.center_y, 1),
+                    "area_pct": round(best.area / frame_area, 4),
+                },
+            ))
+            # Transition happens when AnC sends prepare_to_park ACK
+            # (see _process_acks)
+
     def _state_approach_parking(self, result):
         """
-        APPROACH_PARKING: Just entered parking zone.
-        Initialize parking state machine and transition to PARKING.
+        APPROACH_PARKING: AnC acknowledged parking preparation.
+        Pan camera right, initialize parking SM, transition to PARKING.
         """
+        logger.info("Panning camera right for parking scan")
+        self._send_nav(NavCommand(command="PAN_CAMERA_RIGHT"))
+
         logger.info("Initializing parking state machine")
         self.parking_sm = ParkingStateMachine(
             self.pcfg,
             on_command=self._parking_command_handler,
         )
+        self._parked_triggered = False
         self._set_state(OverallState.PARKING)
 
     def _state_parking(self, result):
@@ -383,7 +446,8 @@ class VisionService:
         """
         parking_state = self.parking_sm.process_frame(result, self.class_names)
 
-        if parking_state == ParkingState.PARKED:
+        if parking_state == ParkingState.PARKED and not self._parked_triggered:
+            self._parked_triggered = True
             logger.info("Robot is PARKED — triggering exit after 1s")
             time.sleep(1.0)
             self.parking_sm.trigger_exit()
@@ -408,8 +472,8 @@ class VisionService:
             ack_type = msg.get("ack", "")
             logger.info(f"ACK from AnC: {ack_type}")
 
-            if ack_type == "parking_zone_reached" and self.state == OverallState.LANE_FOLLOWING:
-                logger.info("AnC reached parking zone — entering approach")
+            if ack_type == "prepare_to_park" and self.state == OverallState.LANE_FOLLOWING:
+                logger.info("AnC ready to park — entering approach")
                 self._set_state(OverallState.APPROACH_PARKING)
 
             # Forward ACKs to parking state machine if active
@@ -539,34 +603,83 @@ class VisionService:
     # ----------------------------------------------------------
 
     def _visualize(self, frame, result, detections: List[Detection]):
+        """Rich annotated overlay with slot validity, foot-points, masks, FPS."""
         annotated = frame.copy()
+        h, w = annotated.shape[:2]
+        frame_area = self.vcfg.IMG_SIZE ** 2
 
-        if result.boxes is not None:
-            for box in result.boxes:
-                x1, y1, x2, y2 = map(int, box.xyxy[0])
-                cls_id = int(box.cls[0])
-                conf = float(box.conf[0])
+        # ── Classify all parking slots ──
+        slot_status_map = classify_all_slots(detections, self.pcfg)
+
+        # ── Draw bounding boxes, labels, slot validity tags ──
+        for d in detections:
+            color = self.class_colors.get(d.class_id, (0, 255, 0))
+            x1, y1, x2, y2 = int(d.x1), int(d.y1), int(d.x2), int(d.y2)
+            cv2.rectangle(annotated, (x1, y1), (x2, y2), color, 2)
+
+            label = f"{d.class_name} {d.confidence:.2f}"
+
+            # Tag parking slots: VALID / INVALID / UNKNOWN
+            if d.class_name == self.pcfg.CLASS_PARKING_SLOT:
+                slot_status = slot_status_map.get(id(d), "UNKNOWN")
+                area_pct = d.area / frame_area * 100
+                status_color = {
+                    "VALID":   (0, 255, 0),
+                    "INVALID": (0, 0, 255),
+                    "UNKNOWN": (0, 200, 255),
+                }.get(slot_status, (200, 200, 200))
+                label += f" [{slot_status} {area_pct:.1f}%]"
+                cv2.rectangle(annotated, (x1, y1), (x2, y2), status_color, 3)
+                scx, scy = int(d.center_x), int(d.center_y)
+                cv2.drawMarker(annotated, (scx, scy), status_color,
+                               cv2.MARKER_TILTED_CROSS, 16, 2)
+
+            # Draw foot-point for cones, disabled signs, P signs
+            if d.class_name in (self.pcfg.CLASS_CONE,
+                                self.pcfg.CLASS_DISABLED_SIGN,
+                                self.pcfg.CLASS_P_SIGN):
+                foot_x, foot_y = int(d.center_x), int(d.y2)
+                cv2.circle(annotated, (foot_x, foot_y), 6, (0, 255, 255), -1)
+                cv2.drawMarker(annotated, (foot_x, foot_y), (0, 255, 255),
+                               cv2.MARKER_CROSS, 14, 2)
+
+            (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 2)
+            cv2.rectangle(annotated, (x1, y1 - th - 10), (x1 + tw, y1), color, -1)
+            cv2.putText(annotated, label, (x1, y1 - 5),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+
+        # ── Draw segmentation masks if available ──
+        if result.masks is not None:
+            for i, mask in enumerate(result.masks.data):
+                mask_np = mask.cpu().numpy().astype(np.uint8)
+                mask_resized = cv2.resize(mask_np, (self.vcfg.IMG_SIZE, self.vcfg.IMG_SIZE))
+                cls_id = int(result.boxes.cls[i])
                 color = self.class_colors.get(cls_id, (0, 255, 0))
+                colored_mask = np.zeros_like(annotated)
+                colored_mask[mask_resized > 0] = color
+                annotated = cv2.addWeighted(annotated, 1.0, colored_mask, 0.35, 0)
 
-                cv2.rectangle(annotated, (x1, y1), (x2, y2), color, 2)
+        # ── Top bar (semi-transparent) ──
+        overlay = annotated.copy()
+        cv2.rectangle(overlay, (0, 0), (w, 70), (0, 0, 0), -1)
+        cv2.addWeighted(overlay, 0.6, annotated, 0.4, 0, annotated)
 
-                label = f"{self.class_names[cls_id]}: {conf:.2f}"
-                (lw, lh), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 2)
-                cv2.rectangle(annotated, (x1, y1 - lh - 10), (x1 + lw, y1), color, -1)
-                cv2.putText(annotated, label, (x1, y1 - 5),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
-
-        # State info overlay
+        # State info — left side
         state_text = f"STATE: {self.state.name}"
         if self.state == OverallState.PARKING and self.parking_sm:
             state_text += f" | PARK: {self.parking_sm.state.name}"
+        cv2.putText(annotated, state_text, (10, 25),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 200, 255), 2)
 
-        cv2.putText(annotated, state_text, (10, 30),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+        info_text = f"Frame: {self.processed_count} | Objects: {len(detections)} | Infer: {self._infer_ms:.0f}ms"
+        cv2.putText(annotated, info_text, (10, 55),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.45, (200, 200, 200), 1)
 
-        info_text = f"Frame: {self.processed_count} | Objects: {len(detections)}"
-        cv2.putText(annotated, info_text, (10, 60),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+        # FPS — top right
+        fps_text = f"FPS: {self._fps:.1f}"
+        (fw, fh), _ = cv2.getTextSize(fps_text, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)
+        cv2.putText(annotated, fps_text, (w - fw - 10, 30),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
 
         cv2.imshow("Vision Service", annotated)
 

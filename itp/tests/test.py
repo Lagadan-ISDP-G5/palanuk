@@ -349,6 +349,7 @@ def main():
         valid_slot_tracker.reset()
         parking_sm = None
         parking_state_name = None
+        parked_triggered = False
 
         # Publish initial state
         zenoh.publish(vcfg.ZENOH_TOPIC_STATE, {
@@ -448,24 +449,25 @@ def main():
                 parking_state_name = None
 
                 if overall_state == OverallState.LANE_FOLLOWING:
-                    # Watch for bumpers
+                    # Watch for bumpers — trigger when bumper y2 is in
+                    # the bottom 5% of the frame (close to robot)
                     bumpers = [
                         d for d in detections
                         if d.class_name == vcfg.CLASS_BUMPER
-                        and d.area / frame_area >= vcfg.BUMPER_AREA_THRESHOLD
+                        and d.y2 >= IMG_SIZE * vcfg.BUMPER_Y2_THRESHOLD
                     ]
                     bmp_status = bumper_tracker.update(len(bumpers) > 0)
-                    if bmp_status == "CONFIRMED_FOUND":
+                    if bmp_status == "CONFIRMED_FOUND":  # fires only once
                         b = bumpers[0]
                         zenoh.publish(vcfg.ZENOH_TOPIC_NAV_CMD, NavCommand(
-                            command="BUMPER_DETECTED",
+                            command="ACCELERATE_FOR_BUMP",
                             metadata={
                                 "center_x": round(b.center_x, 1),
-                                "center_y": round(b.center_y, 1),
+                                "y2": round(b.y2, 1),
                                 "area_pct": round(b.area / frame_area, 4),
                             },
                         ).to_dict())
-                        print(f"    [!] Bumper confirmed @ frame {frame_no}")
+                        print(f"    [!] Bumper detected (y2={b.y2:.0f}) → ACCELERATE_FOR_BUMP @ frame {frame_no}")
 
                     # Watch for valid parking slots exceeding area threshold
                     valid_slots = [
@@ -475,16 +477,17 @@ def main():
                         and d.area / frame_area >= VALID_PARKING_AREA_THRESHOLD
                     ]
                     slot_status = valid_slot_tracker.update(len(valid_slots) > 0)
-                    if slot_status == "CONFIRMED_FOUND":
+                    if slot_status == "CONFIRMED_FOUND":  # fires only once
                         best = max(valid_slots, key=lambda s: s.area)
                         zenoh.publish(vcfg.ZENOH_TOPIC_NAV_CMD, NavCommand(
-                            command="VALID_PARKING_FOUND",
+                            command="PARKING_SLOTS_DETECTED",
                             metadata={
                                 "center_x": round(best.center_x, 1),
                                 "center_y": round(best.center_y, 1),
                                 "area_pct": round(best.area / frame_area, 4),
                             },
                         ).to_dict())
+                        # In test mode, auto-transition (no real ACK from AnC)
                         overall_state = OverallState.APPROACH_PARKING
                         zenoh.publish(vcfg.ZENOH_TOPIC_STATE, {
                             "state": overall_state.name,
@@ -495,12 +498,18 @@ def main():
                               f"(area={best.area/frame_area:.2%}) → APPROACH_PARKING")
 
                 elif overall_state == OverallState.APPROACH_PARKING:
+                    # Pan camera right for parking scan
+                    zenoh.publish(vcfg.ZENOH_TOPIC_NAV_CMD, NavCommand(
+                        command="PAN_CAMERA_RIGHT").to_dict())
+                    print(f"    [!] PAN_CAMERA_RIGHT sent @ frame {frame_no}")
+
                     # Initialize parking SM
                     parking_sm = ParkingStateMachine(
                         pcfg,
                         on_command=lambda cmd: zenoh.publish(
                             vcfg.ZENOH_TOPIC_NAV_CMD, cmd.to_dict()),
                     )
+                    parked_triggered = False  # fire-once guard for PARKED
                     overall_state = OverallState.PARKING
                     zenoh.publish(vcfg.ZENOH_TOPIC_STATE, {
                         "state": overall_state.name,
@@ -512,7 +521,8 @@ def main():
                     p_state = parking_sm.process_frame(result, class_names)
                     parking_state_name = parking_sm.state.name
 
-                    if p_state == ParkingState.PARKED:
+                    if p_state == ParkingState.PARKED and not parked_triggered:
+                        parked_triggered = True
                         print(f"    [!] PARKED @ frame {frame_no}")
                     elif p_state == ParkingState.COMPLETE:
                         overall_state = OverallState.FINISHED
@@ -582,6 +592,7 @@ def main():
                 valid_slot_tracker.reset()
                 parking_sm = None
                 parking_state_name = None
+                parked_triggered = False
                 zenoh.publish_log.clear()
                 print(f"  Restarted {video_name}")
             elif key == ord('s'):

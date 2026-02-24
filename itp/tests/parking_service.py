@@ -263,7 +263,14 @@ def classify_slot(slot: Detection, all_detections: List[Detection], cfg: Parking
 # ============================================================
 
 class DebounceTracker:
-    """Track whether a condition is stably true or false across frames."""
+    """
+    Track whether a condition is stably true or false across frames.
+
+    Fire-once semantics:
+      CONFIRMED_FOUND  — returned exactly ONCE when threshold is first met
+      STILL_FOUND      — returned on every subsequent frame while still detected
+      CONFIRMED_LOST   — returned exactly ONCE after lost_thresh consecutive misses
+    """
 
     def __init__(self, found_thresh: int = 3, lost_thresh: int = 5):
         self.found_thresh = found_thresh
@@ -271,6 +278,7 @@ class DebounceTracker:
         self.consecutive_found = 0
         self.consecutive_lost = 0
         self.was_confirmed = False
+        self._found_fired = False  # fire-once guard
 
     def update(self, detected: bool) -> str:
         if detected:
@@ -278,12 +286,17 @@ class DebounceTracker:
             self.consecutive_lost = 0
             if self.consecutive_found >= self.found_thresh:
                 self.was_confirmed = True
-                return "CONFIRMED_FOUND"
+                if not self._found_fired:
+                    self._found_fired = True
+                    return "CONFIRMED_FOUND"       # fires only ONCE
+                return "STILL_FOUND"               # subsequent frames
             return "TRACKING"
         else:
             self.consecutive_lost += 1
             self.consecutive_found = 0
             if self.was_confirmed and self.consecutive_lost >= self.lost_thresh:
+                self._found_fired = False          # reset so next detection can fire again
+                self.was_confirmed = False
                 return "CONFIRMED_LOST"
             if self.was_confirmed:
                 return "UNCERTAIN"
@@ -293,6 +306,7 @@ class DebounceTracker:
         self.consecutive_found = 0
         self.consecutive_lost = 0
         self.was_confirmed = False
+        self._found_fired = False
 
 
 # ============================================================
