@@ -96,6 +96,7 @@ int runLiveMode(nsm::FrameSource& source, nsm::Pipeline& pipeline, bool headless
     nsm::BridgeResult bridge_result;
     double fps_smoothed = 0.0;
     int frame_count = 0;
+    bool show_thresholded = false;
 
     if (!headless) {
         cv::namedWindow("NSM Pipeline", cv::WINDOW_GUI_NORMAL);
@@ -131,8 +132,15 @@ int runLiveMode(nsm::FrameSource& source, nsm::Pipeline& pipeline, bool headless
         fps_smoothed = (fps_smoothed * 0.9) + (fps * 0.1);
 
         if (!headless) {
-            const cv::Mat& vis_frame = pipeline.getConfig().warp_enabled ? pipeline.getWarped() : frame;
-            cv::Mat vis = nsm::visualize_result(vis_frame, result);
+            cv::Mat vis;
+            if (show_thresholded) {
+                cv::Mat thresh_color;
+                cv::cvtColor(result.thresholded, thresh_color, cv::COLOR_GRAY2BGR);
+                vis = nsm::visualize_result(thresh_color, result);
+            } else {
+                const cv::Mat& vis_frame = pipeline.getConfig().warp_enabled ? pipeline.getWarped() : frame;
+                vis = nsm::visualize_result(vis_frame, result);
+            }
 
             // Draw FPS and info overlay
             std::string info = "FPS: " + std::to_string(static_cast<int>(fps_smoothed));
@@ -154,6 +162,7 @@ int runLiveMode(nsm::FrameSource& source, nsm::Pipeline& pipeline, bool headless
 
             int key = cv::waitKey(1);
             if (key == 'q' || key == 27) break;
+            if (key == 't') show_thresholded = !show_thresholded;
         }
 
         frame_count++;

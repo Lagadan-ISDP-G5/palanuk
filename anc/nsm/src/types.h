@@ -94,6 +94,10 @@ struct PipelineConfig {
     float warp_dst_bottom_right_x = 1.0f;
     float warp_dst_bottom_right_y = 1.0f;
 
+    // Morphological filtering (remove thin streaks/noise after thresholding)
+    bool morph_enabled = true;
+    int morph_kernel_size = 5;
+
     // Corner detection
     int harris_block_size = 9;
     int harris_ksize = 3;
