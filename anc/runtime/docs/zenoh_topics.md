@@ -53,6 +53,52 @@ Preliminary implementation on ANC and ODD side for now (9/2/2026):
 code will respect it, because the on-axis rotation (hard left/right steer) is implemented based on
 control of the travel direction of individual wheels.
 
+## How to steer left
+At app init, all the `bstn/` topics need to be initialized to a safe state. Just zero them appropriately (i.e., 0.0 for floats, 0 for integers).
+
+```
+palanuk/bstn/loopmode 0
+palanuk/bstn/speed 0.1
+palanuk/bstn/steercmd 1
+palanuk/bstn/drivestate 1
+```
+
+## How to steer right
+```
+palanuk/bstn/loopmode 0
+palanuk/bstn/speed 0.1
+palanuk/bstn/steercmd 1
+palanuk/bstn/drivestate 2
+```
+
+## How to move forward
+
+```
+palanuk/bstn/loopmode 0
+palanuk/bstn/speed: 0.3
+palanuk/bstn/drivestate: 1
+palanuk/bstn/steercmd: 0
+```
+
+## To stop
+
+Just publish the safe values
+```
+palanuk/bstn/loopmode 0
+palanuk/bstn/speed: 0.0
+palanuk/bstn/drivestate: 0
+palanuk/bstn/steercmd: 0
+```
+
+## How to reverse
+
+```
+palanuk/bstn/loopmode 0
+palanuk/bstn/speed: 0.3
+palanuk/bstn/drivestate: 2
+palanuk/bstn/steercmd: 0
+```
+
 
 Data under `/palanuk/itp/**`:
 
