@@ -15,16 +15,23 @@ impl Freezable for ItpMerger {}
 pub struct ItpAccelerateCmd(pub u8);
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, Encode, Decode)]
+#[serde(transparent)]
+#[derive(Reflect)]
+pub struct ItpBumpRockCmd(pub u8);
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, Encode, Decode)]
 #[derive(Reflect)]
 #[reflect(no_field_bounds, from_reflect = false)]
 pub struct ItpTopicsOutputPayload {
-    pub accelerate_cmd: bool
+    pub accelerate_cmd: bool,
+    pub bump_rock_cmd: bool,
 }
 
 #[derive(Reflect)]
 #[reflect(no_field_bounds, from_reflect = false)]
 pub struct ItpMerger {
-    last_cmd: bool
+    last_accel_cmd: bool,
+    last_rock_cmd: bool,
 }
 
 impl CuTask for ItpMerger {
@@ -32,7 +39,8 @@ impl CuTask for ItpMerger {
 
     type Input<'m>
     = input_msg!('m,
-            ItpAccelerateCmd
+            ItpAccelerateCmd,
+            ItpBumpRockCmd
         );
     type Output<'m> = output_msg!(ItpTopicsOutputPayload);
     type Resources<'r> = ();
@@ -40,33 +48,38 @@ impl CuTask for ItpMerger {
     fn new(_config: Option<&ComponentConfig>, _resources: Self::Resources<'_>) -> CuResult<Self>
         where
             Self: Sized {
-        Ok(Self { last_cmd: false })
+        Ok(Self { last_accel_cmd: false, last_rock_cmd: false })
     }
 
     fn process(&mut self, _clock: &RobotClock, input: &Self::Input<'_>, output: &mut Self::Output<'_>)
     -> CuResult<()>
     {
-        if let Some(itp_accelerate_cmd) = input.payload()
-        {
-            let cmd = match itp_accelerate_cmd.0 {
-                0 => false,
-                1 => true,
-                _ => false
-            };
+        let (accel_input, rock_input) = *input;
 
-            let final_cmd = match (self.last_cmd, cmd) {
-                (false, true) => true,
-                _ => false
-            };
+        let accel_final = if let Some(itp_accelerate_cmd) = accel_input.payload() {
+            let cmd = itp_accelerate_cmd.0 == 1;
+            let rising = !self.last_accel_cmd && cmd;
+            self.last_accel_cmd = cmd;
+            rising
+        } else {
+            false
+        };
 
-            self.last_cmd = cmd;
+        let rock_final = if let Some(itp_rock_cmd) = rock_input.payload() {
+            let cmd = itp_rock_cmd.0 == 1;
+            let rising = !self.last_rock_cmd && cmd;
+            self.last_rock_cmd = cmd;
+            rising
+        } else {
+            false
+        };
 
-            output.set_payload(
-                ItpTopicsOutputPayload {
-                    accelerate_cmd: final_cmd
-                }
-            );
-        }
+        output.set_payload(
+            ItpTopicsOutputPayload {
+                accelerate_cmd: accel_final,
+                bump_rock_cmd: rock_final,
+            }
+        );
 
         Ok(())
     }

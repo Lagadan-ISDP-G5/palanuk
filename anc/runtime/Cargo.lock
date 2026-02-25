@@ -157,6 +157,7 @@ dependencies = [
  "cu-propulsion",
  "cu29",
  "dual-mtr-ctrlr",
+ "itp-merger",
  "opencv-iox2",
  "opencv-splitter",
  "propulsion-adapter",

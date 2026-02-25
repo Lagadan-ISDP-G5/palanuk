@@ -45,6 +45,7 @@ pub mod bstn_subs {
 pub mod itp_subs {
     use cu_zenoh_src::ZSrc;
     pub type ItpAccelerateCmdSrc = ZSrc<itp_merger::ItpAccelerateCmd>;
+    pub type ItpBumpRockCmdSrc   = ZSrc<itp_merger::ItpBumpRockCmd>;
 }
 
 pub mod anc_pubs {

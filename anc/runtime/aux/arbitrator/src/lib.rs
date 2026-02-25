@@ -14,6 +14,7 @@ use cu_propulsion::{PropulsionPayload, WheelDirection};
 use anc_pub::AncPubPayload;
 use opencv_splitter::NsmPayload;
 use opencv_iox2::{CornerDirection};
+use itp_merger::ItpTopicsOutputPayload;
 use core::default::*;
 
 pub const R_WIND_COMP_LMTR: f32 = 1.0; // 1.17
@@ -27,6 +28,14 @@ pub const INNER_WHEEL_STEERING_SPEED: f32 = 0.0;
 pub const ON_AXIS_ROTATION_DURATION_MILLISEC_90_DEG: u64 = 400;
 pub const STEERING_MIN_HOLD_MS: u64 = 280;
 pub const STEERING_DELAY_MS: u64 = 400;
+
+pub const ROCK_RAMP_MS: u64 = 60;
+pub const ROCK_FORWARD_HOLD_MS: u64 = 180;
+pub const ROCK_REVERSE_MS: u64 = 150;
+pub const ROCK_SPEED: f32 = 0.9;
+pub const ROCK_WIGGLE_RATIO: f32 = 0.7;
+pub const ROCK_MAX_CYCLES: u8 = 3;
+pub const ROCK_FULL_SEND_MS: u64 = 400;
 
 /// r_wind_comp values can be between 0 and 2 for either motor, but not both. If one is > 1 another must be <1.
 #[derive(Reflect)]
@@ -49,6 +58,19 @@ pub struct Arbitrator {
     #[reflect(ignore)]
     on_axis_rotator: OnAxisRotator,
     last_pid_output: f32,
+    #[reflect(ignore)]
+    rock_state: RockState,
+    #[reflect(ignore)]
+    rock_phase_started: CuInstant,
+    /// normalized corner y coord below which rocking stops (corner visible and close enough = cleared bump)
+    corner_y_coord_rock_stop: f32,
+    rock_ramp_ms: u64,
+    rock_forward_hold_ms: u64,
+    rock_reverse_ms: u64,
+    rock_speed: f32,
+    rock_wiggle_ratio: f32,
+    rock_max_cycles: u8,
+    rock_full_send_ms: u64,
 }
 
 pub struct OnAxisRotator {
@@ -151,6 +173,17 @@ pub enum SteererState {
     NotSteering
 }
 
+#[derive(Default, Debug, PartialEq, Eq, Clone, Copy)]
+pub enum RockState {
+    #[default]
+    NotRocking,
+    RampingForward { cycle: u8 },
+    HoldForward { cycle: u8 },
+    Reversing { cycle: u8 },
+    FullSend,
+    Done,
+}
+
 impl Default for Arbitrator {
     fn default() -> Self {
         Self {
@@ -164,6 +197,16 @@ impl Default for Arbitrator {
             steering_started: CuInstant::now(),
             on_axis_rotator: OnAxisRotator::default(),
             last_pid_output: 0.0,
+            rock_state: RockState::default(),
+            rock_phase_started: CuInstant::now(),
+            corner_y_coord_rock_stop: 0.0,
+            rock_ramp_ms: ROCK_RAMP_MS,
+            rock_forward_hold_ms: ROCK_FORWARD_HOLD_MS,
+            rock_reverse_ms: ROCK_REVERSE_MS,
+            rock_speed: ROCK_SPEED,
+            rock_wiggle_ratio: ROCK_WIGGLE_RATIO,
+            rock_max_cycles: ROCK_MAX_CYCLES,
+            rock_full_send_ms: ROCK_FULL_SEND_MS,
         }
     }
 }
@@ -181,7 +224,7 @@ impl Freezable for Arbitrator {
 }
 
 impl CuTask for Arbitrator {
-    type Input<'m> = input_msg!('m, PropulsionAdapterOutputPayload, PIDControlOutputPayload, NsmPayload);
+    type Input<'m> = input_msg!('m, PropulsionAdapterOutputPayload, PIDControlOutputPayload, NsmPayload, ItpTopicsOutputPayload);
     type Output<'m> = output_msg!(PropulsionPayload, AncPubPayload);
     type Resources<'r> = ();
 
@@ -207,21 +250,57 @@ impl CuTask for Arbitrator {
 
         let corner_y_coord_steering_trig: f64 = kv
             .get("corner_y_coord_steering_trig")
-            .expect("Normalized corner y coord trigger for steering not set in RON config")
+            .expect("corner_y_coord_steering_trig not set in RON config")
             .clone()
             .into();
+
+        let corner_y_coord_rock_stop: f64 = kv
+            .get("corner_y_coord_rock_stop")
+            .expect("corner_y_coord_rock_stop not set in RON config")
+            .clone()
+            .into();
+
+        let rock_ramp_ms: u64 = kv.get("rock_ramp_ms")
+            .map(|v| { let f: f64 = v.clone().into(); f as u64 })
+            .unwrap_or(ROCK_RAMP_MS);
+        let rock_forward_hold_ms: u64 = kv.get("rock_forward_hold_ms")
+            .map(|v| { let f: f64 = v.clone().into(); f as u64 })
+            .unwrap_or(ROCK_FORWARD_HOLD_MS);
+        let rock_reverse_ms: u64 = kv.get("rock_reverse_ms")
+            .map(|v| { let f: f64 = v.clone().into(); f as u64 })
+            .unwrap_or(ROCK_REVERSE_MS);
+        let rock_speed: f32 = kv.get("rock_speed")
+            .map(|v| { let f: f64 = v.clone().into(); f as f32 })
+            .unwrap_or(ROCK_SPEED);
+        let rock_wiggle_ratio: f32 = kv.get("rock_wiggle_ratio")
+            .map(|v| { let f: f64 = v.clone().into(); f as f32 })
+            .unwrap_or(ROCK_WIGGLE_RATIO);
+        let rock_max_cycles: u8 = kv.get("rock_max_cycles")
+            .map(|v| { let f: f64 = v.clone().into(); f as u8 })
+            .unwrap_or(ROCK_MAX_CYCLES);
+        let rock_full_send_ms: u64 = kv.get("rock_full_send_ms")
+            .map(|v| { let f: f64 = v.clone().into(); f as u64 })
+            .unwrap_or(ROCK_FULL_SEND_MS);
 
         let mut inst = Self::default();
         inst.r_wind_comp_lmtr = r_wind_comp_lmtr as f32;
         inst.r_wind_comp_rmtr = r_wind_comp_rmtr as f32;
         inst.corner_y_coord_steering_trig = corner_y_coord_steering_trig as f32;
+        inst.corner_y_coord_rock_stop = corner_y_coord_rock_stop as f32;
+        inst.rock_ramp_ms = rock_ramp_ms;
+        inst.rock_forward_hold_ms = rock_forward_hold_ms;
+        inst.rock_reverse_ms = rock_reverse_ms;
+        inst.rock_speed = rock_speed;
+        inst.rock_wiggle_ratio = rock_wiggle_ratio;
+        inst.rock_max_cycles = rock_max_cycles;
+        inst.rock_full_send_ms = rock_full_send_ms;
         Ok(inst)
     }
 
     fn process(&mut self, _clock: &RobotClock, input: &Self::Input<'_>, output: &mut Self::Output<'_>)
     -> CuResult<()>
     {
-        let (prop_adap, mtr_pid, nsm) = *input;
+        let (prop_adap, mtr_pid, nsm, itp) = *input;
 
         // PropulsionAdapterOutputPayload is required - can't do anything without it
         let Some(prop_adap_pload) = prop_adap.payload() else {
@@ -232,8 +311,39 @@ impl CuTask for Arbitrator {
 
         let mut closed_loop_prop_payload: PropulsionPayload = PropulsionPayload::default();
         // lanekeeping handler
-        if let Some(mtr_pid_pload) = mtr_pid.payload() && self.steerer_state != SteererState::Steering {
+        if let Some(mtr_pid_pload) = mtr_pid.payload()
+            && self.steerer_state != SteererState::Steering
+            && self.rock_state == RockState::NotRocking
+        {
             self.last_pid_output = mtr_pid_pload.output;
+        }
+
+        // rocking trigger from ITP (rising edge)
+        if let Some(itp_pload) = itp.payload() {
+            if itp_pload.bump_rock_cmd && self.rock_state == RockState::NotRocking {
+                self.rock_state = RockState::RampingForward { cycle: 0 };
+                self.rock_phase_started = CuInstant::now();
+                eprintln!("ROCK: triggered, starting cycle 0");
+            }
+        }
+
+        // rocking early exit: corner visible and low enough means we cleared the bump
+        if self.rock_state != RockState::NotRocking && self.rock_state != RockState::Done {
+            if let Some(m) = nsm.payload() {
+                if m.corner_detected && m.corner_coords.1 >= self.corner_y_coord_rock_stop {
+                    eprintln!("ROCK: corner visible y={:.4} >= stop_trig={:.4}, ending rock",
+                        m.corner_coords.1, self.corner_y_coord_rock_stop);
+                    self.rock_state = RockState::Done;
+                }
+            }
+        }
+
+        // rocking reset: once done and trigger goes away
+        if self.rock_state == RockState::Done {
+            let trigger_gone = itp.payload().map(|p| !p.bump_rock_cmd).unwrap_or(true);
+            if trigger_gone {
+                self.rock_state = RockState::NotRocking;
+            }
         }
 
         let loop_state = prop_adap_pload.loop_state;
@@ -241,8 +351,12 @@ impl CuTask for Arbitrator {
             LoopState::Closed => {
                 closed_loop_prop_payload = self.closed_loop_handler(self.last_pid_output, prop_adap_pload)?;
 
-                // steering handler
-                if let Some(m) = nsm.payload() {
+                // rocking overrides everything except e-stop
+                if self.rock_state != RockState::NotRocking && self.rock_state != RockState::Done {
+                    self.rock_handler(&mut closed_loop_prop_payload);
+                }
+                // steering handler (only when not rocking)
+                else if let Some(m) = nsm.payload() {
                     if m.corner_detected {
                         eprintln!("CORNER detected dir={:?} y={:.4} trig={:.4} state={:?}",
                             m.corner_direction, m.corner_coords.1,
@@ -371,6 +485,100 @@ impl Arbitrator {
             left_direction: WheelDirection::Forward,
             right_direction: WheelDirection::Forward,
         })
+    }
+
+    fn rock_elapsed_ms(&self) -> u64 {
+        let elapsed_ns = CuInstant::now().as_nanos()
+            .checked_sub(self.rock_phase_started.as_nanos())
+            .unwrap_or(0);
+        elapsed_ns / 1_000_000
+    }
+
+    fn rock_handler(&mut self, res: &mut PropulsionPayload) {
+        let elapsed = self.rock_elapsed_ms();
+
+        match self.rock_state {
+            RockState::RampingForward { cycle } => {
+                let ramp_frac = (elapsed as f32 / self.rock_ramp_ms as f32).min(1.0);
+                let speed = self.rock_speed * ramp_frac;
+
+                // wiggle: alternate which wheel leads each cycle
+                if cycle % 2 == 0 {
+                    res.left_speed = speed;
+                    res.right_speed = speed * self.rock_wiggle_ratio;
+                } else {
+                    res.left_speed = speed * self.rock_wiggle_ratio;
+                    res.right_speed = speed;
+                }
+                res.left_direction = WheelDirection::Forward;
+                res.right_direction = WheelDirection::Forward;
+                res.left_enable = true;
+                res.right_enable = true;
+
+                if elapsed >= self.rock_ramp_ms {
+                    self.rock_state = RockState::HoldForward { cycle };
+                    self.rock_phase_started = CuInstant::now();
+                    eprintln!("ROCK: cycle {} ramp done, holding forward", cycle);
+                }
+            }
+            RockState::HoldForward { cycle } => {
+                // maintain full speed with wiggle
+                if cycle % 2 == 0 {
+                    res.left_speed = self.rock_speed;
+                    res.right_speed = self.rock_speed * self.rock_wiggle_ratio;
+                } else {
+                    res.left_speed = self.rock_speed * self.rock_wiggle_ratio;
+                    res.right_speed = self.rock_speed;
+                }
+                res.left_direction = WheelDirection::Forward;
+                res.right_direction = WheelDirection::Forward;
+                res.left_enable = true;
+                res.right_enable = true;
+
+                if elapsed >= self.rock_forward_hold_ms {
+                    self.rock_state = RockState::Reversing { cycle };
+                    self.rock_phase_started = CuInstant::now();
+                    eprintln!("ROCK: cycle {} hold done, reversing", cycle);
+                }
+            }
+            RockState::Reversing { cycle } => {
+                // symmetric reverse, no wiggle
+                res.left_speed = self.rock_speed;
+                res.right_speed = self.rock_speed;
+                res.left_direction = WheelDirection::Reverse;
+                res.right_direction = WheelDirection::Reverse;
+                res.left_enable = true;
+                res.right_enable = true;
+
+                if elapsed >= self.rock_reverse_ms {
+                    if cycle + 1 >= self.rock_max_cycles {
+                        self.rock_state = RockState::FullSend;
+                        self.rock_phase_started = CuInstant::now();
+                        eprintln!("ROCK: max cycles reached, full send");
+                    } else {
+                        self.rock_state = RockState::RampingForward { cycle: cycle + 1 };
+                        self.rock_phase_started = CuInstant::now();
+                        eprintln!("ROCK: starting cycle {}", cycle + 1);
+                    }
+                }
+            }
+            RockState::FullSend => {
+                // final ramped forward push, symmetric
+                let ramp_frac = (elapsed as f32 / self.rock_ramp_ms as f32).min(1.0);
+                res.left_speed = self.rock_speed * ramp_frac;
+                res.right_speed = self.rock_speed * ramp_frac;
+                res.left_direction = WheelDirection::Forward;
+                res.right_direction = WheelDirection::Forward;
+                res.left_enable = true;
+                res.right_enable = true;
+
+                if elapsed >= self.rock_full_send_ms {
+                    self.rock_state = RockState::Done;
+                    eprintln!("ROCK: full send done, routine complete");
+                }
+            }
+            RockState::NotRocking | RockState::Done => {}
+        }
     }
 
     /// called when corner y coord is low enough

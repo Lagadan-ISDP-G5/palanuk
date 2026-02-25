@@ -67,6 +67,14 @@
                 // "r_wind_comp_lmtr": 1.17,
                 // "r_wind_comp_rmtr": 0.85,
                 "corner_y_coord_steering_trig": 0.76,
+                "corner_y_coord_rock_stop": 0.5,
+                "rock_ramp_ms": 60.0,
+                "rock_forward_hold_ms": 180.0,
+                "rock_reverse_ms": 150.0,
+                "rock_speed": 0.9,
+                "rock_wiggle_ratio": 0.7,
+                "rock_max_cycles": 3.0,
+                "rock_full_send_ms": 400.0,
             }
         ),
 
@@ -278,6 +286,14 @@
         ),
 
         (
+            id: "itp-bump-rock-cmd",
+            type: "itp_subs::ItpBumpRockCmdSrc",
+            config: {
+                "topic": "palanuk/itp/bump_rock",
+            },
+        ),
+
+        (
             id: "itp-merger",
             type: "itp_merger::ItpMerger",
         ),
@@ -456,6 +472,7 @@
         // arbitrator heads
         (src: "dual-mtr-ctrlr", dst: "arbitrator", msg: "cu_pid::PIDControlOutputPayload"),
         (src: "opencv-splitter", dst: "arbitrator", msg: "opencv_splitter::NsmPayload"),
+        (src: "itp-merger", dst: "arbitrator", msg: "itp_merger::ItpTopicsOutputPayload"),
 
         (src: "encoder-pair", dst: "speed-err-adapter", msg: "cu_irencoder::IrEncoderPayload"),
 
@@ -470,6 +487,7 @@
 
         // itp-merger heads
         (src: "itp-accelerate-cmd", dst: "itp-merger", msg: "itp_merger::ItpAccelerateCmd"),
+        (src: "itp-bump-rock-cmd",  dst: "itp-merger", msg: "itp_merger::ItpBumpRockCmd"),
 
         // speed-correction-summer heads
         (src: "lmtr-speed-ctrlr", dst: "speed-correction-summer", msg: "cu_pid::PIDControlOutputPayload"),
