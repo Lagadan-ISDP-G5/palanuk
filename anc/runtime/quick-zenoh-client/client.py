@@ -91,7 +91,7 @@ FORWARD = {
 
 CLOSED_LOOP_INIT_STEP1 = {
     "palanuk/bstn/loopmode": 0,
-    "palanuk/bstn/speed": 0.15,
+    "palanuk/bstn/speed": 0.45,
     "palanuk/bstn/forcepan": 0,
     "palanuk/bstn/drivestate": 1,
     "palanuk/bstn/steercmd": 0,
@@ -99,7 +99,7 @@ CLOSED_LOOP_INIT_STEP1 = {
 
 CLOSED_LOOP_INIT_STEP2 = {
     "palanuk/bstn/loopmode": 1,
-    "palanuk/bstn/speed": 0.15,
+    "palanuk/bstn/speed": 0.45,
     "palanuk/bstn/forcepan": 0,
     "palanuk/bstn/drivestate": 1,
     "palanuk/bstn/steercmd": 0,
@@ -176,8 +176,9 @@ def pl():
     print("pan left")
 
 def ac():
+    session.put("palanuk/bstn/drivestate", msgpack.packb(1))
     session.put("palanuk/itp/accelerate", msgpack.packb(0))
-    forward()
+    # forward()
     session.put("palanuk/itp/accelerate", msgpack.packb(1))
     print("accelerate over bump")
 

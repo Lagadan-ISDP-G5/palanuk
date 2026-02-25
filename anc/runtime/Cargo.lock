@@ -5661,6 +5661,7 @@ dependencies = [
  "opencv-splitter",
  "panner-adapter",
  "propulsion-adapter",
+ "re_web_viewer_server",
  "rerun",
  "serde",
  "speed-correction-summer",

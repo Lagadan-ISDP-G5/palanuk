@@ -256,6 +256,11 @@ impl CuTask for Arbitrator {
                         }
                     }
 
+                    // IMPORTANT edge case!!!
+                    if self.steerer_state == SteererState::Done && !m.corner_detected {
+                        self.steerer_state = SteererState::NotSteering;
+                    }
+
                     if self.steerer_state == SteererState::WaitingToSteer {
                         let elapsed_ns = CuInstant::now().as_nanos()
                             .checked_sub(self.steering_triggered.as_nanos())
