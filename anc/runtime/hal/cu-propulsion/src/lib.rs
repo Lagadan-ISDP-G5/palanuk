@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 
 pub struct DirectionPair(u8, u8);
 // Just reassign these if the actual hardware connections happen to be flipped
-const FORWARD: DirectionPair = DirectionPair(1, 0);
-const BACKWARDS: DirectionPair = DirectionPair(0, 1);
+const FORWARD: DirectionPair = DirectionPair(0, 1);
+const BACKWARDS: DirectionPair = DirectionPair(1, 0);
 const STOP: DirectionPair = DirectionPair(0, 0);
 
 /// ReallySlow by default

@@ -347,7 +347,7 @@
                 "lmtr_output_pin": 17,
                 "rmtr_output_pin": 27,
                 "num_of_slots": 20,
-                "max_rpm": 370
+                "max_rpm": 600
             }
         ),
 
@@ -360,9 +360,9 @@
             id: "lmtr-speed-ctrlr",
             type: "speed_ctrlrs::LmtrSpeedCtrlr",
             config: {
-                "kp": 0.35,
-                "kd": 0.000000001,
-                "ki": 0.0000016,
+                "kp": 0.10,
+                "kd": 0.0000002,
+                "ki": 0.00000016,
                 "setpoint": 0.0,
                 "cutoff": 10.0,
             }
@@ -372,9 +372,9 @@
             id: "rmtr-speed-ctrlr",
             type: "speed_ctrlrs::RmtrSpeedCtrlr",
             config: {
-                "kp": 0.35,
-                "kd": 0.00000001,
-                "ki": 0.0000016,
+                "kp": 0.10,
+                "kd": 0.0000002,
+                "ki": 0.00000016,
                 "setpoint": 0.0,
                 "cutoff": 10.0,
             }
@@ -385,7 +385,7 @@
             type: "speed_correction_summer::SpeedCorrectionSummer",
             // config optional for k_ff_lmtr and k_ff_rmtr
             config: {
-                "k_ff_lmtr": 0.631,
+                "k_ff_lmtr": 0.63,
                 "k_ff_rmtr": 0.2,
             },
             logging: (enabled: true)
