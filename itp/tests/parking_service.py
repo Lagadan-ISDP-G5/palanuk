@@ -22,7 +22,6 @@ Commands sent to AnC:
   TURN_RIGHT_90          — turn 90° right in place
   ALIGN_LEFT             — nudge left (with magnitude 0-1)
   ALIGN_RIGHT            — nudge right (with magnitude 0-1)
-  ENTER_SLOT             — drive straight forward into slot
   ROTATE_180             — rotate 180° in place
   RESUME_LANE_TRACKING   — hand control back to Pi's lane tracker
 """
@@ -30,6 +29,7 @@ Commands sent to AnC:
 import time
 import struct
 import logging
+import threading
 from enum import Enum, auto
 from dataclasses import dataclass, field
 from typing import Optional, List, Dict, Any, Tuple, Union
@@ -62,7 +62,7 @@ NAV_CMD_RECIPES: Dict[str, List[Tuple[str, Union[int, float]]]] = {
     # ── Resume lane tracking (release control to Pi) ──
     "RESUME_LANE_TRACKING": [
         ("palanuk/bstn/loopmode",       1),
-        ("palanuk/bstn/speed",      0.3),
+        ("palanuk/bstn/speed",      0.012),
     ],
 
     # ── Safe-state initialisation (all zeros, publish at startup) ──
@@ -80,18 +80,20 @@ NAV_CMD_RECIPES: Dict[str, List[Tuple[str, Union[int, float]]]] = {
         ("palanuk/itp/accelerate",   1),
     ],
 
+    # this needs to be adjusted
     # ── Steer left  (zenoh_topics.md: steercmd=1, drivestate=1) ──
     "ALIGN_LEFT": [
         ("palanuk/bstn/loopmode",   0),
-        ("palanuk/bstn/speed",      0.3),
+        ("palanuk/bstn/speed",      0.012),
         ("palanuk/bstn/steercmd",   1),
         ("palanuk/bstn/drivestate", 1),
     ],
 
+    # this needs to be adjusted
     # ── Steer right (zenoh_topics.md: steercmd=1, drivestate=2) ──
     "ALIGN_RIGHT": [
         ("palanuk/bstn/loopmode",   0),
-        ("palanuk/bstn/speed",      0.3),
+        ("palanuk/bstn/speed",      0.012),
         ("palanuk/bstn/steercmd",   1),
         ("palanuk/bstn/drivestate", 2),
     ],
@@ -99,7 +101,7 @@ NAV_CMD_RECIPES: Dict[str, List[Tuple[str, Union[int, float]]]] = {
     # ── Turn right 90° (same steer-right recipe; AnC measures angle) ──
     "TURN_RIGHT_90": [
         ("palanuk/bstn/loopmode",   0),
-        ("palanuk/bstn/speed",      0.3),
+        ("palanuk/bstn/speed",      0.012),
         ("palanuk/bstn/steercmd",   1),
         ("palanuk/bstn/drivestate", 2),
     ],
@@ -107,7 +109,7 @@ NAV_CMD_RECIPES: Dict[str, List[Tuple[str, Union[int, float]]]] = {
     # ── Rotate 180° (same steer-right recipe; AnC measures angle) ──
     "ROTATE_180": [
         ("palanuk/bstn/loopmode",   0),
-        ("palanuk/bstn/speed",      0.3),
+        ("palanuk/bstn/speed",      0.012),
         ("palanuk/bstn/steercmd",   1),
         ("palanuk/bstn/drivestate", 2),
     ],
@@ -117,18 +119,10 @@ NAV_CMD_RECIPES: Dict[str, List[Tuple[str, Union[int, float]]]] = {
         ("palanuk/bstn/steercmd",   0),
     ],
 
-    # ── Enter parking slot (forward, no steer) ──
-    "ENTER_SLOT": [
-        ("palanuk/bstn/loopmode",   0),
-        ("palanuk/bstn/speed",      0.3),
-        ("palanuk/bstn/drivestate", 1),
-        ("palanuk/bstn/steercmd",   0),
-    ],
-
     # ── Drive forward ──
     "DRIVE_FORWARD": [
         ("palanuk/bstn/loopmode",   0),
-        ("palanuk/bstn/speed",      0.3),
+        ("palanuk/bstn/speed",      0.012),
         ("palanuk/bstn/drivestate", 1),
         ("palanuk/bstn/steercmd",   0),
     ],
@@ -136,7 +130,7 @@ NAV_CMD_RECIPES: Dict[str, List[Tuple[str, Union[int, float]]]] = {
     # ── Drive reverse ──
     "DRIVE_REVERSE": [
         ("palanuk/bstn/loopmode",   0),
-        ("palanuk/bstn/speed",      0.3),
+        ("palanuk/bstn/speed",      0.012),
         ("palanuk/bstn/drivestate", 2),
         ("palanuk/bstn/steercmd",   0),
     ],
@@ -199,7 +193,7 @@ class ParkingConfig:
     ALIGNMENT_INTEGRAL_WINDUP: float = 200.0
 
     # Slot detection — minimum area as fraction of frame
-    SLOT_AREA_THRESHOLD: float = 0.02
+    SLOT_AREA_THRESHOLD: float = 0.012
 
     # P sign proximity — signboard hangs above the slot, so its base_y
     # won't always land inside the slot bbox.  Accept if within this many
@@ -223,7 +217,6 @@ class ParkingState(Enum):
     WAIT_STOP_ACK = auto()
     WAIT_TURN_ACK = auto()
     ALIGN = auto()
-    WAIT_ENTER_ACK = auto()
     PARKED = auto()
     WAIT_ROTATE_ACK = auto()
     COMPLETE = auto()
@@ -507,13 +500,14 @@ class ParkingStateMachine:
 
     State flow:
       SCAN → COASTING → WAIT_STOP_ACK → WAIT_TURN_ACK → ALIGN
-           → WAIT_ENTER_ACK → PARKED → WAIT_ROTATE_ACK → COMPLETE
+           → PARKED → WAIT_ROTATE_ACK → COMPLETE
     """
 
-    def __init__(self, cfg: ParkingConfig, on_command=None):
+    def __init__(self, cfg: ParkingConfig, on_command=None, enable_ack: bool = False):
         self.cfg = cfg
         self.state = ParkingState.SCAN
         self.on_command = on_command or (lambda cmd: None)
+        self.enable_ack = enable_ack
 
         # Debounce for valid slot
         self.slot_tracker = DebounceTracker(
@@ -555,8 +549,13 @@ class ParkingStateMachine:
             self._handle_coasting(detections)
         elif self.state == ParkingState.ALIGN:
             self._handle_align(detections)
-        # WAIT_STOP_ACK, WAIT_TURN_ACK, WAIT_ENTER_ACK, WAIT_ROTATE_ACK
+        # WAIT_STOP_ACK, WAIT_TURN_ACK, WAIT_ROTATE_ACK
         #   → driven by on_ack() calls from the vision service when AnC responds
+
+        # When ACK is disabled, auto-advance through WAIT states
+        # (one step per frame so each command fires exactly once)
+        if not self.enable_ack:
+            self._auto_advance()
 
         return self.state
 
@@ -564,7 +563,7 @@ class ParkingStateMachine:
         """
         Called by the vision service when AnC acknowledges a command.
 
-        ack_type: "stop", "turn_complete", "enter_complete", "rotate_complete"
+        ack_type: "stop", "turn_complete", "rotate_complete"
         """
         if ack_type == "stop" and self.state == ParkingState.WAIT_STOP_ACK:
             logger.info("ACK: stop — sending turn right 90°")
@@ -578,11 +577,6 @@ class ParkingStateMachine:
             self._align_attempts = 0
             self._last_align_time = time.time()
             self._transition(ParkingState.ALIGN)
-
-        elif ack_type == "enter_complete" and self.state == ParkingState.WAIT_ENTER_ACK:
-            logger.info("ACK: enter complete — PARKED")
-            self._emit(NavCommand(command="STOP"))
-            self._transition(ParkingState.PARKED)
 
         elif ack_type == "rotate_complete" and self.state == ParkingState.WAIT_ROTATE_ACK:
             logger.info("ACK: rotate complete — parking COMPLETE")
@@ -688,11 +682,10 @@ class ParkingStateMachine:
 
         # Check if aligned
         if abs(error_px) <= self.cfg.ALIGNMENT_TOLERANCE_PX:
-            logger.info(f"Aligned! error={error_px:.1f}px — sending ENTER_SLOT")
+            logger.info(f"Aligned! error={error_px:.1f}px — driving forward into slot")
             self._emit(NavCommand(command="STOP"))
             self.pi_controller.reset()
-            self._emit(NavCommand(command="ENTER_SLOT"))
-            self._transition(ParkingState.WAIT_ENTER_ACK)
+            self._enter_slot_timed()
             return
 
         correction = self.pi_controller.compute(error_px, dt)
@@ -715,12 +708,51 @@ class ParkingStateMachine:
             logger.warning("Max align attempts — entering slot anyway")
             self._emit(NavCommand(command="STOP"))
             self.pi_controller.reset()
-            self._emit(NavCommand(command="ENTER_SLOT"))
-            self._transition(ParkingState.WAIT_ENTER_ACK)
+            self._enter_slot_timed()
+
+    # ----------------------------------------------------------
+    # Enter slot (timed drive forward)
+    # ----------------------------------------------------------
+
+    def _enter_slot_timed(self, duration: float = 1.0):
+        """Drive forward for *duration* seconds then stop and transition to PARKED."""
+        logger.info(f"Entering slot — DRIVE_FORWARD for {duration}s")
+        self._emit(NavCommand(command="DRIVE_FORWARD"))
+
+        def _finish_enter():
+            logger.info("Enter slot duration elapsed — sending STOP")
+            self._emit(NavCommand(command="STOP"))
+            self._transition(ParkingState.PARKED)
+
+        threading.Timer(duration, _finish_enter).start()
 
     # ----------------------------------------------------------
     # Utilities
     # ----------------------------------------------------------
+
+    def _auto_advance(self):
+        """
+        Auto-advance one WAIT state per frame when ACK is disabled.
+        Each command fires exactly once — the state transition prevents
+        re-entry on the next frame.
+        """
+        if self.state == ParkingState.WAIT_STOP_ACK:
+            logger.info("ACK disabled — auto-advancing past WAIT_STOP_ACK")
+            self._emit(NavCommand(command="PAN_CAMERA_CENTER"))
+            self._emit(NavCommand(command="TURN_RIGHT_90"))
+            self._transition(ParkingState.WAIT_TURN_ACK)
+
+        elif self.state == ParkingState.WAIT_TURN_ACK:
+            logger.info("ACK disabled — auto-advancing past WAIT_TURN_ACK")
+            self.pi_controller.reset()
+            self._align_attempts = 0
+            self._last_align_time = time.time()
+            self._transition(ParkingState.ALIGN)
+
+        elif self.state == ParkingState.WAIT_ROTATE_ACK:
+            logger.info("ACK disabled — auto-advancing past WAIT_ROTATE_ACK")
+            self._emit(NavCommand(command="RESUME_LANE_TRACKING"))
+            self._transition(ParkingState.COMPLETE)
 
     def _transition(self, new_state: ParkingState):
         logger.info(f"Parking: {self.state.name} → {new_state.name}")

@@ -48,6 +48,7 @@ import time
 import json
 import os
 import logging
+import threading
 from enum import Enum, auto
 from datetime import datetime
 from typing import Optional, List, Dict, Any
@@ -276,6 +277,9 @@ class VisionService:
         self.bumper_tracker = DebounceTracker(
             found_thresh=vcfg.BUMPER_DEBOUNCE_FRAMES, lost_thresh=3
         )
+        self.any_slot_tracker = DebounceTracker(
+            found_thresh=vcfg.SLOT_DEBOUNCE_FRAMES, lost_thresh=5
+        )
         self.valid_slot_tracker = DebounceTracker(
             found_thresh=vcfg.SLOT_DEBOUNCE_FRAMES, lost_thresh=5
         )
@@ -425,9 +429,51 @@ class VisionService:
                     "area_pct": round(b.area / frame_area, 4),
                 },
             ))
+            # Reset accelerate after 1.5 seconds
+            def _reset_accel():
+                logger.info("Resetting ACCELERATE_FOR_BUMP after 1.5s")
+                self.zenoh.publish_bytes("palanuk/itp/accelerate", NavCommand._encode(0))
+            threading.Timer(1.5, _reset_accel).start()
 
         # ── Parking slot detection ──
-        # When a valid slot is confirmed, notify AnC and wait for ACK.
+        # When ANY parking slot is seen (valid or invalid, any size),
+        # pan camera right and transition to APPROACH_PARKING.
+        # No area threshold — the slot could still be far away.
+        any_slots = [
+            d for d in detections
+            if d.class_name == self.pcfg.CLASS_PARKING_SLOT
+        ]
+
+        slot_status = self.any_slot_tracker.update(len(any_slots) > 0)
+        if slot_status == "CONFIRMED_FOUND":  # fires only once
+            best = max(any_slots, key=lambda s: s.area)
+            logger.info(
+                f"Parking slot(s) detected "
+                f"(area={best.area/frame_area:.2%}, "
+                f"cx={best.center_x:.1f}, cy={best.center_y:.1f})"
+            )
+            logger.info("Panning camera right for parking approach")
+            self._send_nav(NavCommand(command="PAN_CAMERA_RIGHT"))
+            # Camera is panned right so Pi can't lane-track — drive forward open-loop
+            logger.info("Waiting 1s before DRIVE_FORWARD (camera settling)")
+            time.sleep(1.0)
+            logger.info("Sending DRIVE_FORWARD (camera panned, lane tracking unavailable)")
+            self._send_nav(NavCommand(command="DRIVE_FORWARD"))
+
+            if not self.vcfg.ENABLE_ACK:
+                logger.info("ACK disabled — auto-transitioning to APPROACH_PARKING")
+                self._set_state(OverallState.APPROACH_PARKING)
+            # else: wait for prepare_to_park ACK from AnC (see _process_acks)
+
+    def _state_approach_parking(self, result):
+        """
+        APPROACH_PARKING: Camera is panned right.
+        Scan for a VALID parking slot. Once confirmed, initialize
+        the parking state machine and transition to PARKING.
+        """
+        detections = parse_detections(result, self.class_names, self.vcfg.CONF_THRES)
+        frame_area = self.vcfg.IMG_SIZE ** 2
+
         slot_status_map = classify_all_slots(detections, self.pcfg)
         valid_slots = [
             d for d in detections
@@ -436,36 +482,22 @@ class VisionService:
             and d.area / frame_area >= self.vcfg.VALID_PARKING_AREA_THRESHOLD
         ]
 
-        slot_status = self.valid_slot_tracker.update(len(valid_slots) > 0)
-        if slot_status == "CONFIRMED_FOUND":  # fires only once
+        status = self.valid_slot_tracker.update(len(valid_slots) > 0)
+        if status == "CONFIRMED_FOUND":
             best = max(valid_slots, key=lambda s: s.area)
             logger.info(
                 f"Valid parking slot confirmed "
                 f"(area={best.area/frame_area:.2%}, "
                 f"cx={best.center_x:.1f}, cy={best.center_y:.1f})"
             )
-            # PARKING_SLOTS_DETECTED is handled internally by ITP.
-            # Transition happens when AnC sends prepare_to_park ACK
-            # (see _process_acks)  — or auto-transition if ACK is disabled.
-            if not self.vcfg.ENABLE_ACK:
-                logger.info("ACK disabled — auto-transitioning to APPROACH_PARKING")
-                self._set_state(OverallState.APPROACH_PARKING)
-
-    def _state_approach_parking(self, result):
-        """
-        APPROACH_PARKING: AnC acknowledged parking preparation.
-        Pan camera right, initialize parking SM, transition to PARKING.
-        """
-        logger.info("Panning camera right for parking scan")
-        self._send_nav(NavCommand(command="PAN_CAMERA_RIGHT"))
-
-        logger.info("Initializing parking state machine")
-        self.parking_sm = ParkingStateMachine(
-            self.pcfg,
-            on_command=self._parking_command_handler,
-        )
-        self._parked_triggered = False
-        self._set_state(OverallState.PARKING)
+            logger.info("Initializing parking state machine")
+            self.parking_sm = ParkingStateMachine(
+                self.pcfg,
+                on_command=self._parking_command_handler,
+                enable_ack=self.vcfg.ENABLE_ACK,
+            )
+            self._parked_triggered = False
+            self._set_state(OverallState.PARKING)
 
     def _state_parking(self, result):
         """
@@ -697,7 +729,7 @@ class VisionService:
             cv2.putText(annotated, label, (x1, y1 - 5),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
 
-        # ── Draw segmentation masks if available ──
+        # ── Draw segmentation masks ──
         if result.masks is not None:
             for i, mask in enumerate(result.masks.data):
                 mask_np = mask.cpu().numpy().astype(np.uint8)

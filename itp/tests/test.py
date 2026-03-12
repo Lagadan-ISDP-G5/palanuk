@@ -518,6 +518,10 @@ def main():
                     pan_cmd = NavCommand(command="PAN_CAMERA_RIGHT")
                     pan_cmd.publish_all(zenoh)
                     print(f"    [!] PAN_CAMERA_RIGHT sent @ frame {frame_no}")
+                    # Camera is panned right so Pi can't lane-track — drive forward open-loop
+                    fwd_cmd = NavCommand(command="DRIVE_FORWARD")
+                    fwd_cmd.publish_all(zenoh)
+                    print(f"    [!] DRIVE_FORWARD sent @ frame {frame_no} (camera panned, no lane tracking)")
 
                     # Initialize parking SM
                     parking_sm = ParkingStateMachine(

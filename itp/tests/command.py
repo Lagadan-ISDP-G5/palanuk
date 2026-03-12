@@ -81,7 +81,7 @@ def publish_recipe(pubs, cmd_name):
 def main():
     parser = argparse.ArgumentParser(description="Test all ITP nav commands over Zenoh")
     parser.add_argument(
-        "--duration", "-d", type=float, default=3.0,
+        "--duration", "-d", type=float, default=2.0,
         help="Seconds to hold each command before sending STOP (default: 3)",
     )
     parser.add_argument(
@@ -163,7 +163,7 @@ def main():
             if not args.skip_stop and cmd_name != "STOP":
                 print(f"         → STOP")
                 publish_recipe(pubs, "STOP")
-                time.sleep(1.0)
+                time.sleep(2.0)
 
             print()
 
