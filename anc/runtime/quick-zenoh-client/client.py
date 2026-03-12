@@ -83,7 +83,7 @@ REVERSE = {
 
 FORWARD = {
     "palanuk/bstn/loopmode": 0,
-    "palanuk/bstn/speed": 0.05,
+    "palanuk/bstn/speed": 0.02,
     "palanuk/bstn/forcepan": 0,
     "palanuk/bstn/drivestate": 1,
     "palanuk/bstn/steercmd": 0,
@@ -91,7 +91,7 @@ FORWARD = {
 
 CLOSED_LOOP_INIT_STEP1 = {
     "palanuk/bstn/loopmode": 0,
-    "palanuk/bstn/speed": 0.01,
+    "palanuk/bstn/speed": 0.02,
     "palanuk/bstn/forcepan": 0,
     "palanuk/bstn/drivestate": 1,
     "palanuk/bstn/steercmd": 0,
@@ -99,7 +99,7 @@ CLOSED_LOOP_INIT_STEP1 = {
 
 CLOSED_LOOP_INIT_STEP2 = {
     "palanuk/bstn/loopmode": 1,
-    "palanuk/bstn/speed": 0.01,
+    "palanuk/bstn/speed": 0.02,
     "palanuk/bstn/forcepan": 0,
     "palanuk/bstn/drivestate": 1,
     "palanuk/bstn/steercmd": 0,
@@ -107,7 +107,7 @@ CLOSED_LOOP_INIT_STEP2 = {
 
 CORNER_LEFT = {
     "palanuk/bstn/loopmode": 0,
-    "palanuk/bstn/speed": 0.1,
+    "palanuk/bstn/speed": 0.04,
     "palanuk/bstn/forcepan": 0,
     "palanuk/bstn/drivestate": 1,
     "palanuk/bstn/steercmd": 1,
@@ -115,7 +115,7 @@ CORNER_LEFT = {
 
 CORNER_RIGHT = {
     "palanuk/bstn/loopmode": 0,
-    "palanuk/bstn/speed": 0.1,
+    "palanuk/bstn/speed": 0.04,
     "palanuk/bstn/forcepan": 0,
     "palanuk/bstn/drivestate": 1,
     "palanuk/bstn/steercmd": 2,

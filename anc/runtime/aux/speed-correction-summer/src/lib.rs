@@ -9,14 +9,6 @@ pub const R_WIND_COMP_LMTR: f32 = 1.1;
 pub const R_WIND_COMP_RMTR: f32 = 1.0;
 pub const MAX_PID_CORRECTION: f32 = 0.25;
 
-pub const STALL_CMD_THRESHOLD: f32 = 0.15;
-pub const STALL_SPEED_THRESHOLD: f32 = 0.2;
-pub const STALL_BOOST: f32 = 0.5;
-
-pub const SLIP_CMD_THRESHOLD: f32 = 0.15;
-pub const SLIP_RATIO_THRESHOLD: f32 = 0.15;
-pub const SLIP_REDUCTION: f32 = 1.0;
-
 pub const ACCELERATE_MIN_DURATION_MS: u64 = 6000;
 pub const ACCELERATE_MAX_DURATION_MS: u64 = 9000;
 
@@ -27,6 +19,7 @@ pub struct SpeedCorrectionSummer {
     last_output: Option<PropulsionPayload>,
     k_ff_lmtr: f32,
     k_ff_rmtr: f32,
+    speed_correction_enabled: bool,
     #[reflect(ignore)]
     accelerating: bool,
     #[reflect(ignore)]
@@ -39,6 +32,7 @@ impl Default for SpeedCorrectionSummer {
             last_output: None,
             k_ff_lmtr: 1.0,
             k_ff_rmtr: 1.0,
+            speed_correction_enabled: true,
             accelerating: false,
             accelerate_started: CuInstant::now(),
         }
@@ -75,6 +69,17 @@ impl CuTask for SpeedCorrectionSummer {
                     .into();
 
                 inst.k_ff_rmtr = _k_ff_rmtr as f32;
+
+                let speed_correction: String = kv
+                    .get("speed_correction")
+                    .expect("speed_correction not set in RON config. Valid values: \"enable\", \"disable\"")
+                    .clone()
+                    .into();
+                inst.speed_correction_enabled = match speed_correction.as_str() {
+                    "enable" => true,
+                    "disable" => false,
+                    _ => panic!("Invalid speed_correction value: \"{speed_correction}\". Valid values: \"enable\", \"disable\""),
+                };
             },
             None => ()
         }
@@ -100,7 +105,7 @@ impl CuTask for SpeedCorrectionSummer {
                 output_msg.left_speed = 1.0;
                 output_msg.right_speed = 1.0;
                 eprintln!("ACCEL: overriding L=1.0 R=1.0");
-            } else {
+            } else if self.speed_correction_enabled {
                 let lmtr_pid = lmtr_speed_ctrlr_outpload.map(|p| p.output).unwrap_or(0.0)
                     .clamp(-MAX_PID_CORRECTION, MAX_PID_CORRECTION);
                 let rmtr_pid = rmtr_speed_ctrlr_outpload.map(|p| p.output).unwrap_or(0.0)

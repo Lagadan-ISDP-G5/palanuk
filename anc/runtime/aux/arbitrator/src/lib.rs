@@ -25,8 +25,8 @@ pub const OUTER_WHEEL_STEERING_SPEED: f32 = 1.0;
 pub const INNER_WHEEL_STEERING_SPEED: f32 = 0.0;
 
 pub const ON_AXIS_ROTATION_DURATION_MILLISEC_90_DEG: u64 = 400;
-pub const STEERING_MIN_HOLD_MS: u64 = 280;
-pub const STEERING_DELAY_MS: u64 = 400;
+pub const STEERING_MIN_HOLD_MS: u64 = 227;
+pub const STEERING_DELAY_MS: u64 = 520;
 
 /// r_wind_comp values can be between 0 and 2 for either motor, but not both. If one is > 1 another must be <1.
 #[derive(Reflect)]

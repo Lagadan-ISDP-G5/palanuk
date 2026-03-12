@@ -33,6 +33,7 @@ pub struct OpenCViox2Payload {
 #[derive(Reflect)]
 #[reflect(no_field_bounds, from_reflect = false)]
 pub struct OpenCViox2 {
+    heading_error_offset: f64,
     #[reflect(ignore)]
     heading_error_sub: Subscriber<Service, HeadingErrorMsg, ()>,
     #[reflect(ignore)]
@@ -52,11 +53,19 @@ impl CuSrcTask for OpenCViox2 {
     type Output<'m> = output_msg!(OpenCViox2Payload);
     type Resources<'r> = ();
 
-    fn new(_config: Option<&ComponentConfig>, _resources: Self::Resources<'_>) -> CuResult<Self>
+    fn new(config: Option<&ComponentConfig>, _resources: Self::Resources<'_>) -> CuResult<Self>
     where
         Self: Sized,
     {
-        eprintln!("OpenCViox2::new() called");
+        let ComponentConfig(kv) =
+            config.ok_or("No ComponentConfig specified for OpenCViox2 in RON")?;
+
+        let heading_error_offset: f64 = kv
+            .get("heading_error_offset")
+            .expect("heading_error_offset for OpenCViox2 not set in RON config.")
+            .clone()
+            .into();
+
         let heading_error_node = NodeBuilder::new().create::<Service>().map_err(|e| -> CuError {CuError::from(format!("build node failed: {:?}", e))})?;
         let heading_error_service = heading_error_node.service_builder(&ServiceName::new(SERVICE_NAME_HEADING_ERROR).unwrap())
             .publish_subscribe::<HeadingErrorMsg>()
@@ -92,6 +101,7 @@ impl CuSrcTask for OpenCViox2 {
         let corner_point_sub = corner_point_service.subscriber_builder().create().map_err(|_| -> CuError {CuError::from("build sub failed")})?;
 
         Ok(Self {
+            heading_error_offset,
             heading_error_sub,
             abs_line_gradient_sub,
             corner_detected_sub,
@@ -118,7 +128,7 @@ impl CuSrcTask for OpenCViox2 {
 
         {
             let abs_line_gradient = *&abs_line_gradient_sub.payload().value;
-            let heading_error = *&heading_error_sub.payload().value;
+            let heading_error = *&heading_error_sub.payload().value + self.heading_error_offset as f32;
             let vertical_line_valid = match *&heading_error_sub.payload().valid {
                 0 => false,
                 1 => true,
