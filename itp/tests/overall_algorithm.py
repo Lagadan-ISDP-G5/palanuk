@@ -111,7 +111,6 @@ class VisionConfig:
     MAX_RETRIES: int = 5
 
     # Processing
-    SKIP_FRAMES: int = 5
     USE_ONLY_BOXES: bool = True
 
     # Class names (must match YOLO model)
@@ -234,6 +233,60 @@ class ZenohBridge:
 
 
 # ============================================================
+# Threaded Frame Grabber
+# ============================================================
+
+class FrameGrabber:
+    """Continuously grabs frames in a background thread.
+    The main loop always gets the most recent frame, eliminating
+    RTSP buffer lag."""
+
+    def __init__(self, url: str):
+        # Force TCP transport to reduce packet loss on Wi-Fi
+        os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp"
+        self.url = url
+        self.cap = cv2.VideoCapture(url, cv2.CAP_FFMPEG)
+        self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        self._ret = False
+        self._frame = None
+        self._lock = threading.Lock()
+        self._running = True
+        self._thread = threading.Thread(target=self._run, daemon=True)
+        self._thread.start()
+
+    def _run(self):
+        while self._running:
+            ret, frame = self.cap.read()
+            if not ret:
+                continue
+            with self._lock:
+                self._ret, self._frame = ret, frame
+
+    def read(self):
+        with self._lock:
+            if self._frame is None:
+                return False, None
+            return self._ret, self._frame.copy()
+
+    def isOpened(self) -> bool:
+        return self.cap.isOpened()
+
+    def release(self):
+        self._running = False
+        self._thread.join(timeout=2)
+        self.cap.release()
+
+    def reconnect(self):
+        """Release and re-open the stream."""
+        self.release()
+        self.cap = cv2.VideoCapture(self.url, cv2.CAP_FFMPEG)
+        self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        self._running = True
+        self._thread = threading.Thread(target=self._run, daemon=True)
+        self._thread.start()
+
+
+# ============================================================
 # Color Generator
 # ============================================================
 
@@ -265,7 +318,7 @@ class VisionService:
         self.class_colors: dict = {}
 
         # Camera
-        self.cap: Optional[cv2.VideoCapture] = None
+        self.grabber: Optional[FrameGrabber] = None
 
         # Zenoh
         self.zenoh = ZenohBridge()
@@ -325,17 +378,12 @@ class VisionService:
     def _main_loop(self):
         """Core frame processing loop."""
         while self.state not in (OverallState.FINISHED, OverallState.ERROR):
-            ret, frame = self.cap.read()
-            if not ret:
-                logger.warning("Frame read failed — reconnecting...")
-                self.cap.release()
-                time.sleep(1)
-                self.cap = cv2.VideoCapture(self.vcfg.STREAM_URL)
+            ret, frame = self.grabber.read()
+            if not ret or frame is None:
+                time.sleep(0.01)  # brief wait for grabber to populate
                 continue
 
             self.frame_id += 1
-            if self.frame_id % self.vcfg.SKIP_FRAMES != 0:
-                continue
 
             frame_resized = cv2.resize(frame, (self.vcfg.IMG_SIZE, self.vcfg.IMG_SIZE))
 
@@ -593,16 +641,31 @@ class VisionService:
     # ----------------------------------------------------------
 
     def _load_model(self):
-        """Load YOLO model — TensorRT engine if available, else ONNX."""
+        """Load YOLO model — TensorRT engine if available, else ONNX.
+        When USE_TENSORRT is True and no engine file exists, auto-exports
+        from ONNX → TensorRT on the current GPU."""
         engine_path = self.vcfg.TENSORRT_ENGINE_PATH
 
         if self.vcfg.USE_TENSORRT and os.path.exists(engine_path):
             logger.info(f"Loading TensorRT engine: {engine_path}")
             self.model = YOLO(engine_path, task=self.vcfg.TASK)
+        elif self.vcfg.USE_TENSORRT:
+            logger.info(f"TensorRT engine not found at {engine_path} — auto-exporting from ONNX...")
+            logger.info("This may take a few minutes on first run.")
+            onnx_model = YOLO(self.vcfg.MODEL_PATH, task=self.vcfg.TASK)
+            onnx_model.export(
+                format="engine",
+                half=self.vcfg.USE_FP16,
+                device=self.vcfg.DEVICE,
+                imgsz=self.vcfg.IMG_SIZE,
+            )
+            # Ultralytics places the engine next to the ONNX file
+            auto_engine = self.vcfg.MODEL_PATH.replace(".onnx", ".engine")
+            if os.path.exists(auto_engine) and auto_engine != engine_path:
+                os.rename(auto_engine, engine_path)
+            logger.info(f"TensorRT engine exported → {engine_path}")
+            self.model = YOLO(engine_path, task=self.vcfg.TASK)
         else:
-            if self.vcfg.USE_TENSORRT:
-                logger.warning(f"TensorRT engine not found at {engine_path} — falling back to ONNX")
-                logger.warning("Export via: yolo export model=best.pt format=engine half=True device=0 imgsz=640 task=segment")
             logger.info(f"Loading ONNX model: {self.vcfg.MODEL_PATH}")
             self.model = YOLO(self.vcfg.MODEL_PATH, task=self.vcfg.TASK)
 
@@ -614,12 +677,11 @@ class VisionService:
     def _connect_camera(self):
         logger.info(f"Connecting to: {self.vcfg.STREAM_URL}")
         for attempt in range(1, self.vcfg.MAX_RETRIES + 1):
-            self.cap = cv2.VideoCapture(self.vcfg.STREAM_URL)
-            if self.cap.isOpened():
-                logger.info(f"Camera connected (attempt {attempt})")
-                self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-                self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+            self.grabber = FrameGrabber(self.vcfg.STREAM_URL)
+            if self.grabber.isOpened():
+                logger.info(f"Camera connected via threaded grabber (attempt {attempt})")
                 return
+            self.grabber.release()
             logger.warning(f"Attempt {attempt}/{self.vcfg.MAX_RETRIES} failed")
             time.sleep(2)
         raise ConnectionError("Camera connection failed after all retries")
@@ -729,12 +791,18 @@ class VisionService:
             cv2.putText(annotated, label, (x1, y1 - 5),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
 
-        # ── Draw segmentation masks ──
+        # ── Draw segmentation masks (parking slots only) ──
         if result.masks is not None:
+            slot_cls_ids = [
+                cid for cid, name in self.class_names.items()
+                if name == self.vcfg.CLASS_PARKING_SLOT
+            ]
             for i, mask in enumerate(result.masks.data):
+                cls_id = int(result.boxes.cls[i])
+                if cls_id not in slot_cls_ids:
+                    continue
                 mask_np = mask.cpu().numpy().astype(np.uint8)
                 mask_resized = cv2.resize(mask_np, (self.vcfg.IMG_SIZE, self.vcfg.IMG_SIZE))
-                cls_id = int(result.boxes.cls[i])
                 color = self.class_colors.get(cls_id, (0, 255, 0))
                 colored_mask = np.zeros_like(annotated)
                 colored_mask[mask_resized > 0] = color
@@ -770,8 +838,8 @@ class VisionService:
 
     def _cleanup(self):
         logger.info("Cleaning up...")
-        if self.cap:
-            self.cap.release()
+        if self.grabber:
+            self.grabber.release()
         cv2.destroyAllWindows()
         if self.log_file:
             self.log_file.close()
