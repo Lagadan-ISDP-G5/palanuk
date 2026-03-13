@@ -55,7 +55,7 @@
             id: "dual-mtr-ctrlr",
             type: "dual_mtr_ctrlr::DualMtrCtrlr",
             config: {
-                "kp": 0.009122,
+                "kp": 0.008122,
                 "kd": 0.0,
                 "ki": 0.00000000075,
                 "setpoint": 0.0,
