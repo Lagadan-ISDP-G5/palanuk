@@ -20,7 +20,7 @@
             id: "opencv-iox2",
             type: "opencv_iox2::OpenCViox2",
             config: {
-                "heading_error_offset": 0.093,
+                "heading_error_offset": 0.064,
             },
         ),
 
@@ -55,9 +55,9 @@
             id: "dual-mtr-ctrlr",
             type: "dual_mtr_ctrlr::DualMtrCtrlr",
             config: {
-                "kp": 0.012,
+                "kp": 0.009122,
                 "kd": 0.0,
-                "ki": 0.00000015,
+                "ki": 0.00000000075,
                 "setpoint": 0.0,
                 "cutoff": 2.0,
             }
@@ -69,7 +69,14 @@
             config: {
                 // "r_wind_comp_lmtr": 1.17,
                 // "r_wind_comp_rmtr": 0.85,
-                "corner_y_coord_steering_trig": 0.76,
+                "corner_y_coord_steering_trig": 0.7385,
+                "baseline_speed": 0.7,
+                "heading_error_end_steering_threshold": 0.21,
+                "outer_wheel_steering_speed": 1.0,
+                "inner_wheel_steering_speed": 0.0,
+                "on_axis_rotation_duration_ms": 400,
+                "steering_min_hold_ms": 100,
+                "steering_delay_ms": 100,
             }
         ),
 
@@ -359,25 +366,25 @@
             type: "speed_err_adapter::SpeedErrAdapter",
         ),
 
-        (
+        ( // speed ctrlr
             id: "lmtr-speed-ctrlr",
             type: "speed_ctrlrs::LmtrSpeedCtrlr",
             config: {
-                "kp": 0.086,
+                "kp": 0.03,
                 "kd": 0.0,
-                "ki": 0.000000002,
+                "ki": 0.000000016,
                 "setpoint": 0.0,
                 "cutoff": 10.0,
             }
         ),
 
-        (
+        ( // speed ctrlr
             id: "rmtr-speed-ctrlr",
             type: "speed_ctrlrs::RmtrSpeedCtrlr",
             config: {
-                "kp": 0.086,
+                "kp": 0.023,
                 "kd": 0.0,
-                "ki": 0.000000002,
+                "ki": 0.000000012,
                 "setpoint": 0.0,
                 "cutoff": 10.0,
             }
@@ -388,8 +395,8 @@
             type: "speed_correction_summer::SpeedCorrectionSummer",
             // config optional for k_ff_lmtr and k_ff_rmtr
             config: {
-                "k_ff_lmtr": 0.615,
-                "k_ff_rmtr": 0.2,
+                "k_ff_lmtr": 0.631,
+                "k_ff_rmtr": 0.3,
                 "speed_correction": "enable", // "enable" or "disable"
             },
             logging: (enabled: true)
