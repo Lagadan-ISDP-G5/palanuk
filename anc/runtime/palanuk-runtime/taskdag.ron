@@ -56,7 +56,7 @@
             type: "dual_mtr_ctrlr::DualMtrCtrlr",
             config: {
                 "kp": 0.012,
-                "kd": 0.0000000000012,
+                "kd": 0.0,
                 "ki": 0.00000015,
                 "setpoint": 0.0,
                 "cutoff": 2.0,
@@ -364,7 +364,7 @@
             type: "speed_ctrlrs::LmtrSpeedCtrlr",
             config: {
                 "kp": 0.086,
-                "kd": 0.0000000000001,
+                "kd": 0.0,
                 "ki": 0.000000002,
                 "setpoint": 0.0,
                 "cutoff": 10.0,
@@ -376,7 +376,7 @@
             type: "speed_ctrlrs::RmtrSpeedCtrlr",
             config: {
                 "kp": 0.086,
-                "kd": 0.0000000000001,
+                "kd": 0.0,
                 "ki": 0.000000002,
                 "setpoint": 0.0,
                 "cutoff": 10.0,
