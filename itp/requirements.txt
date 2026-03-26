@@ -2,7 +2,9 @@
 ultralytics>=8.0.0
 opencv-python
 numpy
-zenoh>=1.7.2
+eclipse-zenoh>=1.7.2
+onnxruntime
+coremltools
 
 # For logging and utilities
 loguru

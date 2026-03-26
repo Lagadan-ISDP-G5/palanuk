@@ -10,10 +10,19 @@ import numpy as np
 # =========================
 # CONFIG
 # =========================
-MODEL_PATH = "tests/best.onnx"
 IMG_SIZE = 640
 CONF_THRES = 0.4
-DEVICE = "0"  # Changed from "gpu" to "0" (first GPU) or "cuda:0"
+
+def _auto_device() -> str:
+    """Pick the best available inference device."""
+    if torch.cuda.is_available():
+        return "0"
+    if torch.backends.mps.is_available():
+        return "mps"
+    return "cpu"
+
+DEVICE = _auto_device()
+MODEL_PATH = "best.pt" if DEVICE in ("mps", "cpu") else "tests/best.onnx"
 TASK = "segment"  # Keep segment task
 
 # Frame capture settings

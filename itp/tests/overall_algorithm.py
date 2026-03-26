@@ -54,6 +54,16 @@ from datetime import datetime
 from typing import Optional, List, Dict, Any
 from ultralytics import YOLO
 import numpy as np
+import torch
+
+
+def _auto_device() -> str:
+    """Pick the best available inference device."""
+    if torch.cuda.is_available():
+        return "0"
+    if torch.backends.mps.is_available():
+        return "mps"
+    return "cpu"
 
 from parking_service import (
     ParkingStateMachine,
@@ -95,16 +105,16 @@ class VisionConfig:
     """Vision service configuration."""
 
     # Model
-    MODEL_PATH: str = "tests/best.pt"
+    MODEL_PATH: str = "best.pt"
     IMG_SIZE: int = 640
     CONF_THRES: float = 0.6
-    DEVICE: str = "0"
+    DEVICE: str = _auto_device()
     TASK: str = "segment"
 
-    # FP16 / TensorRT
-    USE_FP16: bool = True                              # half-precision inference
-    USE_TENSORRT: bool = True                          # export & load TensorRT engine
-    TENSORRT_ENGINE_PATH: str = "tests/best.engine"    # auto-generated from ONNX
+    # FP16 / TensorRT (only effective on CUDA)
+    USE_FP16: bool = True
+    USE_TENSORRT: bool = False
+    TENSORRT_ENGINE_PATH: str = "tests/best.engine"
 
     # Stream
     STREAM_URL: str = "rtsp://raspberrypi.local:8554/camera"
@@ -641,38 +651,13 @@ class VisionService:
     # ----------------------------------------------------------
 
     def _load_model(self):
-        """Load YOLO model — TensorRT engine if available, else ONNX.
-        When USE_TENSORRT is True and no engine file exists, auto-exports
-        from ONNX → TensorRT on the current GPU."""
-        engine_path = self.vcfg.TENSORRT_ENGINE_PATH
-
-        if self.vcfg.USE_TENSORRT and os.path.exists(engine_path):
-            logger.info(f"Loading TensorRT engine: {engine_path}")
-            self.model = YOLO(engine_path, task=self.vcfg.TASK)
-        elif self.vcfg.USE_TENSORRT:
-            logger.info(f"TensorRT engine not found at {engine_path} — auto-exporting from ONNX...")
-            logger.info("This may take a few minutes on first run.")
-            onnx_model = YOLO(self.vcfg.MODEL_PATH, task=self.vcfg.TASK)
-            onnx_model.export(
-                format="engine",
-                half=self.vcfg.USE_FP16,
-                device=self.vcfg.DEVICE,
-                imgsz=self.vcfg.IMG_SIZE,
-            )
-            # Ultralytics places the engine next to the ONNX file
-            auto_engine = self.vcfg.MODEL_PATH.replace(".onnx", ".engine")
-            if os.path.exists(auto_engine) and auto_engine != engine_path:
-                os.rename(auto_engine, engine_path)
-            logger.info(f"TensorRT engine exported → {engine_path}")
-            self.model = YOLO(engine_path, task=self.vcfg.TASK)
-        else:
-            logger.info(f"Loading ONNX model: {self.vcfg.MODEL_PATH}")
-            self.model = YOLO(self.vcfg.MODEL_PATH, task=self.vcfg.TASK)
+        """Load YOLO model with configured device (MPS for Mac, CUDA for NVIDIA)."""
+        logger.info(f"Loading model: {self.vcfg.MODEL_PATH} on device={self.vcfg.DEVICE}")
+        self.model = YOLO(self.vcfg.MODEL_PATH, task=self.vcfg.TASK)
 
         self.class_names = self.model.names
         self.class_colors = generate_colors(len(self.class_names))
-        logger.info(f"Model loaded — {len(self.class_names)} classes, "
-                     f"FP16={self.vcfg.USE_FP16}, TensorRT={self.vcfg.USE_TENSORRT}")
+        logger.info(f"Model loaded — {len(self.class_names)} classes, device={self.vcfg.DEVICE}")
 
     def _connect_camera(self):
         logger.info(f"Connecting to: {self.vcfg.STREAM_URL}")

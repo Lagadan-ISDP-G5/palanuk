@@ -24,6 +24,16 @@ import numpy as np
 from datetime import datetime
 from collections import deque
 from ultralytics import YOLO
+import torch
+
+
+def _auto_device() -> str:
+    """Pick the best available inference device."""
+    if torch.cuda.is_available():
+        return "0"
+    if torch.backends.mps.is_available():
+        return "mps"
+    return "cpu"
 
 # ── make sure imports from the tests/ folder work ──
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -56,18 +66,22 @@ from overall_algorithm import (
 # ============================================================
 
 FOOTAGE_DIR  = os.path.join(os.path.dirname(__file__), "parking_footage")
+PT_PATH      = os.path.join(os.path.dirname(__file__), "..", "best.pt")
 ONNX_PATH    = os.path.join(os.path.dirname(__file__), "best.onnx")
 ENGINE_PATH  = os.path.join(os.path.dirname(__file__), "best.engine")
 IMG_SIZE     = 640
 CONF_THRES   = 0.4
-DEVICE       = "0"        # GPU; change to "cpu" if no CUDA
+DEVICE       = _auto_device()
 TASK         = "segment"
 USE_FP16     = True       # half-precision inference
 
-# Auto-select TensorRT engine if available, else fall back to ONNX
-if os.path.exists(ENGINE_PATH):
+# Auto-select model: TensorRT engine > ONNX (CUDA) or .pt (MPS/CPU)
+if os.path.exists(ENGINE_PATH) and DEVICE not in ("mps", "cpu"):
     MODEL_PATH = ENGINE_PATH
     print(f"[INFO] Using TensorRT engine: {ENGINE_PATH}")
+elif DEVICE in ("mps", "cpu"):
+    MODEL_PATH = PT_PATH
+    print(f"[INFO] Using PyTorch model on {DEVICE}: {PT_PATH}")
 else:
     MODEL_PATH = ONNX_PATH
     print(f"[INFO] TensorRT engine not found, using ONNX: {ONNX_PATH}")
