@@ -83,7 +83,7 @@ REVERSE = {
 
 FORWARD = {
     "palanuk/bstn/loopmode": 0,
-    "palanuk/bstn/speed": 0.02,
+    "palanuk/bstn/speed": 0.01,
     "palanuk/bstn/forcepan": 0,
     "palanuk/bstn/drivestate": 1,
     "palanuk/bstn/steercmd": 0,

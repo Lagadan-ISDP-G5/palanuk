@@ -20,7 +20,7 @@
             id: "opencv-iox2",
             type: "opencv_iox2::OpenCViox2",
             config: {
-                "heading_error_offset": 0.064,
+                "heading_error_offset": 0.034,
             },
         ),
 
@@ -55,9 +55,9 @@
             id: "dual-mtr-ctrlr",
             type: "dual_mtr_ctrlr::DualMtrCtrlr",
             config: {
-                "kp": 0.009122,
+                "kp": 0.007122,
                 "kd": 0.0,
-                "ki": 0.00000000075,
+                "ki": 0.00000008,
                 "setpoint": 0.0,
                 "cutoff": 2.0,
             }
@@ -69,14 +69,21 @@
             config: {
                 // "r_wind_comp_lmtr": 1.17,
                 // "r_wind_comp_rmtr": 0.85,
-                "corner_y_coord_steering_trig": 0.7385,
+                "corner_y_coord_steering_trig": 0.718,
                 "baseline_speed": 0.7,
                 "heading_error_end_steering_threshold": 0.21,
                 "outer_wheel_steering_speed": 1.0,
                 "inner_wheel_steering_speed": 0.0,
                 "on_axis_rotation_duration_ms": 400,
-                "steering_min_hold_ms": 100,
-                "steering_delay_ms": 100,
+                "steering_min_hold_ms": 70,
+                "steering_delay_ms": 200,
+                "steering_cooldown_ms": 400,
+                "steering_max_hold_ms": 2000,
+                "post_steering_boost_ms": 100,
+                "target_yaw_degrees": 84.0,
+                "wheelbase_cm": 13.0,
+                "wheel_radius_cm": 3.0,
+                "max_rpm": 600.0,
             }
         ),
 
@@ -370,9 +377,9 @@
             id: "lmtr-speed-ctrlr",
             type: "speed_ctrlrs::LmtrSpeedCtrlr",
             config: {
-                "kp": 0.03,
+                "kp": 0.01,
                 "kd": 0.0,
-                "ki": 0.000000016,
+                "ki": 0.0000000025,
                 "setpoint": 0.0,
                 "cutoff": 10.0,
             }
@@ -382,7 +389,7 @@
             id: "rmtr-speed-ctrlr",
             type: "speed_ctrlrs::RmtrSpeedCtrlr",
             config: {
-                "kp": 0.023,
+                "kp": 0.0232,
                 "kd": 0.0,
                 "ki": 0.000000012,
                 "setpoint": 0.0,
@@ -395,8 +402,8 @@
             type: "speed_correction_summer::SpeedCorrectionSummer",
             // config optional for k_ff_lmtr and k_ff_rmtr
             config: {
-                "k_ff_lmtr": 0.631,
-                "k_ff_rmtr": 0.3,
+                "k_ff_lmtr": 0.4, // 0.631
+                "k_ff_rmtr": 0.36,
                 "speed_correction": "enable", // "enable" or "disable"
             },
             logging: (enabled: true)
@@ -467,6 +474,7 @@
         // arbitrator heads
         (src: "dual-mtr-ctrlr", dst: "arbitrator", msg: "cu_pid::PIDControlOutputPayload"),
         (src: "opencv-splitter", dst: "arbitrator", msg: "opencv_splitter::NsmPayload"),
+        (src: "encoder-pair", dst: "arbitrator", msg: "cu_irencoder::IrEncoderPayload"),
 
         (src: "encoder-pair", dst: "speed-err-adapter", msg: "cu_irencoder::IrEncoderPayload"),
 

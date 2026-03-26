@@ -153,6 +153,7 @@ version = "0.1.0"
 dependencies = [
  "anc-pub",
  "cu-bincode",
+ "cu-irencoder",
  "cu-pid",
  "cu-propulsion",
  "cu29",
