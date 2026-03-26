@@ -366,7 +366,7 @@ impl CuTask for Arbitrator {
             return Ok(());
         };
 
-        self.target_speed = Some(prop_adap_pload.propulsion_payload.left_speed); // FIXME?
+        self.target_speed = Some(prop_adap_pload.propulsion_payload.left_speed.clamp(0.0, 1.0));
 
         let mut closed_loop_prop_payload: PropulsionPayload = PropulsionPayload::default();
         // lanekeeping handler

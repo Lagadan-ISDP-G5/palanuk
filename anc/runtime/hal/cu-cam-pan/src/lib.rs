@@ -218,6 +218,7 @@ impl CuSinkTask for CameraPanning {
         let payload = input.payload();
         match payload {
             Some(nonempty_payload) => {
+                eprintln!("CAM PAN: received cmd={:?}", nonempty_payload.pos_cmd);
                 pos_cmd.store(nonempty_payload.pos_cmd.to_u8(), Ordering::Release);
             },
             None => ()
