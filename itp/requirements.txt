@@ -1,0 +1,11 @@
+# Core requirements for Vision Service and Parking State Machine
+ultralytics>=8.0.0
+opencv-python
+numpy
+zenoh>=1.7.2
+
+# For logging and utilities
+loguru
+
+# Optional: for dataclasses on Python 3.6/3.7 (not needed for 3.8+)
+# dataclasses
