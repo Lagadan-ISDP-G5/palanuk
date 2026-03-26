@@ -14,6 +14,7 @@ use cu_propulsion::{PropulsionPayload, WheelDirection};
 use anc_pub::AncPubPayload;
 use opencv_splitter::NsmPayload;
 use opencv_iox2::{CornerDirection};
+use cu_irencoder::IrEncoderPayload;
 use core::default::*;
 
 pub const R_WIND_COMP_LMTR: f32 = 1.0; // 1.17
@@ -30,6 +31,12 @@ pub const DEFAULT_STEERING_DELAY_MS: u64 = 200;
 pub const DEFAULT_STEERING_COOLDOWN_MS: u64 = 500;
 pub const DEFAULT_STEERING_MAX_HOLD_MS: u64 = 2000;
 pub const HEADING_CHANGE_MIN_DELTA: f32 = 0.05;
+pub const DEFAULT_POST_STEERING_BOOST_SPEED: f32 = 1.0;
+pub const DEFAULT_POST_STEERING_BOOST_MS: u64 = 300;
+pub const DEFAULT_TARGET_YAW_DEGREES: f32 = 90.0;
+pub const DEFAULT_WHEELBASE_CM: f32 = 14.0;
+pub const DEFAULT_WHEEL_RADIUS_CM: f32 = 3.0;
+pub const DEFAULT_MAX_RPM: f32 = 600.0;
 
 /// r_wind_comp values can be between 0 and 2 for either motor, but not both. If one is > 1 another must be <1.
 #[derive(Reflect)]
@@ -51,6 +58,15 @@ pub struct Arbitrator {
     steering_delay_ms: u64,
     steering_cooldown_ms: u64,
     steering_max_hold_ms: u64,
+    post_steering_boost_speed: f32,
+    post_steering_boost_ms: u64,
+    target_yaw_radians: f32,
+    wheelbase_cm: f32,
+    wheel_radius_cm: f32,
+    max_rpm: f32,
+    accumulated_yaw: f32,
+    #[reflect(ignore)]
+    steering_last_tick: CuInstant,
     #[reflect(ignore)]
     steerer_state: SteererState,
     #[reflect(ignore)]
@@ -187,6 +203,14 @@ impl Default for Arbitrator {
             steering_delay_ms: DEFAULT_STEERING_DELAY_MS,
             steering_cooldown_ms: DEFAULT_STEERING_COOLDOWN_MS,
             steering_max_hold_ms: DEFAULT_STEERING_MAX_HOLD_MS,
+            post_steering_boost_speed: DEFAULT_POST_STEERING_BOOST_SPEED,
+            post_steering_boost_ms: DEFAULT_POST_STEERING_BOOST_MS,
+            target_yaw_radians: DEFAULT_TARGET_YAW_DEGREES * std::f32::consts::PI / 180.0,
+            wheelbase_cm: DEFAULT_WHEELBASE_CM,
+            wheel_radius_cm: DEFAULT_WHEEL_RADIUS_CM,
+            max_rpm: DEFAULT_MAX_RPM,
+            accumulated_yaw: 0.0,
+            steering_last_tick: CuInstant::now(),
             steerer_state: SteererState::default(),
             steering_direction: CornerDirection::default(),
             heading_error_at_steering_start: 0.0,
@@ -212,7 +236,7 @@ impl Freezable for Arbitrator {
 }
 
 impl CuTask for Arbitrator {
-    type Input<'m> = input_msg!('m, PropulsionAdapterOutputPayload, PIDControlOutputPayload, NsmPayload);
+    type Input<'m> = input_msg!('m, PropulsionAdapterOutputPayload, PIDControlOutputPayload, NsmPayload, IrEncoderPayload);
     type Output<'m> = output_msg!(PropulsionPayload, AncPubPayload);
     type Resources<'r> = ();
 
@@ -278,6 +302,31 @@ impl CuTask for Arbitrator {
             .map(|v| { let f: f64 = v.clone().into(); f as u64 })
             .unwrap_or(DEFAULT_STEERING_MAX_HOLD_MS);
 
+        let post_steering_boost_speed: f32 = kv.get("post_steering_boost_speed")
+            .map(|v| { let f: f64 = v.clone().into(); f as f32 })
+            .unwrap_or(DEFAULT_POST_STEERING_BOOST_SPEED);
+
+        let post_steering_boost_ms: u64 = kv.get("post_steering_boost_ms")
+            .map(|v| { let f: f64 = v.clone().into(); f as u64 })
+            .unwrap_or(DEFAULT_POST_STEERING_BOOST_MS);
+
+        let target_yaw_degrees: f32 = kv.get("target_yaw_degrees")
+            .map(|v| { let f: f64 = v.clone().into(); f as f32 })
+            .unwrap_or(DEFAULT_TARGET_YAW_DEGREES);
+        let target_yaw_radians = target_yaw_degrees * std::f32::consts::PI / 180.0;
+
+        let wheelbase_cm: f32 = kv.get("wheelbase_cm")
+            .map(|v| { let f: f64 = v.clone().into(); f as f32 })
+            .unwrap_or(DEFAULT_WHEELBASE_CM);
+
+        let wheel_radius_cm: f32 = kv.get("wheel_radius_cm")
+            .map(|v| { let f: f64 = v.clone().into(); f as f32 })
+            .unwrap_or(DEFAULT_WHEEL_RADIUS_CM);
+
+        let max_rpm: f32 = kv.get("max_rpm")
+            .map(|v| { let f: f64 = v.clone().into(); f as f32 })
+            .unwrap_or(DEFAULT_MAX_RPM);
+
         let mut inst = Self::default();
         inst.r_wind_comp_lmtr = r_wind_comp_lmtr as f32;
         inst.r_wind_comp_rmtr = r_wind_comp_rmtr as f32;
@@ -290,6 +339,12 @@ impl CuTask for Arbitrator {
         inst.steering_delay_ms = steering_delay_ms;
         inst.steering_cooldown_ms = steering_cooldown_ms;
         inst.steering_max_hold_ms = steering_max_hold_ms;
+        inst.post_steering_boost_speed = post_steering_boost_speed;
+        inst.post_steering_boost_ms = post_steering_boost_ms;
+        inst.target_yaw_radians = target_yaw_radians;
+        inst.wheelbase_cm = wheelbase_cm;
+        inst.wheel_radius_cm = wheel_radius_cm;
+        inst.max_rpm = max_rpm;
         inst.on_axis_rotator.rotation_duration_ms = on_axis_rotation_duration_ms;
         Ok(inst)
     }
@@ -297,7 +352,7 @@ impl CuTask for Arbitrator {
     fn process(&mut self, _clock: &RobotClock, input: &Self::Input<'_>, output: &mut Self::Output<'_>)
     -> CuResult<()>
     {
-        let (prop_adap, mtr_pid, nsm) = *input;
+        let (prop_adap, mtr_pid, nsm, encoder) = *input;
 
         // PropulsionAdapterOutputPayload is required - can't do anything without it
         let Some(prop_adap_pload) = prop_adap.payload() else {
@@ -339,12 +394,6 @@ impl CuTask for Arbitrator {
                     if self.steerer_state == SteererState::WaitingToSteer && m.corner_detected {
                         self.steering_direction = m.corner_direction;
                     }
-
-                    // cancel if corner disappears while still waiting
-                    if self.steerer_state == SteererState::WaitingToSteer && !m.corner_detected {
-                        self.steerer_state = SteererState::NotSteering;
-                        eprintln!("STEERING: corner lost during delay, cancelling");
-                    }
                 }
 
                 // phase 2: timer driven transitions (run every tick, not gated on nsm)
@@ -355,9 +404,11 @@ impl CuTask for Arbitrator {
                     if CuDuration::from_nanos(elapsed_ns) >= CuDuration::from_millis(self.steering_delay_ms) {
                         self.steerer_state = SteererState::Steering;
                         self.steering_started = CuInstant::now();
+                        self.accumulated_yaw = 0.0;
+                        self.steering_last_tick = CuInstant::now();
                         self.heading_error_at_steering_start = prop_adap_pload.weighted_error;
-                        eprintln!("STEERING: delay elapsed, starting maneuver (initial heading_err={:.4})",
-                            self.heading_error_at_steering_start);
+                        eprintln!("STEERING: delay elapsed, starting maneuver (initial heading_err={:.4}, target_yaw={:.4} rad)",
+                            self.heading_error_at_steering_start, self.target_yaw_radians);
                     }
                 }
 
@@ -366,7 +417,7 @@ impl CuTask for Arbitrator {
                         prop_adap_pload.weighted_error,
                         closed_loop_prop_payload.left_speed,
                         closed_loop_prop_payload.right_speed);
-                    self.steering_handler(prop_adap_pload, &mut closed_loop_prop_payload);
+                    self.steering_handler(encoder.payload(), &mut closed_loop_prop_payload);
                 }
 
                 if self.steerer_state == SteererState::Done {
@@ -379,7 +430,17 @@ impl CuTask for Arbitrator {
                     let elapsed_ns = CuInstant::now().as_nanos()
                         .checked_sub(self.steering_completed.as_nanos())
                         .unwrap_or(0);
-                    if CuDuration::from_nanos(elapsed_ns) >= CuDuration::from_millis(self.steering_cooldown_ms) {
+                    let elapsed = CuDuration::from_nanos(elapsed_ns);
+
+                    // post-steering boost: drive both motors at boost speed to build momentum
+                    if elapsed < CuDuration::from_millis(self.post_steering_boost_ms) {
+                        closed_loop_prop_payload.left_speed = self.post_steering_boost_speed;
+                        closed_loop_prop_payload.right_speed = self.post_steering_boost_speed;
+                        eprintln!("STEERING: boost phase L={:.4} R={:.4}",
+                            self.post_steering_boost_speed, self.post_steering_boost_speed);
+                    }
+
+                    if elapsed >= CuDuration::from_millis(self.steering_cooldown_ms) {
                         self.steerer_state = SteererState::NotSteering;
                         eprintln!("STEERING: cooldown expired, ready for next corner");
                     }
@@ -477,27 +538,54 @@ impl Arbitrator {
         })
     }
 
-    /// usses latched steering_direction so it runs every tick without depending on nsm.
-    /// exit conditions:
-    ///   1. max hold exceeded to prevnet uturn
-    ///   2. min hold expired && heading error is small && heading actually changed from start
-    fn steering_handler(&mut self, prop_adap_pload: &PropulsionAdapterOutputPayload, res: &mut PropulsionPayload) {
-        let heading_error = prop_adap_pload.weighted_error;
-
+    /// Uses latched steering_direction so it runs every tick without depending on nsm.
+    /// Integrates encoder-derived differential wheel velocity to estimate cumulative yaw.
+    /// Exit conditions:
+    ///   1. max hold exceeded (safety timeout)
+    ///   2. accumulated_yaw >= target_yaw_radians (encoder-based dead reckoning)
+    fn steering_handler(&mut self, encoder: Option<&IrEncoderPayload>, res: &mut PropulsionPayload) {
         let elapsed_ns = CuInstant::now().as_nanos()
             .checked_sub(self.steering_started.as_nanos())
             .unwrap_or(0);
         let elapsed = CuDuration::from_nanos(elapsed_ns);
-        let hold_expired = elapsed >= CuDuration::from_millis(self.steering_min_hold_ms);
         let max_exceeded = elapsed >= CuDuration::from_millis(self.steering_max_hold_ms);
 
-        let heading_small = heading_error.abs() < self.heading_error_end_steering_maneuver_threshold;
-        let heading_changed = (heading_error - self.heading_error_at_steering_start).abs() > HEADING_CHANGE_MIN_DELTA;
+        // Integrate encoder-based yaw
+        if let Some(enc) = encoder {
+            let (outer_rpm_norm, inner_rpm_norm) = match self.steering_direction {
+                CornerDirection::Right => {
+                    // Right turn: left=inner, right=outer
+                    (enc.rmtr_normalized_rpm.unwrap_or(0.0), enc.lmtr_normalized_rpm.unwrap_or(0.0))
+                },
+                CornerDirection::Left => {
+                    // Left turn: left=outer, right=inner
+                    (enc.lmtr_normalized_rpm.unwrap_or(0.0), enc.rmtr_normalized_rpm.unwrap_or(0.0))
+                }
+            };
+
+            let omega_outer = outer_rpm_norm * self.max_rpm * 2.0 * std::f32::consts::PI / 60.0;
+            let omega_inner = inner_rpm_norm * self.max_rpm * 2.0 * std::f32::consts::PI / 60.0;
+
+            let now = CuInstant::now();
+            let dt_ns = now.as_nanos()
+                .checked_sub(self.steering_last_tick.as_nanos())
+                .unwrap_or(0);
+            let dt_s = dt_ns as f32 / 1_000_000_000.0;
+            self.steering_last_tick = now;
+
+            let yaw_rate = self.wheel_radius_cm * (omega_outer - omega_inner) / self.wheelbase_cm;
+            self.accumulated_yaw += yaw_rate * dt_s;
+        }
+
+        let target_reached = self.accumulated_yaw >= self.target_yaw_radians;
 
         if max_exceeded {
-            eprintln!("STEERING: max hold {}ms exceeded, forcing done", self.steering_max_hold_ms);
+            eprintln!("STEERING: max hold {}ms exceeded, forcing done (yaw={:.4}/{:.4} rad)",
+                self.steering_max_hold_ms, self.accumulated_yaw, self.target_yaw_radians);
             self.steerer_state = SteererState::Done;
-        } else if hold_expired && heading_small && heading_changed {
+        } else if target_reached {
+            eprintln!("STEERING: target yaw reached ({:.4} >= {:.4} rad)",
+                self.accumulated_yaw, self.target_yaw_radians);
             self.steerer_state = SteererState::Done;
         } else {
             let (left_speed, right_speed) = match self.steering_direction {
@@ -512,6 +600,7 @@ impl Arbitrator {
             };
             res.left_speed = left_speed.clamp(0.0, 1.0);
             res.right_speed = right_speed.clamp(0.0, 1.0);
+            eprintln!("STEERING: yaw={:.4}/{:.4} rad", self.accumulated_yaw, self.target_yaw_radians);
         }
     }
 

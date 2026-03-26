@@ -18,3 +18,4 @@ anc-pub = { workspace = true }
 opencv-splitter = { workspace = true }
 dual-mtr-ctrlr = { workspace = true }
 opencv-iox2 = { workspace = true }
+cu-irencoder = { workspace = true }

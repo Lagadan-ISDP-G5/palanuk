@@ -69,15 +69,21 @@
             config: {
                 // "r_wind_comp_lmtr": 1.17,
                 // "r_wind_comp_rmtr": 0.85,
-                "corner_y_coord_steering_trig": 0.721,
+                "corner_y_coord_steering_trig": 0.718,
                 "baseline_speed": 0.7,
                 "heading_error_end_steering_threshold": 0.21,
                 "outer_wheel_steering_speed": 1.0,
                 "inner_wheel_steering_speed": 0.0,
                 "on_axis_rotation_duration_ms": 400,
-                "steering_min_hold_ms": 60,
-                "steering_delay_ms": 0,
-                "steering_cooldown_ms": 500,
+                "steering_min_hold_ms": 70,
+                "steering_delay_ms": 42,
+                "steering_cooldown_ms": 400,
+                "steering_max_hold_ms": 2000,
+                "post_steering_boost_ms": 150,
+                "target_yaw_degrees": 70.0,
+                "wheelbase_cm": 13.0,
+                "wheel_radius_cm": 3.0,
+                "max_rpm": 600.0,
             }
         ),
 
@@ -468,6 +474,7 @@
         // arbitrator heads
         (src: "dual-mtr-ctrlr", dst: "arbitrator", msg: "cu_pid::PIDControlOutputPayload"),
         (src: "opencv-splitter", dst: "arbitrator", msg: "opencv_splitter::NsmPayload"),
+        (src: "encoder-pair", dst: "arbitrator", msg: "cu_irencoder::IrEncoderPayload"),
 
         (src: "encoder-pair", dst: "speed-err-adapter", msg: "cu_irencoder::IrEncoderPayload"),
 
