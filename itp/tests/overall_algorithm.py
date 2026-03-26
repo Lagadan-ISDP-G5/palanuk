@@ -95,7 +95,7 @@ class VisionConfig:
     """Vision service configuration."""
 
     # Model
-    MODEL_PATH: str = "tests/best.onnx"
+    MODEL_PATH: str = "tests/best.pt"
     IMG_SIZE: int = 640
     CONF_THRES: float = 0.6
     DEVICE: str = "0"
