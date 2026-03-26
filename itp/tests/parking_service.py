@@ -84,7 +84,7 @@ NAV_CMD_RECIPES: Dict[str, List[Tuple[str, Union[int, float]]]] = {
     # ── Steer left  (zenoh_topics.md: steercmd=1, drivestate=1) ──
     "ALIGN_LEFT": [
         ("palanuk/bstn/loopmode",   0),
-        ("palanuk/bstn/speed",      0.012),
+        ("palanuk/bstn/speed",      0.04),
         ("palanuk/bstn/steercmd",   1),
         ("palanuk/bstn/drivestate", 1),
     ],
@@ -93,7 +93,7 @@ NAV_CMD_RECIPES: Dict[str, List[Tuple[str, Union[int, float]]]] = {
     # ── Steer right (zenoh_topics.md: steercmd=1, drivestate=2) ──
     "ALIGN_RIGHT": [
         ("palanuk/bstn/loopmode",   0),
-        ("palanuk/bstn/speed",      0.012),
+        ("palanuk/bstn/speed",      0.04),
         ("palanuk/bstn/steercmd",   1),
         ("palanuk/bstn/drivestate", 2),
     ],
@@ -101,7 +101,7 @@ NAV_CMD_RECIPES: Dict[str, List[Tuple[str, Union[int, float]]]] = {
     # ── Turn right 90° (same steer-right recipe; AnC measures angle) ──
     "TURN_RIGHT_90": [
         ("palanuk/bstn/loopmode",   0),
-        ("palanuk/bstn/speed",      0.012),
+        ("palanuk/bstn/speed",      0.04),
         ("palanuk/bstn/steercmd",   1),
         ("palanuk/bstn/drivestate", 2),
     ],
@@ -109,7 +109,7 @@ NAV_CMD_RECIPES: Dict[str, List[Tuple[str, Union[int, float]]]] = {
     # ── Rotate 180° (same steer-right recipe; AnC measures angle) ──
     "ROTATE_180": [
         ("palanuk/bstn/loopmode",   0),
-        ("palanuk/bstn/speed",      0.012),
+        ("palanuk/bstn/speed",      0.04),
         ("palanuk/bstn/steercmd",   1),
         ("palanuk/bstn/drivestate", 2),
     ],
@@ -130,7 +130,7 @@ NAV_CMD_RECIPES: Dict[str, List[Tuple[str, Union[int, float]]]] = {
     # ── Drive reverse ──
     "DRIVE_REVERSE": [
         ("palanuk/bstn/loopmode",   0),
-        ("palanuk/bstn/speed",      0.01),
+        ("palanuk/bstn/speed",      0.02),
         ("palanuk/bstn/drivestate", 2),
         ("palanuk/bstn/steercmd",   0),
     ],
