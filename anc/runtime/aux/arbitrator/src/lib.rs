@@ -519,7 +519,7 @@ impl Arbitrator {
         }
 
         // cu-pid: output = kp * (setpoint - input), so positive error gives negative output
-        let base_speed = self.target_speed.unwrap_or(self.baseline_speed);
+        let base_speed = self.target_speed.unwrap_or(self.baseline_speed).max(0.0);
         // Anti-windup: clamp PID output so neither motor saturates at 0,
         // preventing the integrator from winding up against the clamp
         let pid_clamped = pid_output.clamp(-base_speed, base_speed);
