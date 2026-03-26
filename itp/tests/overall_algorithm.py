@@ -26,7 +26,6 @@ Zenoh Topics (Core — always active, per zenoh_topics.md):
   palanuk/bstn/drivestate — drive state (u8: 0=Rest, 1=Forward, 2=Reverse)
   palanuk/bstn/forcepan   — camera pan (u8: 0=Center, 1=Left, 2=Right)
   palanuk/itp/accelerate  — bumper acceleration (u8: 0/1, rising edge)
-  anc/ack                 — acknowledgments from AnC (JSON)  [toggle via ENABLE_ACK]
 
   Each nav command publishes a *recipe* — a combination of the above
   topics — defined in NAV_CMD_RECIPES (parking_service.py).
@@ -142,12 +141,14 @@ class VisionConfig:
     BUMPER_DEBOUNCE_FRAMES: int = 3
     SLOT_DEBOUNCE_FRAMES: int = 3
 
-    # ACK handling — set to False to skip waiting for AnC acknowledgments
-    ENABLE_ACK: bool = False
+    # Approach parking — phase durations (seconds)
+    APPROACH_PAN_CENTER_SETTLE_S: float = 4.0  # wait for camera to reach center before moving
+    APPROACH_PAN_CENTER_S: float = 1.5         # drive forward with lane tracking
+    APPROACH_STOP_S: float = 0.5               # stopped, waiting before panning right
+    APPROACH_PAN_RIGHT_S: float = 4.0          # stopped, scanning for slot
 
     # Zenoh topics — core (always active)
     # Nav command topics are defined per-command in NAV_CMD_RECIPES (parking_service.py)
-    ZENOH_TOPIC_ACK: str = "anc/ack"               # AnC → ITP: acknowledgments
 
     # Zenoh topics — debug only (toggle with DEBUG_PUBLISH)
     DEBUG_PUBLISH: bool = False                      # set True to publish state & detections
@@ -350,6 +351,10 @@ class VisionService:
         # Fire-once guards
         self._parked_triggered: bool = False
 
+        # Approach parking — cycle phase: "center", "stopping", "right"
+        self._approach_phase: str = "right"
+        self._approach_phase_time: float = 0.0
+
         # Logging
         self.log_file = None
         self.run_id = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -421,9 +426,6 @@ class VisionService:
             # Process state machine
             self._process_state(result, detections)
 
-            # Handle ACKs from AnC (if enabled)
-            if self.vcfg.ENABLE_ACK:
-                self._process_acks()
 
             # FPS
             now = time.time()
@@ -510,52 +512,92 @@ class VisionService:
                 f"(area={best.area/frame_area:.2%}, "
                 f"cx={best.center_x:.1f}, cy={best.center_y:.1f})"
             )
-            logger.info("Panning camera right for parking approach")
-            self._send_nav(NavCommand(command="PAN_CAMERA_RIGHT"))
-            # Camera is panned right so Pi can't lane-track — drive forward open-loop
-            logger.info("Waiting 1s before DRIVE_FORWARD (camera settling)")
-            time.sleep(1.0)
-            logger.info("Sending DRIVE_FORWARD (camera panned, lane tracking unavailable)")
-            self._send_nav(NavCommand(command="DRIVE_FORWARD"))
-
-            if not self.vcfg.ENABLE_ACK:
-                logger.info("ACK disabled — auto-transitioning to APPROACH_PARKING")
-                self._set_state(OverallState.APPROACH_PARKING)
-            # else: wait for prepare_to_park ACK from AnC (see _process_acks)
+            logger.info("Entering APPROACH_PARKING — pan/lane-track cycle")
+            # Start by panning center and lane tracking forward
+            self._send_nav(NavCommand(command="PAN_CAMERA_CENTER"))
+            self._send_nav(NavCommand(command="RESUME_LANE_TRACKING"))
+            self._approach_phase = "center"
+            self._approach_phase_time = time.time()
+            self._set_state(OverallState.APPROACH_PARKING)
 
     def _state_approach_parking(self, result):
         """
-        APPROACH_PARKING: Camera is panned right.
-        Scan for a VALID parking slot. Once confirmed, initialize
-        the parking state machine and transition to PARKING.
+        APPROACH_PARKING: Repeatedly cycle between pan-right (scan for slot)
+        and pan-center (lane tracking). When panned right, check for a valid
+        parking slot. Once confirmed, coast with lane tracking then enter PARKING.
         """
-        detections = parse_detections(result, self.class_names, self.vcfg.CONF_THRES)
-        frame_area = self.vcfg.IMG_SIZE ** 2
+        now = time.time()
+        elapsed = now - self._approach_phase_time
 
-        slot_status_map = classify_all_slots(detections, self.pcfg)
-        valid_slots = [
-            d for d in detections
-            if d.class_name == self.pcfg.CLASS_PARKING_SLOT
-            and slot_status_map.get(id(d), "UNKNOWN") == "VALID"
-            and d.area / frame_area >= self.vcfg.VALID_PARKING_AREA_THRESHOLD
-        ]
+        # --- Three-phase cycle: center (lane track) → stopping → right (scan) → ... ---
+        if self._approach_phase == "center":
+            # Pi is lane tracking forward. After duration, stop.
+            if elapsed >= self.vcfg.APPROACH_PAN_CENTER_S:
+                logger.debug("Approach: stopping before pan right")
+                self._send_nav(NavCommand(command="STOP"))
+                self._approach_phase = "stopping"
+                self._approach_phase_time = now
 
-        status = self.valid_slot_tracker.update(len(valid_slots) > 0)
-        if status == "CONFIRMED_FOUND":
-            best = max(valid_slots, key=lambda s: s.area)
-            logger.info(
-                f"Valid parking slot confirmed "
-                f"(area={best.area/frame_area:.2%}, "
-                f"cx={best.center_x:.1f}, cy={best.center_y:.1f})"
-            )
-            logger.info("Initializing parking state machine")
-            self.parking_sm = ParkingStateMachine(
-                self.pcfg,
-                on_command=self._parking_command_handler,
-                enable_ack=self.vcfg.ENABLE_ACK,
-            )
-            self._parked_triggered = False
-            self._set_state(OverallState.PARKING)
+        elif self._approach_phase == "stopping":
+            # Keep sending stop until settled, then pan right
+            self._send_nav(NavCommand(command="STOP"))
+            if elapsed >= self.vcfg.APPROACH_STOP_S:
+                logger.debug("Approach: panning right to scan for slot")
+                self._send_nav(NavCommand(command="PAN_CAMERA_RIGHT"))
+                self._approach_phase = "right"
+                self._approach_phase_time = now
+
+        elif self._approach_phase == "right":
+            # Stopped and panned right — keep motors stopped, scan for slot
+            self._send_nav(NavCommand(command="STOP"))
+
+            detections = parse_detections(result, self.class_names, self.vcfg.CONF_THRES)
+            frame_area = self.vcfg.IMG_SIZE ** 2
+
+            slot_status_map = classify_all_slots(detections, self.pcfg)
+            valid_slots = [
+                d for d in detections
+                if d.class_name == self.pcfg.CLASS_PARKING_SLOT
+                and slot_status_map.get(id(d), "UNKNOWN") == "VALID"
+                and d.area / frame_area >= self.vcfg.VALID_PARKING_AREA_THRESHOLD
+            ]
+
+            status = self.valid_slot_tracker.update(len(valid_slots) > 0)
+            if status == "CONFIRMED_FOUND":
+                best = max(valid_slots, key=lambda s: s.area)
+                logger.info(
+                    f"Valid parking slot confirmed "
+                    f"(area={best.area/frame_area:.2%}, "
+                    f"cx={best.center_x:.1f}, cy={best.center_y:.1f})"
+                )
+                logger.info("Panning center — lane tracking while coasting to slot")
+                self._send_nav(NavCommand(command="PAN_CAMERA_CENTER"))
+                self._send_nav(NavCommand(command="RESUME_LANE_TRACKING"))
+
+                logger.info("Initializing parking state machine")
+                self.parking_sm = ParkingStateMachine(
+                    self.pcfg,
+                    on_command=self._parking_command_handler,
+                )
+                self._parked_triggered = False
+                self._set_state(OverallState.PARKING)
+                return
+
+            # Time to go back to lane tracking
+            if elapsed >= self.vcfg.APPROACH_PAN_RIGHT_S:
+                logger.debug("Approach: panning center — waiting for camera to settle")
+                self._send_nav(NavCommand(command="PAN_CAMERA_CENTER"))
+                self._approach_phase = "settling"
+                self._approach_phase_time = now
+
+        elif self._approach_phase == "settling":
+            # Camera commanded to center but not there yet — stay stopped
+            self._send_nav(NavCommand(command="STOP"))
+            if elapsed >= self.vcfg.APPROACH_PAN_CENTER_SETTLE_S:
+                logger.debug("Approach: camera settled — resuming lane tracking")
+                self._send_nav(NavCommand(command="RESUME_LANE_TRACKING"))
+                self._approach_phase = "center"
+                self._approach_phase_time = now
 
     def _state_parking(self, result):
         """
@@ -576,26 +618,6 @@ class VisionService:
         elif parking_state == ParkingState.FAILED:
             logger.error("Parking FAILED")
             self._set_state(OverallState.ERROR)
-
-    # ----------------------------------------------------------
-    # ACK Processing from AnC
-    # ----------------------------------------------------------
-
-    def _process_acks(self):
-        """Process acknowledgments from AnC (only when ENABLE_ACK is True)."""
-        if not self.vcfg.ENABLE_ACK:
-            return
-        for msg in self.zenoh.get_acks():
-            ack_type = msg.get("ack", "")
-            logger.info(f"ACK from AnC: {ack_type}")
-
-            if ack_type == "prepare_to_park" and self.state == OverallState.LANE_FOLLOWING:
-                logger.info("AnC ready to park — entering approach")
-                self._set_state(OverallState.APPROACH_PARKING)
-
-            # Forward ACKs to parking state machine if active
-            if self.parking_sm and self.state == OverallState.PARKING:
-                self.parking_sm.on_ack(ack_type)
 
     # ----------------------------------------------------------
     # Nav Command Publishing
@@ -676,8 +698,6 @@ class VisionService:
         # Declare a publisher for every nav-command topic from zenoh_topics.md
         for topic in NAV_CMD_TOPICS:
             self.zenoh.declare_publisher(topic)
-        if self.vcfg.ENABLE_ACK:
-            self.zenoh.declare_subscriber(self.vcfg.ZENOH_TOPIC_ACK, self.zenoh._on_ack)
         if self.vcfg.DEBUG_PUBLISH:
             self.zenoh.declare_publisher(self.vcfg.ZENOH_TOPIC_STATE)
             self.zenoh.declare_publisher(self.vcfg.ZENOH_TOPIC_DETECTIONS)

@@ -3,6 +3,7 @@ ultralytics>=8.0.0
 opencv-python
 numpy
 eclipse-zenoh>=1.7.2
+msgpack
 onnxruntime
 coremltools
 

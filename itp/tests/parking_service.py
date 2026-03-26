@@ -28,6 +28,7 @@ Commands sent to AnC:
 
 import time
 import struct
+import msgpack
 import logging
 import threading
 from enum import Enum, auto
@@ -52,7 +53,6 @@ logger = logging.getLogger("ParkingService")
 NAV_CMD_RECIPES: Dict[str, List[Tuple[str, Union[int, float]]]] = {
     # ── Full stop (safe state) ──
     "STOP": [
-        ("palanuk/bstn/stop",       1),
         ("palanuk/bstn/loopmode",   0),
         ("palanuk/bstn/speed",      0.0),
         ("palanuk/bstn/drivestate", 0),
@@ -62,7 +62,8 @@ NAV_CMD_RECIPES: Dict[str, List[Tuple[str, Union[int, float]]]] = {
     # ── Resume lane tracking (release control to Pi) ──
     "RESUME_LANE_TRACKING": [
         ("palanuk/bstn/loopmode",       1),
-        ("palanuk/bstn/speed",      0.012),
+        ("palanuk/bstn/speed",      0.015),
+        ("palanuk/bstn/drivestate",     1)
     ],
 
     # ── Safe-state initialisation (all zeros, publish at startup) ──
@@ -180,6 +181,9 @@ class ParkingConfig:
     # Coasting — frames to wait after losing valid slot before sending STOP
     COAST_FRAMES: int = 15  # ~0.5s at 30fps
 
+    # Inter-state delay (seconds) — pause between stop/turn/rotate transitions
+    STATE_DELAY_S: float = 2.0
+
     # Debounce
     LOST_DEBOUNCE_FRAMES: int = 5
     FOUND_DEBOUNCE_FRAMES: int = 3
@@ -214,11 +218,11 @@ class ParkingConfig:
 class ParkingState(Enum):
     SCAN = auto()
     COASTING = auto()
-    WAIT_STOP_ACK = auto()
-    WAIT_TURN_ACK = auto()
+    STOPPING = auto()        # stopped, waiting 2s before turning
+    TURNING = auto()         # turning right 90°, waiting 2s before align
     ALIGN = auto()
     PARKED = auto()
-    WAIT_ROTATE_ACK = auto()
+    ROTATING = auto()        # rotating 180°, waiting 2s before complete
     COMPLETE = auto()
     FAILED = auto()
 
@@ -281,10 +285,8 @@ class NavCommand:
 
     @staticmethod
     def _encode(value: Union[int, float]) -> bytes:
-        """Encode a single value: int → u8 (1 B), float → f64 (8 B)."""
-        if isinstance(value, float):
-            return struct.pack("d", value)
-        return struct.pack("B", value)
+        """Encode a single value as MessagePack (must match cu-zenoh-src's rmp_serde::from_slice)."""
+        return msgpack.packb(value)
 
     def publish_all(self, bridge) -> None:
         """Publish every (topic, value) in the recipe via *bridge*."""
@@ -389,7 +391,7 @@ def classify_all_slots(
         elif nearest.class_name == cfg.CLASS_P_SIGN:
             sign_cx = nearest.center_x
             sign_base_y = nearest.y2
-            in_x = slot.x1 <= sign_cx <= slot.x2
+            in_x = (slot.x1 - cfg.P_SIGN_PROXIMITY_PX) <= sign_cx <= (slot.x2 + cfg.P_SIGN_PROXIMITY_PX)
             in_y = (slot.y1 - cfg.P_SIGN_PROXIMITY_PX) <= sign_base_y <= slot.y2
             if in_x and in_y:
                 result[id(slot)] = "VALID"
@@ -499,15 +501,14 @@ class ParkingStateMachine:
     via the on_command callback. AnC handles the actual execution.
 
     State flow:
-      SCAN → COASTING → WAIT_STOP_ACK → WAIT_TURN_ACK → ALIGN
-           → PARKED → WAIT_ROTATE_ACK → COMPLETE
+      SCAN → COASTING → STOPPING (2s) → TURNING (2s) → ALIGN
+           → PARKED → ROTATING (2s) → COMPLETE
     """
 
-    def __init__(self, cfg: ParkingConfig, on_command=None, enable_ack: bool = False):
+    def __init__(self, cfg: ParkingConfig, on_command=None):
         self.cfg = cfg
         self.state = ParkingState.SCAN
         self.on_command = on_command or (lambda cmd: None)
-        self.enable_ack = enable_ack
 
         # Debounce for valid slot
         self.slot_tracker = DebounceTracker(
@@ -517,6 +518,9 @@ class ParkingStateMachine:
 
         # Coasting frame counter
         self._coast_frames = 0
+
+        # Timer for inter-state delays (STOPPING, TURNING, ROTATING)
+        self._state_timer: Optional[float] = None
 
         # Alignment
         self.pi_controller = PIController(
@@ -547,48 +551,33 @@ class ParkingStateMachine:
             self._handle_scan(detections)
         elif self.state == ParkingState.COASTING:
             self._handle_coasting(detections)
+        elif self.state == ParkingState.STOPPING:
+            self._handle_timer_state(
+                next_state=ParkingState.TURNING,
+                on_expire=self._start_turning,
+            )
+        elif self.state == ParkingState.TURNING:
+            self._handle_timer_state(
+                next_state=ParkingState.ALIGN,
+                on_expire=self._start_align,
+            )
         elif self.state == ParkingState.ALIGN:
             self._handle_align(detections)
-        # WAIT_STOP_ACK, WAIT_TURN_ACK, WAIT_ROTATE_ACK
-        #   → driven by on_ack() calls from the vision service when AnC responds
-
-        # When ACK is disabled, auto-advance through WAIT states
-        # (one step per frame so each command fires exactly once)
-        if not self.enable_ack:
-            self._auto_advance()
+        elif self.state == ParkingState.ROTATING:
+            self._handle_timer_state(
+                next_state=ParkingState.COMPLETE,
+                on_expire=self._start_complete,
+            )
 
         return self.state
-
-    def on_ack(self, ack_type: str):
-        """
-        Called by the vision service when AnC acknowledges a command.
-
-        ack_type: "stop", "turn_complete", "rotate_complete"
-        """
-        if ack_type == "stop" and self.state == ParkingState.WAIT_STOP_ACK:
-            logger.info("ACK: stop — sending turn right 90°")
-            self._emit(NavCommand(command="PAN_CAMERA_CENTER"))
-            self._emit(NavCommand(command="TURN_RIGHT_90"))
-            self._transition(ParkingState.WAIT_TURN_ACK)
-
-        elif ack_type == "turn_complete" and self.state == ParkingState.WAIT_TURN_ACK:
-            logger.info("ACK: turn complete — starting alignment")
-            self.pi_controller.reset()
-            self._align_attempts = 0
-            self._last_align_time = time.time()
-            self._transition(ParkingState.ALIGN)
-
-        elif ack_type == "rotate_complete" and self.state == ParkingState.WAIT_ROTATE_ACK:
-            logger.info("ACK: rotate complete — parking COMPLETE")
-            self._emit(NavCommand(command="RESUME_LANE_TRACKING"))
-            self._transition(ParkingState.COMPLETE)
 
     def trigger_exit(self):
         """Call this to initiate parking exit sequence."""
         if self.state == ParkingState.PARKED:
             logger.info("Triggering exit — rotate 180°")
             self._emit(NavCommand(command="ROTATE_180"))
-            self._transition(ParkingState.WAIT_ROTATE_ACK)
+            self._state_timer = time.time()
+            self._transition(ParkingState.ROTATING)
 
     # ----------------------------------------------------------
     # State Handlers
@@ -645,7 +634,8 @@ class ParkingStateMachine:
         if self._coast_frames >= self.cfg.COAST_FRAMES:
             logger.info(f"Coast complete ({self._coast_frames} frames) — sending STOP")
             self._emit(NavCommand(command="STOP"))
-            self._transition(ParkingState.WAIT_STOP_ACK)
+            self._state_timer = time.time()
+            self._transition(ParkingState.STOPPING)
 
     def _handle_align(self, detections: List[Detection]):
         """
@@ -730,29 +720,32 @@ class ParkingStateMachine:
     # Utilities
     # ----------------------------------------------------------
 
-    def _auto_advance(self):
-        """
-        Auto-advance one WAIT state per frame when ACK is disabled.
-        Each command fires exactly once — the state transition prevents
-        re-entry on the next frame.
-        """
-        if self.state == ParkingState.WAIT_STOP_ACK:
-            logger.info("ACK disabled — auto-advancing past WAIT_STOP_ACK")
-            self._emit(NavCommand(command="PAN_CAMERA_CENTER"))
-            self._emit(NavCommand(command="TURN_RIGHT_90"))
-            self._transition(ParkingState.WAIT_TURN_ACK)
+    def _handle_timer_state(self, next_state: ParkingState, on_expire):
+        """Wait for STATE_DELAY_S seconds, then call on_expire and transition."""
+        elapsed = time.time() - self._state_timer
+        if elapsed >= self.cfg.STATE_DELAY_S:
+            on_expire()
+            self._transition(next_state)
 
-        elif self.state == ParkingState.WAIT_TURN_ACK:
-            logger.info("ACK disabled — auto-advancing past WAIT_TURN_ACK")
-            self.pi_controller.reset()
-            self._align_attempts = 0
-            self._last_align_time = time.time()
-            self._transition(ParkingState.ALIGN)
+    def _start_turning(self):
+        """Called when STOPPING delay expires — send turn commands."""
+        logger.info("Stop delay elapsed — panning center and turning right 90°")
+        self._emit(NavCommand(command="PAN_CAMERA_CENTER"))
+        self._emit(NavCommand(command="TURN_RIGHT_90"))
+        self._state_timer = time.time()
 
-        elif self.state == ParkingState.WAIT_ROTATE_ACK:
-            logger.info("ACK disabled — auto-advancing past WAIT_ROTATE_ACK")
-            self._emit(NavCommand(command="RESUME_LANE_TRACKING"))
-            self._transition(ParkingState.COMPLETE)
+    def _start_align(self):
+        """Called when TURNING delay expires — begin alignment."""
+        logger.info("Turn delay elapsed — starting alignment")
+        self._emit(NavCommand(command="STOP"))
+        self.pi_controller.reset()
+        self._align_attempts = 0
+        self._last_align_time = time.time()
+
+    def _start_complete(self):
+        """Called when ROTATING delay expires — resume lane tracking."""
+        logger.info("Rotate delay elapsed — parking COMPLETE")
+        self._emit(NavCommand(command="RESUME_LANE_TRACKING"))
 
     def _transition(self, new_state: ParkingState):
         logger.info(f"Parking: {self.state.name} → {new_state.name}")

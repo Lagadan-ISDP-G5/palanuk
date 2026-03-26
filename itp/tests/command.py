@@ -56,11 +56,9 @@ def declare_publishers(session, topics):
 
 
 def publish_value(pubs, topic, value):
-    """Publish a single value to a topic (int → u8, float → f64)."""
-    if isinstance(value, float):
-        data = struct.pack("d", value)
-    else:
-        data = struct.pack("B", value)
+    """Publish a single value to a topic (MessagePack, matching cu-zenoh-src)."""
+    import msgpack
+    data = msgpack.packb(value)
     if topic in pubs:
         pubs[topic].put(data)
     else:
