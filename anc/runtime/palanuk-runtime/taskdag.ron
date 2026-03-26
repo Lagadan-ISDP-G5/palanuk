@@ -74,7 +74,8 @@
                 "heading_error_end_steering_threshold": 0.21,
                 "outer_wheel_steering_speed": 1.0,
                 "inner_wheel_steering_speed": 0.0,
-                "on_axis_rotation_duration_ms": 400,
+                "on_axis_rotation_duration_ms_left": 265, // 295
+                "on_axis_rotation_duration_ms_right": 320,
                 "steering_min_hold_ms": 70,
                 "steering_delay_ms": 200,
                 "steering_cooldown_ms": 400,

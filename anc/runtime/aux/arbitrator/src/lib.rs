@@ -89,7 +89,8 @@ pub struct OnAxisRotator {
     last_cmd: RotateOnAxisCmd,
     rotator_state: RotateOnAxisState,
     instant_rotating_started: CuInstant,
-    rotation_duration_ms: u64,
+    rotation_duration_ms_left: u64,
+    rotation_duration_ms_right: u64,
 }
 
 impl Default for OnAxisRotator {
@@ -99,7 +100,8 @@ impl Default for OnAxisRotator {
             last_cmd: RotateOnAxisCmd::Free,
             rotator_state: RotateOnAxisState::Init,
             instant_rotating_started: CuInstant::now(),
-            rotation_duration_ms: DEFAULT_ON_AXIS_ROTATION_DURATION_MILLISEC_90_DEG,
+            rotation_duration_ms_left: DEFAULT_ON_AXIS_ROTATION_DURATION_MILLISEC_90_DEG,
+            rotation_duration_ms_right: DEFAULT_ON_AXIS_ROTATION_DURATION_MILLISEC_90_DEG,
         }
     }
 }
@@ -124,9 +126,10 @@ impl OnAxisRotator {
     }
 
     /// returns a tuple:
-    /// (false, None) -> dont do anything
-    /// (true, Some(RotateOnAxisCmd)) -> do according to the RotateOnAxisCmd
-    fn should_rotate(&mut self) -> (bool, Option<RotateOnAxisCmd>) {
+    /// (left_active, right_active, Option<RotateOnAxisCmd>)
+    /// (false, false, None) -> dont do anything
+    /// Per-wheel booleans allow each motor to stop independently to compensate for imbalance.
+    fn should_rotate(&mut self) -> (bool, bool, Option<RotateOnAxisCmd>) {
         // only respond to rising edges
         let is_cmd_valid = match (self.last_cmd, self.current_cmd) {
             (RotateOnAxisCmd::Free, RotateOnAxisCmd::RotateLeft) => { true },
@@ -141,24 +144,23 @@ impl OnAxisRotator {
             self.rotator_state = RotateOnAxisState::Rotating;
         }
 
-        let is_cmd_done;
-        let dur = CuDuration::from_millis(self.rotation_duration_ms);
+        let dur_left = CuDuration::from_millis(self.rotation_duration_ms_left);
+        let dur_right = CuDuration::from_millis(self.rotation_duration_ms_right);
         let res = CuInstant::now().as_nanos().checked_sub(self.instant_rotating_started.as_nanos());
         let elapsed = CuDuration::from_nanos(res.unwrap_or(0u64));
 
-        if elapsed >= dur && self.rotator_state == RotateOnAxisState::Rotating { is_cmd_done = true; }
-        else { is_cmd_done = false; }
+        let left_active = elapsed < dur_left;
+        let right_active = elapsed < dur_right;
 
-        if is_cmd_done {
+        if !left_active && !right_active && self.rotator_state == RotateOnAxisState::Rotating {
             self.rotator_state = RotateOnAxisState::Done;
-            (false, None)
+            (false, false, None)
         }
         else if self.rotator_state == RotateOnAxisState::Rotating {
-            // this is where we do the motor command subroutine to rotate the rover on its axis
-            (true, Some(self.current_cmd))
+            (left_active, right_active, Some(self.current_cmd))
         }
         else {
-            (false, None)
+            (false, false, None)
         }
     }
 }
@@ -282,7 +284,11 @@ impl CuTask for Arbitrator {
             .map(|v| { let f: f64 = v.clone().into(); f as f32 })
             .unwrap_or(DEFAULT_INNER_WHEEL_STEERING_SPEED);
 
-        let on_axis_rotation_duration_ms: u64 = kv.get("on_axis_rotation_duration_ms")
+        let on_axis_rotation_duration_ms_left: u64 = kv.get("on_axis_rotation_duration_ms_left")
+            .map(|v| { let f: f64 = v.clone().into(); f as u64 })
+            .unwrap_or(DEFAULT_ON_AXIS_ROTATION_DURATION_MILLISEC_90_DEG);
+
+        let on_axis_rotation_duration_ms_right: u64 = kv.get("on_axis_rotation_duration_ms_right")
             .map(|v| { let f: f64 = v.clone().into(); f as u64 })
             .unwrap_or(DEFAULT_ON_AXIS_ROTATION_DURATION_MILLISEC_90_DEG);
 
@@ -345,7 +351,8 @@ impl CuTask for Arbitrator {
         inst.wheelbase_cm = wheelbase_cm;
         inst.wheel_radius_cm = wheel_radius_cm;
         inst.max_rpm = max_rpm;
-        inst.on_axis_rotator.rotation_duration_ms = on_axis_rotation_duration_ms;
+        inst.on_axis_rotator.rotation_duration_ms_left = on_axis_rotation_duration_ms_left;
+        inst.on_axis_rotator.rotation_duration_ms_right = on_axis_rotation_duration_ms_right;
         Ok(inst)
     }
 
@@ -501,9 +508,11 @@ impl Arbitrator {
 
             self.on_axis_rotator.update_current_cmd_from_wheel_dir(ret.left_direction, ret.right_direction);
             if self.on_axis_rotator.current_cmd != RotateOnAxisCmd::Free {
-                let (is_rotating, _) = self.on_axis_rotator.should_rotate();
-                if !is_rotating {
+                let (left_active, right_active, _) = self.on_axis_rotator.should_rotate();
+                if !left_active {
                     ret.left_direction = WheelDirection::Stop;
+                }
+                if !right_active {
                     ret.right_direction = WheelDirection::Stop;
                 }
             }
