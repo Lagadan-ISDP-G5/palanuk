@@ -75,7 +75,7 @@ bstn_DEFAULTS = {
 
 REVERSE = {
     "palanuk/bstn/loopmode": 0,
-    "palanuk/bstn/speed": 0.15,
+    "palanuk/bstn/speed": 0.02,
     "palanuk/bstn/forcepan": 0,
     "palanuk/bstn/drivestate": 2,
     "palanuk/bstn/steercmd": 0,
