@@ -20,24 +20,22 @@ export const telemetryData = writable({
   voltage_v: 0,
 
   // ─── Left Motor (lmtr) ───
-  // Topics: palanuk/ec/lmtr/power/mwatts
-  //         palanuk/ec/lmtr/current/mamps
-  //         palanuk/ec/lmtr/bus_voltage/mvolts
-  //         palanuk/ec/lmtr/shunt_voltage/mvolts
   lmtr_power_mw: 0,
   lmtr_current_ma: 0,
   lmtr_bus_voltage_mv: 0,
   lmtr_shunt_voltage_mv: 0,
+  lmtr_actual_speed: 0,    // encoder speed from palanuk/anc/lmtr-actual-speed
 
   // ─── Right Motor (rmtr) ───
-  // Topics: palanuk/ec/rmtr/power/mwatts
-  //         palanuk/ec/rmtr/current/mamps
-  //         palanuk/ec/rmtr/bus_voltage/mvolts
-  //         palanuk/ec/rmtr/shunt_voltage/mvolts
   rmtr_power_mw: 0,
   rmtr_current_ma: 0,
   rmtr_bus_voltage_mv: 0,
   rmtr_shunt_voltage_mv: 0,
+  rmtr_actual_speed: 0,    // encoder speed from palanuk/anc/rmtr-actual-speed
+
+  // ─── Drive state (from control_state) ───
+  // 0 = stopped, 1 = forward, 2 = reverse
+  drivestate: 0,
 });
 
 // ─── Derived store: combined totals across both motors ───
@@ -50,7 +48,7 @@ export const motorTotals = derived(telemetryData, ($t) => ({
 
 export const connectionStatus = writable('disconnected');
 export const vehicleState    = writable({ status: 'stopped' });
-export const commandFeedback = writable(null);
+export const commandFeedback = writable([]);
 export const messageLog      = writable([]);
 
 
@@ -93,22 +91,28 @@ class WebSocketClient {
             vehicleState.set({ status: data.data.status || 'unknown' });
           }
           else if (data.type === 'command_response') {
-            commandFeedback.set({
-              command:   data.command,
-              success:   data.success,
-              message:   data.message,
-              timestamp: data.timestamp || new Date().toLocaleTimeString()
+            commandFeedback.update(log => {
+              const entry = {
+                command:   data.command,
+                success:   data.success,
+                message:   data.message,
+                timestamp: data.timestamp || new Date().toLocaleTimeString()
+              };
+              const next = [...log, entry];
+              return next.slice(-50); // keep last 50
             });
-            setTimeout(() => commandFeedback.set(null), 5000);
           }
           else if (data.type === 'control_mode_response') {
-            commandFeedback.set({
-              command:   'mode_change',
-              success:   data.success,
-              message:   data.message,
-              timestamp: data.timestamp || new Date().toLocaleTimeString()
+            commandFeedback.update(log => {
+              const entry = {
+                command:   'mode_change',
+                success:   data.success,
+                message:   data.message,
+                timestamp: data.timestamp || new Date().toLocaleTimeString()
+              };
+              const next = [...log, entry];
+              return next.slice(-50);
             });
-            setTimeout(() => commandFeedback.set(null), 3000);
           }
           // ─── Raw Zenoh topic passthrough ───
           // If the bridge forwards individual Zenoh topics as:
@@ -181,6 +185,7 @@ class WebSocketClient {
         lmtr_current_ma:       data.lmtr.current_ma         || 0,
         lmtr_bus_voltage_mv:   data.lmtr.bus_voltage_mv     || 0,
         lmtr_shunt_voltage_mv: data.lmtr.shunt_voltage_mv   || 0,
+        lmtr_actual_speed:     data.lmtr.actual_speed       || 0,
       }));
     }
 
@@ -192,6 +197,7 @@ class WebSocketClient {
         rmtr_current_ma:       data.rmtr.current_ma         || 0,
         rmtr_bus_voltage_mv:   data.rmtr.bus_voltage_mv     || 0,
         rmtr_shunt_voltage_mv: data.rmtr.shunt_voltage_mv   || 0,
+        rmtr_actual_speed:     data.rmtr.actual_speed       || 0,
       }));
     }
 
@@ -254,12 +260,11 @@ class WebSocketClient {
           lmtr_current_ma:       data.current_ma         ?? data.current_mamps        ?? current.lmtr_current_ma,
           lmtr_bus_voltage_mv:   data.bus_voltage_mv     ?? data.bus_voltage_mvolts   ?? current.lmtr_bus_voltage_mv,
           lmtr_shunt_voltage_mv: data.shunt_voltage_mv   ?? data.shunt_voltage_mvolts ?? current.lmtr_shunt_voltage_mv,
+          lmtr_actual_speed:     data.actual_speed       ?? current.lmtr_actual_speed,
         }));
         console.log('Left motor update:', data);
         break;
 
-      // ── Right Motor ──
-      // Bridge should send: { component: "rmtr", data: { power_mw, current_ma, bus_voltage_mv, shunt_voltage_mv } }
       case 'rmtr':
         telemetryData.update(current => ({
           ...current,
@@ -267,8 +272,21 @@ class WebSocketClient {
           rmtr_current_ma:       data.current_ma         ?? data.current_mamps        ?? current.rmtr_current_ma,
           rmtr_bus_voltage_mv:   data.bus_voltage_mv     ?? data.bus_voltage_mvolts   ?? current.rmtr_bus_voltage_mv,
           rmtr_shunt_voltage_mv: data.shunt_voltage_mv   ?? data.shunt_voltage_mvolts ?? current.rmtr_shunt_voltage_mv,
+          rmtr_actual_speed:     data.actual_speed       ?? current.rmtr_actual_speed,
         }));
         console.log('Right motor update:', data);
+        break;
+
+      // ── Drive control state ──
+      case 'control_state':
+        telemetryData.update(current => ({
+          ...current,
+          drivestate: data.drivestate ?? current.drivestate,
+        }));
+        if (data.drivestate !== undefined) {
+          const statusMap: Record<number, string> = { 0: 'stopped', 1: 'moving_forward', 2: 'moving_backward' };
+          vehicleState.set({ status: statusMap[data.drivestate] || 'unknown' });
+        }
         break;
 
       case 'navigation':

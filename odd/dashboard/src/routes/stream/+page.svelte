@@ -11,6 +11,7 @@
     motorTotals
   } from '$lib/stores/zenohStore';
 
+  const MAX_RPM = 600; // Maximum motor RPM — encoder speed is normalized 0‑1
   const PI_IP = 'raspberrypi.local'; // Change to your Pi's IP or hostname if needed
   const CAMERA_URL = `http://${PI_IP}:8889/camera/`;
 
@@ -78,6 +79,9 @@
     if (!isManualControlEnabled) return;
     carControls[direction] = true;
     if (wsClient) wsClient.send({ type: 'command', payload: direction });
+    // Update drivestate for trail map integration
+    const dsMap = { forward: 1, backward: 2, left: 1, right: 1 };
+    if (dsMap[direction]) telemetryData.update(c => ({ ...c, drivestate: dsMap[direction] }));
   }
 
   function stopMovement(direction) {
@@ -85,6 +89,7 @@
     if (!carControls[direction]) return;
     carControls[direction] = false;
     if (wsClient) wsClient.send({ type: 'command', payload: 'stop' });
+    telemetryData.update(c => ({ ...c, drivestate: 0 }));
   }
 </script>
 
@@ -95,7 +100,7 @@
     <!-- Header -->
     <div class="text-center mb-8">
       <h1 class="text-4xl font-bold bg-gradient-to-r from-amber-400 to-orange-500 bg-clip-text text-transparent mb-2">
-        Parking Robot Dashboard
+          Lagadan ISDP G5
       </h1>
       <div class="flex justify-center items-center space-x-4 mt-4">
         <div class="flex items-center space-x-2">
@@ -110,17 +115,6 @@
       </div>
     </div>
 
-    <!-- Command Feedback -->
-    {#if $commandFeedback}
-      <div class="mb-6 bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-400/30 rounded-xl p-4 animate-pulse">
-        <div class="flex items-center justify-center space-x-3">
-          <span class="text-2xl">{$commandFeedback.success ? '✅' : '❌'}</span>
-          <span class="text-amber-200 font-bold">{$commandFeedback.message}</span>
-          <span class="text-amber-300 text-sm">{$commandFeedback.timestamp}</span>
-        </div>
-      </div>
-    {/if}
-
     <!-- Main Grid -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
@@ -130,7 +124,7 @@
         <!-- Live Camera -->
         <div class="bg-gradient-to-br from-amber-900/50 to-orange-900/50 rounded-2xl p-6 border border-amber-500/30 shadow-lg">
           <h2 class="text-2xl font-bold text-white mb-4">
-            <span class="bg-gradient-to-r from-amber-400 to-orange-400 bg-clip-text text-transparent">Live Parking Camera</span>
+            <span class="bg-gradient-to-r from-amber-400 to-orange-400 bg-clip-text text-transparent">Live feed</span>
           </h2>
           <div class="bg-black rounded-xl overflow-hidden border-2 border-amber-400 shadow-inner relative">
             <iframe src={CAMERA_URL} width="100%" height="480" class="w-full" frameborder="0" allow="camera" title="Live Parking Robot Camera Feed"></iframe>
@@ -176,8 +170,12 @@
                 <span class="text-blue-200 text-sm font-medium">Shunt Voltage:</span>
                 <span class="font-bold text-white">{($telemetryData.lmtr_shunt_voltage_mv || 0).toFixed(2)} mV</span>
               </div>
+              <div class="flex justify-between items-center py-2 px-3 bg-green-500/20 rounded-lg border border-green-400/30">
+                <span class="text-green-200 text-sm font-medium">Encoder Speed:</span>
+                <span class="font-bold text-white">{(($telemetryData.lmtr_actual_speed || 0) * MAX_RPM).toFixed(0)} RPM</span>
+              </div>
               <div class="mt-1 p-2 bg-black/30 rounded-lg">
-                <p class="text-blue-400 text-xs font-mono text-center">palanuk/ec/lmtr/...</p>
+                <p class="text-blue-400 text-xs font-mono text-center">palanuk/ec/lmtr/... + anc/lmtr-actual-speed</p>
               </div>
             </div>
           </div>
@@ -205,8 +203,12 @@
                 <span class="text-purple-200 text-sm font-medium">Shunt Voltage:</span>
                 <span class="font-bold text-white">{($telemetryData.rmtr_shunt_voltage_mv || 0).toFixed(2)} mV</span>
               </div>
+              <div class="flex justify-between items-center py-2 px-3 bg-green-500/20 rounded-lg border border-green-400/30">
+                <span class="text-green-200 text-sm font-medium">Encoder Speed:</span>
+                <span class="font-bold text-white">{(($telemetryData.rmtr_actual_speed || 0) * MAX_RPM).toFixed(0)} RPM</span>
+              </div>
               <div class="mt-1 p-2 bg-black/30 rounded-lg">
-                <p class="text-purple-400 text-xs font-mono text-center">palanuk/ec/rmtr/...</p>
+                <p class="text-purple-400 text-xs font-mono text-center">palanuk/ec/rmtr/... + anc/rmtr-actual-speed</p>
               </div>
             </div>
           </div>
@@ -247,7 +249,7 @@
         <!-- Message Log -->
         <div class="bg-gradient-to-br from-red-900/50 to-amber-900/50 rounded-2xl p-6 border border-red-500/30 shadow-lg">
           <h2 class="text-2xl font-bold text-white mb-4">
-            <span class="bg-gradient-to-r from-red-400 to-amber-400 bg-clip-text text-transparent">Message Log</span>
+            <span class="bg-gradient-to-r from-red-400 to-amber-400 bg-clip-text text-transparent">Message log</span>
           </h2>
           <div class="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl p-4 border border-red-400/30">
             <div class="max-h-64 overflow-y-auto space-y-2">
@@ -274,7 +276,7 @@
         <!-- Robot Energy Data (5V system) -->
         <div class="bg-gradient-to-br from-red-900/50 to-amber-900/50 rounded-2xl p-6 border border-red-500/30 shadow-lg">
           <h2 class="text-2xl font-bold text-white mb-1">
-            <span class="bg-gradient-to-r from-red-400 to-amber-400 bg-clip-text text-transparent">Robot Energy Data</span>
+            <span class="bg-gradient-to-r from-red-400 to-amber-400 bg-clip-text text-transparent">Power system</span>
           </h2>
           <p class="text-gray-400 text-xs mb-4">5V system — ITP main board</p>
           <div class="space-y-4">
@@ -308,7 +310,7 @@
         <!-- Control Mode -->
         <div class="bg-gradient-to-br from-orange-900/50 to-red-900/50 rounded-2xl p-6 border border-orange-500/30 shadow-lg">
           <h2 class="text-2xl font-bold text-white mb-4">
-            <span class="bg-gradient-to-r from-orange-400 to-red-400 bg-clip-text text-transparent">Control Mode</span>
+            <span class="bg-gradient-to-r from-orange-400 to-red-400 bg-clip-text text-transparent">Line following</span>
           </h2>
           <div class="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl p-4 border border-orange-400/30">
             <div class="grid grid-cols-2 gap-3">
@@ -378,6 +380,22 @@
               <p class="text-red-200 font-medium">{isManualControlEnabled ? 'Manual Control' : 'Autonomous Mode'}</p>
               <p class="text-red-300 text-xs mt-2">{isManualControlEnabled ? 'Press and hold for movement' : 'Vehicle running autonomously'}</p>
             </div>
+          </div>
+        </div>
+
+        <!-- Command Feedback -->
+        <div class="bg-gradient-to-br from-gray-800/80 to-gray-900/80 rounded-2xl p-4 border border-gray-600/30 shadow-lg">
+          <h2 class="text-sm font-bold text-gray-400 mb-2">Command Feedback</h2>
+          <div class="max-h-48 overflow-y-auto space-y-1">
+            {#each $commandFeedback.slice(-10).reverse() as fb}
+              <div class="flex items-center space-x-2 text-sm py-1 px-2 bg-black/20 rounded">
+                <span>{fb.success ? '' : '❌'}</span>
+                <span class="text-amber-200 truncate">{fb.message}</span>
+                <span class="text-gray-500 text-xs ml-auto whitespace-nowrap">{fb.timestamp}</span>
+              </div>
+            {:else}
+              <p class="text-gray-600 text-xs">No recent commands</p>
+            {/each}
           </div>
         </div>
 

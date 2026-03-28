@@ -45,6 +45,7 @@ dashboard_state = {
         "current_ma": 0.0,
         "bus_voltage_mv": 0.0,
         "shunt_voltage_mv": 0.0,
+        "actual_speed": 0.0,        # encoder speed (f64)
     },
 
     # ── Right motor (rmtr) ── NEW ────────────────────────────────────────────
@@ -53,6 +54,7 @@ dashboard_state = {
         "current_ma": 0.0,
         "bus_voltage_mv": 0.0,
         "shunt_voltage_mv": 0.0,
+        "actual_speed": 0.0,        # encoder speed (f64)
     },
 
     "control_state": {
@@ -98,12 +100,14 @@ class ZenohBridge:
         "palanuk/ec/lmtr/load_current/mamps":           ("lmtr",          "current_ma",        float),
         "palanuk/ec/lmtr/bus_voltage/mvolts":      ("lmtr",          "bus_voltage_mv",    float),
         "palanuk/ec/lmtr/shunt_voltage/mvolts":    ("lmtr",          "shunt_voltage_mv",  float),
+        "palanuk/anc/lmtr-actual-speed":           ("lmtr",          "actual_speed",      float),
 
         # ── Right motor (rmtr) ── NEW ─────────────────────────────────────────
         "palanuk/ec/rmtr/power/mwatts":            ("rmtr",          "power_mw",          float),
         "palanuk/ec/rmtr/load_current/mamps":           ("rmtr",          "current_ma",        float),
         "palanuk/ec/rmtr/bus_voltage/mvolts":      ("rmtr",          "bus_voltage_mv",    float),
         "palanuk/ec/rmtr/shunt_voltage/mvolts":    ("rmtr",          "shunt_voltage_mv",  float),
+        "palanuk/anc/rmtr-actual-speed":           ("rmtr",          "actual_speed",      float),
 
         # ── Drive control ─────────────────────────────────────────────────────
         "palanuk/bstn/drivestate":                  ("control_state", "drivestate",        int),
@@ -186,7 +190,8 @@ class ZenohBridge:
                 f"🛞  [LMTR] power={dashboard_state['lmtr']['power_mw']:.1f} mW  "
                 f"current={dashboard_state['lmtr']['current_ma']:.1f} mA  "
                 f"bus={dashboard_state['lmtr']['bus_voltage_mv']:.0f} mV  "
-                f"shunt={dashboard_state['lmtr']['shunt_voltage_mv']:.2f} mV"
+                f"shunt={dashboard_state['lmtr']['shunt_voltage_mv']:.2f} mV  "
+                f"speed={dashboard_state['lmtr']['actual_speed']:.2f}"
             )
 
         # ── Right motor logging ── NEW ────────────────────────────────────────
@@ -195,7 +200,8 @@ class ZenohBridge:
                 f"🛞  [RMTR] power={dashboard_state['rmtr']['power_mw']:.1f} mW  "
                 f"current={dashboard_state['rmtr']['current_ma']:.1f} mA  "
                 f"bus={dashboard_state['rmtr']['bus_voltage_mv']:.0f} mV  "
-                f"shunt={dashboard_state['rmtr']['shunt_voltage_mv']:.2f} mV"
+                f"shunt={dashboard_state['rmtr']['shunt_voltage_mv']:.2f} mV  "
+                f"speed={dashboard_state['rmtr']['actual_speed']:.2f}"
             )
 
         # ── Drive control logging ─────────────────────────────────────────────
@@ -390,7 +396,7 @@ async def main():
                 "============================================================\n"
                 "  WebSocket : ws://localhost:8081\n"
                 "  Encoding  : msgpack (sensors) / struct (legacy commands)\n"
-                "  Topics    : 17 subscriptions (inc. lmtr + rmtr motors)\n"
+                "  Topics    : 19 subscriptions (inc. lmtr + rmtr motors + encoder speeds)\n"
                 "============================================================\n"
             )
             await asyncio.Future()       # run forever

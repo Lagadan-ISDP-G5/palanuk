@@ -7,7 +7,12 @@ module.exports = {
     './src/app.html'
   ],
   theme: {
-    extend: {},
+    extend: {
+      fontFamily: {
+        sans: ['"IBM Plex Sans"', 'system-ui', 'sans-serif'],
+        mono: ['"Google Sans Mono"', 'ui-monospace', 'monospace'],
+      },
+    },
   },
   plugins: [],
 }
