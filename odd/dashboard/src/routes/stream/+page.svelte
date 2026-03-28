@@ -1,19 +1,19 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
-  import { 
-    initWebSocket, 
+  import {
+    initWebSocket,
     getWebSocketClient,
-    telemetryData, 
+    telemetryData,
     connectionStatus,
     vehicleState,
     commandFeedback,
     messageLog,
     motorTotals
   } from '$lib/stores/zenohStore';
- 
+
   const PI_IP = 'raspberrypi.local'; // Change to your Pi's IP or hostname if needed
   const CAMERA_URL = `http://${PI_IP}:8889/camera/`;
- 
+
   let wsClient;
 
   // Destructure telemetryData so Svelte tracks every field as an explicit
@@ -59,7 +59,7 @@
     }
     return '0h 0m';
   }
- 
+
   let carControls = { forward: false, backward: false, left: false, right: false };
   let isStreaming = true;
   let controlMode = 'open';
@@ -79,7 +79,7 @@
     carControls[direction] = true;
     if (wsClient) wsClient.send({ type: 'command', payload: direction });
   }
- 
+
   function stopMovement(direction) {
     if (!isManualControlEnabled) return;
     carControls[direction] = false;
@@ -301,7 +301,7 @@
               <span class="text-orange-200 font-medium">Power (W):</span>
               <span class="font-bold text-white text-lg">{robotData.totalEnergy} W</span>
             </div>
-            
+
           </div>
         </div>
 
