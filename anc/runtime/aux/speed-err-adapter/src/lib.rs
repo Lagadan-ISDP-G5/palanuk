@@ -52,23 +52,29 @@ impl CuTask for SpeedErrAdapter {
         // in 'openloop' (blind, no vision input) the command left and right should be the same when the intention
         // is to go straihgt
         let cmd = input.1.payload();
-        let (lmtr_target_ratio, rmtr_target_ratio) = if let Some(cmd) = cmd {
+        let (lmtr_target_ratio, rmtr_target_ratio, cmd_is_zero) = if let Some(cmd) = cmd {
             let total_cmd = cmd.left_speed + cmd.right_speed;
             if total_cmd > 0.0 {
-                (cmd.left_speed / total_cmd, cmd.right_speed / total_cmd)
+                (cmd.left_speed / total_cmd, cmd.right_speed / total_cmd, false)
             } else {
-                (0.5, 0.5)
+                (0.5, 0.5, true)
             }
         } else {
-            (0.5, 0.5)
+            (0.5, 0.5, true)
         };
 
-        let total_actual = self.lmtr_actual + self.rmtr_actual;
-        let lmtr_target = total_actual * lmtr_target_ratio;
-        let rmtr_target = total_actual * rmtr_target_ratio;
+        // Zero out errors when stopped to prevent integral windup in downstream PIDs
+        if cmd_is_zero {
+            self.lmtr_speed_err = Some(0.0);
+            self.rmtr_speed_err = Some(0.0);
+        } else {
+            let total_actual = self.lmtr_actual + self.rmtr_actual;
+            let lmtr_target = total_actual * lmtr_target_ratio;
+            let rmtr_target = total_actual * rmtr_target_ratio;
 
-        self.lmtr_speed_err = Some(self.lmtr_actual - lmtr_target);
-        self.rmtr_speed_err = Some(self.rmtr_actual - rmtr_target);
+            self.lmtr_speed_err = Some(self.lmtr_actual - lmtr_target);
+            self.rmtr_speed_err = Some(self.rmtr_actual - rmtr_target);
+        }
 
         if let (Some(lmtr_speed_err), Some(rmtr_speed_err)) = (self.lmtr_speed_err, self.rmtr_speed_err) {
             output.0.set_payload(LmtrSpeedErrPayload { error: lmtr_speed_err });

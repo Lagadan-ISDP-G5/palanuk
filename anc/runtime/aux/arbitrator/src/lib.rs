@@ -25,6 +25,11 @@ pub const DEFAULT_HEADING_ERROR_END_STEERING_MANEUVER_THRESHOLD: f32 = 0.18;
 pub const DEFAULT_OUTER_WHEEL_STEERING_SPEED: f32 = 1.0;
 pub const DEFAULT_INNER_WHEEL_STEERING_SPEED: f32 = 0.0;
 
+pub const DEFAULT_ALIGNMENT_SPEED: f32 = 0.2;
+pub const DEFAULT_ALIGNMENT_DEADBAND: f32 = 0.03;
+pub const DEFAULT_ALIGNMENT_PULSE_MS: u64 = 100;
+pub const DEFAULT_ALIGNMENT_COOLDOWN_MS: u64 = 200;
+
 pub const DEFAULT_ON_AXIS_ROTATION_DURATION_MILLISEC_90_DEG: u64 = 400;
 pub const DEFAULT_STEERING_MIN_HOLD_MS: u64 = 300;
 pub const DEFAULT_STEERING_DELAY_MS: u64 = 200;
@@ -82,6 +87,14 @@ pub struct Arbitrator {
     #[reflect(ignore)]
     on_axis_rotator: OnAxisRotator,
     last_pid_output: f32,
+    #[reflect(ignore)]
+    alignment_state: AlignmentState,
+    alignment_speed: f32,
+    alignment_deadband: f32,
+    alignment_pulse_ms: u64,
+    alignment_cooldown_ms: u64,
+    #[reflect(ignore)]
+    alignment_pulse_started: CuInstant,
 }
 
 pub struct OnAxisRotator {
@@ -180,6 +193,15 @@ pub enum RotateOnAxisState {
 }
 
 #[derive(Default, Debug, PartialEq, Eq)]
+pub enum AlignmentState {
+    #[default]
+    Inactive,
+    Pulsing,
+    Cooldown,
+    Aligned,
+}
+
+#[derive(Default, Debug, PartialEq, Eq)]
 pub enum SteererState {
     WaitingToSteer,
     Steering,
@@ -221,6 +243,12 @@ impl Default for Arbitrator {
             steering_completed: CuInstant::now(),
             on_axis_rotator: OnAxisRotator::default(),
             last_pid_output: 0.0,
+            alignment_state: AlignmentState::default(),
+            alignment_speed: DEFAULT_ALIGNMENT_SPEED,
+            alignment_deadband: DEFAULT_ALIGNMENT_DEADBAND,
+            alignment_pulse_ms: DEFAULT_ALIGNMENT_PULSE_MS,
+            alignment_cooldown_ms: DEFAULT_ALIGNMENT_COOLDOWN_MS,
+            alignment_pulse_started: CuInstant::now(),
         }
     }
 }
@@ -333,6 +361,22 @@ impl CuTask for Arbitrator {
             .map(|v| { let f: f64 = v.clone().into(); f as f32 })
             .unwrap_or(DEFAULT_MAX_RPM);
 
+        let alignment_speed: f32 = kv.get("alignment_speed")
+            .map(|v| { let f: f64 = v.clone().into(); f as f32 })
+            .unwrap_or(DEFAULT_ALIGNMENT_SPEED);
+
+        let alignment_deadband: f32 = kv.get("alignment_deadband")
+            .map(|v| { let f: f64 = v.clone().into(); f as f32 })
+            .unwrap_or(DEFAULT_ALIGNMENT_DEADBAND);
+
+        let alignment_pulse_ms: u64 = kv.get("alignment_pulse_ms")
+            .map(|v| { let f: f64 = v.clone().into(); f as u64 })
+            .unwrap_or(DEFAULT_ALIGNMENT_PULSE_MS);
+
+        let alignment_cooldown_ms: u64 = kv.get("alignment_cooldown_ms")
+            .map(|v| { let f: f64 = v.clone().into(); f as u64 })
+            .unwrap_or(DEFAULT_ALIGNMENT_COOLDOWN_MS);
+
         let mut inst = Self::default();
         inst.r_wind_comp_lmtr = r_wind_comp_lmtr as f32;
         inst.r_wind_comp_rmtr = r_wind_comp_rmtr as f32;
@@ -353,6 +397,10 @@ impl CuTask for Arbitrator {
         inst.max_rpm = max_rpm;
         inst.on_axis_rotator.rotation_duration_ms_left = on_axis_rotation_duration_ms_left;
         inst.on_axis_rotator.rotation_duration_ms_right = on_axis_rotation_duration_ms_right;
+        inst.alignment_speed = alignment_speed;
+        inst.alignment_deadband = alignment_deadband;
+        inst.alignment_pulse_ms = alignment_pulse_ms;
+        inst.alignment_cooldown_ms = alignment_cooldown_ms;
         Ok(inst)
     }
 
@@ -451,6 +499,22 @@ impl CuTask for Arbitrator {
                         self.steerer_state = SteererState::NotSteering;
                         eprintln!("STEERING: cooldown expired, ready for next corner");
                     }
+                }
+
+                // Bang-bang lane alignment while stationary
+                // Activates when stopped in closed-loop with valid lane vision and not steering
+                let is_stopped = self.target_speed.unwrap_or(0.0) < 0.01;
+                let not_steering = self.steerer_state == SteererState::NotSteering;
+                if is_stopped && not_steering {
+                    if let Some(m) = nsm.payload() {
+                        if m.vertical_line_valid {
+                            self.alignment_handler(m.heading_error, &mut closed_loop_prop_payload);
+                        } else {
+                            self.alignment_state = AlignmentState::Inactive;
+                        }
+                    }
+                } else {
+                    self.alignment_state = AlignmentState::Inactive;
                 }
             }
             _ => ()
@@ -610,6 +674,72 @@ impl Arbitrator {
             res.left_speed = left_speed.clamp(0.0, 1.0);
             res.right_speed = right_speed.clamp(0.0, 1.0);
             eprintln!("STEERING: yaw={:.4}/{:.4} rad", self.accumulated_yaw, self.target_yaw_radians);
+        }
+    }
+
+    /// Bang-bang lane alignment while stationary.
+    /// Pivots in place with timed pulses to center the robot on the lane line.
+    /// Each correction is a short pulse followed by a cooldown to let the robot settle
+    /// and the camera to re-evaluate heading_error.
+    /// heading_error > 0 = robot right of center → pivot left
+    /// heading_error < 0 = robot left of center → pivot right
+    fn alignment_handler(&mut self, heading_error: f32, res: &mut PropulsionPayload) {
+        let elapsed_ns = CuInstant::now().as_nanos()
+            .checked_sub(self.alignment_pulse_started.as_nanos())
+            .unwrap_or(0);
+        let elapsed = CuDuration::from_nanos(elapsed_ns);
+
+        // Default: stop motors. Only Pulsing state overrides this.
+        res.left_speed = 0.0;
+        res.right_speed = 0.0;
+        res.left_direction = WheelDirection::Stop;
+        res.right_direction = WheelDirection::Stop;
+
+        match self.alignment_state {
+            AlignmentState::Inactive | AlignmentState::Aligned => {
+                if heading_error.abs() >= self.alignment_deadband {
+                    // Transition to Pulsing — don't drive yet, first tick is just setup
+                    self.alignment_state = AlignmentState::Pulsing;
+                    self.alignment_pulse_started = CuInstant::now();
+                    eprintln!("ALIGN: starting pulse err={:.4} dir={}",
+                        heading_error, if heading_error > 0.0 { "left" } else { "right" });
+                }
+            }
+            AlignmentState::Pulsing => {
+                if elapsed >= CuDuration::from_millis(self.alignment_pulse_ms) {
+                    // Pulse expired — transition to cooldown, motors stay off
+                    self.alignment_state = AlignmentState::Cooldown;
+                    self.alignment_pulse_started = CuInstant::now();
+                    eprintln!("ALIGN: pulse done, cooldown {}ms", self.alignment_cooldown_ms);
+                } else {
+                    // Active pulse — drive motors
+                    res.left_enable = true;
+                    res.right_enable = true;
+                    res.left_speed = self.alignment_speed;
+                    res.right_speed = self.alignment_speed;
+                    if heading_error > 0.0 {
+                        res.left_direction = WheelDirection::Reverse;
+                        res.right_direction = WheelDirection::Forward;
+                    } else {
+                        res.left_direction = WheelDirection::Forward;
+                        res.right_direction = WheelDirection::Reverse;
+                    }
+                }
+            }
+            AlignmentState::Cooldown => {
+                if elapsed >= CuDuration::from_millis(self.alignment_cooldown_ms) {
+                    if heading_error.abs() < self.alignment_deadband {
+                        self.alignment_state = AlignmentState::Aligned;
+                        eprintln!("ALIGN: centered (err={:.4})", heading_error);
+                    } else {
+                        // Need another pulse — don't drive yet
+                        self.alignment_state = AlignmentState::Pulsing;
+                        self.alignment_pulse_started = CuInstant::now();
+                        eprintln!("ALIGN: another pulse err={:.4} dir={}",
+                            heading_error, if heading_error > 0.0 { "left" } else { "right" });
+                    }
+                }
+            }
         }
     }
 

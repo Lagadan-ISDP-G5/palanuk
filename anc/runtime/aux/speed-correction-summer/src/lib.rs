@@ -5,8 +5,6 @@ use cu_pid::PIDControlOutputPayload;
 use cu_irencoder::IrEncoderPayload;
 use itp_merger::ItpTopicsOutputPayload;
 
-pub const R_WIND_COMP_LMTR: f32 = 1.1;
-pub const R_WIND_COMP_RMTR: f32 = 1.0;
 pub const MAX_PID_CORRECTION: f32 = 0.25;
 
 pub const ACCELERATE_MIN_DURATION_MS: u64 = 6000;
@@ -117,8 +115,8 @@ impl CuTask for SpeedCorrectionSummer {
                 let lmtr_summed_speed = lmtr_pid + (self.k_ff_lmtr * lmtr_ff);
                 let rmtr_summed_speed = rmtr_pid + (self.k_ff_rmtr * rmtr_ff);
 
-                output_msg.left_speed = (R_WIND_COMP_LMTR * lmtr_summed_speed).clamp(0.0, 1.0);
-                output_msg.right_speed = (R_WIND_COMP_RMTR * rmtr_summed_speed).clamp(0.0, 1.0);
+                output_msg.left_speed = lmtr_summed_speed.clamp(0.0, 1.0);
+                output_msg.right_speed = rmtr_summed_speed.clamp(0.0, 1.0);
             }
 
             self.last_output = Some(output_msg);
