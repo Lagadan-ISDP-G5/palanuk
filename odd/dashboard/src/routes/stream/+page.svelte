@@ -264,18 +264,6 @@
             </div>
           </div>
         </div>
-
-        <!-- Live Navigation Trail -->
-        <div class="bg-gradient-to-br from-red-900/50 to-amber-900/50 rounded-2xl p-6 border border-red-500/30 shadow-lg">
-          <h2 class="text-2xl font-bold text-white mb-4">
-            <span class="bg-gradient-to-r from-red-400 to-amber-400 bg-clip-text text-transparent">Live Navigation Trail</span>
-          </h2>
-          <div class="h-64 bg-gray-900 rounded-xl border border-gray-600 flex items-center justify-center">
-            <img src="/images/.jpg" alt="Navigation Trail Visualization" class="w-full h-full object-cover"
-              on:error={(e) => { e.target.style.display = 'none'; }} />
-          </div>
-        </div>
-
       </div><!-- end left column -->
 
 
@@ -289,15 +277,6 @@
           </h2>
           <p class="text-gray-400 text-xs mb-4">5V system — ITP main board</p>
           <div class="space-y-4">
-            <div class="py-3 px-4 bg-gradient-to-r from-red-500/20 to-amber-500/20 rounded-lg border border-red-400/30">
-              <div class="flex justify-between items-center mb-1">
-                <span class="text-red-200 font-medium">Battery Level:</span>
-                <span class="font-bold text-white text-lg">{robotData.battery}%</span>
-              </div>
-              <div class="w-full bg-gray-700 rounded-full h-2">
-                <div class="bg-gradient-to-r from-amber-400 to-orange-400 h-2 rounded-full transition-all duration-500" style="width: {robotData.battery}%;"></div>
-              </div>
-            </div>
             <div class="flex justify-between items-center py-3 px-4 bg-gradient-to-r from-red-500/20 to-pink-500/20 rounded-lg border border-red-400/30">
               <span class="text-red-200 font-medium">Power Consumption:</span>
               <span class="font-bold text-white text-lg">{robotData.power} mW</span>
@@ -322,10 +301,7 @@
               <span class="text-orange-200 font-medium">Power (W):</span>
               <span class="font-bold text-white text-lg">{robotData.totalEnergy} W</span>
             </div>
-            <div class="flex justify-between items-center py-3 px-4 bg-gradient-to-r from-pink-500/20 to-red-500/20 rounded-lg border border-pink-400/30">
-              <span class="text-pink-200 font-medium">Power Efficiency:</span>
-              <span class="font-bold text-white text-lg">{robotData.efficiency}%</span>
-            </div>
+            
           </div>
         </div>
 
