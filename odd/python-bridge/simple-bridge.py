@@ -135,9 +135,11 @@ class ZenohBridge:
 
     @staticmethod
     def _decode(sample) -> object:
-        """Unpack a Zenoh sample whose payload is msgpack with a 'payload' key."""
+        """Unpack a Zenoh sample whose payload is msgpack."""
         raw = msgpack.unpackb(sample.payload.to_bytes(), raw=False)
-        return raw["payload"]
+        if isinstance(raw, dict) and "payload" in raw:
+            return raw["payload"]
+        return raw
 
     def _make_handler(self, topic: str):
         """Return a closure suitable as a Zenoh subscriber callback."""
