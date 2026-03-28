@@ -1,6 +1,5 @@
-// src/lib/zenohStore.ts
 // src/lib/stores/zenohStore.ts
-import { writable } from 'svelte/store';
+import { writable, derived } from 'svelte/store';
 
 export const telemetryData = writable({
   speed: 0,
@@ -9,15 +8,50 @@ export const telemetryData = writable({
   heading: 0,
   obstacle: false,
   distance: 0,
+
+  // ─── 5V system — raw fields ───
+  power_mw: 0,
+  load_current_ma: 0,
+  bus_voltage_mv: 0,
+  shunt_voltage_mv: 0,
+  // ─── 5V system — derived fields (pre-calculated by bridge) ───
   power_w: 0,
   current_a: 0,
-  voltage_v: 0
+  voltage_v: 0,
+
+  // ─── Left Motor (lmtr) ───
+  // Topics: palanuk/ec/lmtr/power/mwatts
+  //         palanuk/ec/lmtr/current/mamps
+  //         palanuk/ec/lmtr/bus_voltage/mvolts
+  //         palanuk/ec/lmtr/shunt_voltage/mvolts
+  lmtr_power_mw: 0,
+  lmtr_current_ma: 0,
+  lmtr_bus_voltage_mv: 0,
+  lmtr_shunt_voltage_mv: 0,
+
+  // ─── Right Motor (rmtr) ───
+  // Topics: palanuk/ec/rmtr/power/mwatts
+  //         palanuk/ec/rmtr/current/mamps
+  //         palanuk/ec/rmtr/bus_voltage/mvolts
+  //         palanuk/ec/rmtr/shunt_voltage/mvolts
+  rmtr_power_mw: 0,
+  rmtr_current_ma: 0,
+  rmtr_bus_voltage_mv: 0,
+  rmtr_shunt_voltage_mv: 0,
 });
 
+// ─── Derived store: combined totals across both motors ───
+export const motorTotals = derived(telemetryData, ($t) => ({
+  total_power_mw:        $t.lmtr_power_mw         + $t.rmtr_power_mw,
+  total_current_ma:      $t.lmtr_current_ma        + $t.rmtr_current_ma,
+  avg_bus_voltage_mv:    ($t.lmtr_bus_voltage_mv   + $t.rmtr_bus_voltage_mv)   / 2,
+  avg_shunt_voltage_mv:  ($t.lmtr_shunt_voltage_mv + $t.rmtr_shunt_voltage_mv) / 2,
+}));
+
 export const connectionStatus = writable('disconnected');
-export const vehicleState = writable({ status: 'stopped' });
+export const vehicleState    = writable({ status: 'stopped' });
 export const commandFeedback = writable(null);
-export const messageLog = writable([]);
+export const messageLog      = writable([]);
 
 
 class WebSocketClient {
@@ -33,7 +67,7 @@ class WebSocketClient {
   connect() {
     try {
       this.ws = new WebSocket(this.url);
-      
+
       this.ws.onopen = () => {
         console.log('WebSocket connected');
         connectionStatus.set('connected');
@@ -41,11 +75,10 @@ class WebSocketClient {
 
       this.ws.onmessage = (event) => {
         console.log('Received:', event.data);
-        
+
         try {
           const data = JSON.parse(event.data);
-          
-          // Handle different message types
+
           if (data.type === 'welcome') {
             console.log('Welcome:', data.message);
           }
@@ -57,27 +90,31 @@ class WebSocketClient {
             this.handleComponentUpdate(data.component, data.data);
           }
           else if (data.type === 'vehicle_state') {
-            vehicleState.set({
-              status: data.data.status || 'unknown'
-            });
+            vehicleState.set({ status: data.data.status || 'unknown' });
           }
           else if (data.type === 'command_response') {
             commandFeedback.set({
-              command: data.command,
-              success: data.success,
-              message: data.message,
+              command:   data.command,
+              success:   data.success,
+              message:   data.message,
               timestamp: data.timestamp || new Date().toLocaleTimeString()
             });
             setTimeout(() => commandFeedback.set(null), 5000);
           }
           else if (data.type === 'control_mode_response') {
             commandFeedback.set({
-              command: 'mode_change',
-              success: data.success,
-              message: data.message,
+              command:   'mode_change',
+              success:   data.success,
+              message:   data.message,
               timestamp: data.timestamp || new Date().toLocaleTimeString()
             });
             setTimeout(() => commandFeedback.set(null), 3000);
+          }
+          // ─── Raw Zenoh topic passthrough ───
+          // If the bridge forwards individual Zenoh topics as:
+          // { type: "zenoh_topic", key: "palanuk/ec/lmtr/power/mwatts", value: 1234 }
+          else if (data.type === 'zenoh_topic') {
+            this.handleZenohTopic(data.key, data.value);
           }
 
           // Update message log for all messages
@@ -88,7 +125,7 @@ class WebSocketClient {
             }];
             return newLogs.slice(-50);
           });
-          
+
         } catch (error) {
           console.error('Error processing message:', error);
         }
@@ -102,7 +139,6 @@ class WebSocketClient {
       this.ws.onclose = () => {
         console.log('WebSocket disconnected');
         connectionStatus.set('disconnected');
-        
         if (this.shouldReconnect) {
           setTimeout(() => this.connect(), this.reconnectInterval);
         }
@@ -114,75 +150,172 @@ class WebSocketClient {
     }
   }
 
-private handleInitialData(data: any) {  // parameter is 'data'
-  console.log('Processing initial dashboard data');
-  
-  // Update telemetry from initial data
-  if (data.energy) {  // ✅ Use 'data', not 'initialData'
-    telemetryData.update(current => ({
-      ...current,
-      battery: data.energy.battery || 0,  // ✅
-      power_w: data.energy.power_w || 0,
-      current_a: data.energy.load_current_a || 0,
-      voltage_v: data.energy.bus_voltage_v || 0
-    }));
+  // ─────────────────────────────────────────────────────────────────────────
+  // INITIAL DATA SNAPSHOT (called once on first connect)
+  // ─────────────────────────────────────────────────────────────────────────
+  private handleInitialData(data: any) {
+    console.log('Processing initial dashboard data');
+
+    // 5V system energy — bridge sends both raw and derived fields
+    if (data.energy) {
+      telemetryData.update(current => ({
+        ...current,
+        // Raw fields
+        power_mw:         data.energy.power_mw          || 0,
+        load_current_ma:  data.energy.load_current_ma    || 0,
+        bus_voltage_mv:   data.energy.bus_voltage_mv     || 0,
+        shunt_voltage_mv: data.energy.shunt_voltage_mv   || 0,
+        // Derived fields (bridge pre-calculates these)
+        battery:          data.energy.battery            || 0,
+        power_w:          data.energy.power_w            || 0,
+        current_a:        data.energy.current_a          || 0,
+        voltage_v:        data.energy.voltage_v          || 0,
+      }));
+    }
+
+    // Left motor initial snapshot
+    if (data.lmtr) {
+      telemetryData.update(current => ({
+        ...current,
+        lmtr_power_mw:         data.lmtr.power_mw          || 0,
+        lmtr_current_ma:       data.lmtr.current_ma         || 0,
+        lmtr_bus_voltage_mv:   data.lmtr.bus_voltage_mv     || 0,
+        lmtr_shunt_voltage_mv: data.lmtr.shunt_voltage_mv   || 0,
+      }));
+    }
+
+    // Right motor initial snapshot
+    if (data.rmtr) {
+      telemetryData.update(current => ({
+        ...current,
+        rmtr_power_mw:         data.rmtr.power_mw          || 0,
+        rmtr_current_ma:       data.rmtr.current_ma         || 0,
+        rmtr_bus_voltage_mv:   data.rmtr.bus_voltage_mv     || 0,
+        rmtr_shunt_voltage_mv: data.rmtr.shunt_voltage_mv   || 0,
+      }));
+    }
+
+    // Drive state
+    if (data.control_state) {
+      const statusMap: Record<number, string> = {
+        0: 'stopped',
+        1: 'moving_forward',
+        2: 'moving_backward'
+      };
+      vehicleState.set({
+        status: statusMap[data.control_state.drivestate] || 'unknown'
+      });
+    }
+
+    // Navigation
+    if (data.navigation) {
+      telemetryData.update(current => ({
+        ...current,
+        obstacle: data.navigation.obstacle || false,
+        distance: data.navigation.distance || 0,
+      }));
+    }
   }
 
-  if (data.control_state) {  // ✅
-    const statusMap = {
-      0: 'stopped',
-      1: 'moving_forward',
-      2: 'moving_backward'
-    };
-    vehicleState.set({
-      status: statusMap[data.control_state.drivestate] || 'unknown'  // ✅
-    });
-  }
-  
-  if (data.navigation) {  // ✅
-    telemetryData.update(current => ({
-      ...current,
-      obstacle: data.navigation.obstacle || false,  // ✅
-      distance: data.navigation.distance || 0
-    }));
-  }
-}
-
-    private handleComponentUpdate(component: string, data: any) {
+  // ─────────────────────────────────────────────────────────────────────────
+  // REAL-TIME COMPONENT UPDATES
+  // ─────────────────────────────────────────────────────────────────────────
+  private handleComponentUpdate(component: string, data: any) {
     console.log(`Component update: ${component}`, data);
-    
-    switch(component) {
-      case 'navigation':
-        telemetryData.update(current => ({
-          ...current,
-          obstacle: data.obstacle || current.obstacle,
-          distance: data.distance || current.distance
-        }));
-        
-        // Show obstacle warning
-        if (data.obstacle) {
-          console.warn('⚠️ Obstacle detected!');
-        }
-        break;
-        
+
+    switch (component) {
+
+      // ── 5V system ──
+      // The bridge already sends derived fields (power_w, current_a, voltage_v, battery)
+      // alongside the raw fields (power_mw, load_current_ma, bus_voltage_mv, shunt_voltage_mv).
+      // We store ALL of them — no manual conversion needed here.
       case 'energy':
         telemetryData.update(current => ({
           ...current,
-          battery: data.battery ?? current.battery,
-          power_w: data.power_w ?? current.power_w,
-          current_a: data.load_current_ma ? (data.load_current_ma / 1000) : current.current_a,
-          voltage_v: data.bus_voltage_mv ? (data.bus_voltage_mv / 1000) : current.voltage_v
+          // Raw fields from Zenoh topics
+          power_mw:         data.power_mw          ?? current.power_mw,
+          load_current_ma:  data.load_current_ma   ?? current.load_current_ma,
+          bus_voltage_mv:   data.bus_voltage_mv     ?? current.bus_voltage_mv,
+          shunt_voltage_mv: data.shunt_voltage_mv   ?? current.shunt_voltage_mv,
+          // Derived fields pre-calculated by the bridge
+          battery:          data.battery            ?? current.battery,
+          power_w:          data.power_w            ?? current.power_w,
+          current_a:        data.current_a          ?? current.current_a,
+          voltage_v:        data.voltage_v          ?? current.voltage_v,
         }));
         break;
-        
-      case 'vehicle_state':
-        vehicleState.set({
-          status: data.status || 'unknown'
-        });
+
+      // ── Left Motor ──
+      // Bridge should send: { component: "lmtr", data: { power_mw, current_ma, bus_voltage_mv, shunt_voltage_mv } }
+      case 'lmtr':
+        telemetryData.update(current => ({
+          ...current,
+          lmtr_power_mw:         data.power_mw          ?? data.power_mwatts         ?? current.lmtr_power_mw,
+          lmtr_current_ma:       data.current_ma         ?? data.current_mamps        ?? current.lmtr_current_ma,
+          lmtr_bus_voltage_mv:   data.bus_voltage_mv     ?? data.bus_voltage_mvolts   ?? current.lmtr_bus_voltage_mv,
+          lmtr_shunt_voltage_mv: data.shunt_voltage_mv   ?? data.shunt_voltage_mvolts ?? current.lmtr_shunt_voltage_mv,
+        }));
+        console.log('Left motor update:', data);
         break;
-        
+
+      // ── Right Motor ──
+      // Bridge should send: { component: "rmtr", data: { power_mw, current_ma, bus_voltage_mv, shunt_voltage_mv } }
+      case 'rmtr':
+        telemetryData.update(current => ({
+          ...current,
+          rmtr_power_mw:         data.power_mw          ?? data.power_mwatts         ?? current.rmtr_power_mw,
+          rmtr_current_ma:       data.current_ma         ?? data.current_mamps        ?? current.rmtr_current_ma,
+          rmtr_bus_voltage_mv:   data.bus_voltage_mv     ?? data.bus_voltage_mvolts   ?? current.rmtr_bus_voltage_mv,
+          rmtr_shunt_voltage_mv: data.shunt_voltage_mv   ?? data.shunt_voltage_mvolts ?? current.rmtr_shunt_voltage_mv,
+        }));
+        console.log('Right motor update:', data);
+        break;
+
+      case 'navigation':
+        telemetryData.update(current => ({
+          ...current,
+          obstacle: data.obstacle ?? current.obstacle,
+          distance: data.distance ?? current.distance,
+        }));
+        if (data.obstacle) console.warn('⚠️ Obstacle detected!');
+        break;
+
+      case 'vehicle_state':
+        vehicleState.set({ status: data.status || 'unknown' });
+        break;
+
       default:
         console.log(`Unhandled component: ${component}`);
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // ZENOH TOPIC PASSTHROUGH
+  // If the ITP bridge forwards individual Zenoh topic messages directly:
+  // { type: "zenoh_topic", key: "palanuk/ec/lmtr/power/mwatts", value: 1234 }
+  // ─────────────────────────────────────────────────────────────────────────
+  private handleZenohTopic(key: string, value: number) {
+    console.log(`Zenoh topic [${key}]:`, value);
+
+    const topicMap: Record<string, (v: number) => void> = {
+      // ── Left Motor ──
+      'palanuk/ec/lmtr/power/mwatts':         (v) => telemetryData.update(c => ({ ...c, lmtr_power_mw: v })),
+      'palanuk/ec/lmtr/current/mamps':        (v) => telemetryData.update(c => ({ ...c, lmtr_current_ma: v })),
+      'palanuk/ec/lmtr/bus_voltage/mvolts':   (v) => telemetryData.update(c => ({ ...c, lmtr_bus_voltage_mv: v })),
+      'palanuk/ec/lmtr/shunt_voltage/mvolts': (v) => telemetryData.update(c => ({ ...c, lmtr_shunt_voltage_mv: v })),
+
+      // ── Right Motor ──
+      'palanuk/ec/rmtr/power/mwatts':         (v) => telemetryData.update(c => ({ ...c, rmtr_power_mw: v })),
+      'palanuk/ec/rmtr/current/mamps':        (v) => telemetryData.update(c => ({ ...c, rmtr_current_ma: v })),
+      'palanuk/ec/rmtr/bus_voltage/mvolts':   (v) => telemetryData.update(c => ({ ...c, rmtr_bus_voltage_mv: v })),
+      'palanuk/ec/rmtr/shunt_voltage/mvolts': (v) => telemetryData.update(c => ({ ...c, rmtr_shunt_voltage_mv: v })),
+    };
+
+    const handler = topicMap[key];
+    if (handler) {
+      handler(value);
+    } else {
+      console.log(`No handler for Zenoh topic: ${key}`);
     }
   }
 
@@ -217,16 +350,11 @@ export function getWebSocketClient() {
   return wsClient;
 }
 
-// Helper function to send commands
 export function sendCommand(command: string) {
   const client = getWebSocketClient();
   if (client) {
-    client.send({
-      type: 'command',
-      payload: command
-    });
+    client.send({ type: 'command', payload: command });
   } else {
     console.error('WebSocket not initialized');
   }
 }
-

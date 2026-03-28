@@ -26,13 +26,35 @@ dashboard_state = {
         "obstacle": False,
         "distance": 0.0,
     },
+
+    # ── 5V system / main board (existing) ────────────────────────────────────
     "energy": {
+        "battery": 0.0,          # derived: 0–100 %
         "power_mw": 0.0,
+        "power_w": 0.0,           # derived: power_mw / 1000
         "load_current_ma": 0.0,
+        "current_a": 0.0,         # derived: load_current_ma / 1000
         "shunt_voltage_mv": 0.0,
         "bus_voltage_mv": 0.0,
-        "power_w": 0.0,
+        "voltage_v": 0.0,         # derived: bus_voltage_mv / 1000
     },
+
+    # ── Left motor (lmtr) ── NEW ─────────────────────────────────────────────
+    "lmtr": {
+        "power_mw": 0.0,
+        "current_ma": 0.0,
+        "bus_voltage_mv": 0.0,
+        "shunt_voltage_mv": 0.0,
+    },
+
+    # ── Right motor (rmtr) ── NEW ────────────────────────────────────────────
+    "rmtr": {
+        "power_mw": 0.0,
+        "current_ma": 0.0,
+        "bus_voltage_mv": 0.0,
+        "shunt_voltage_mv": 0.0,
+    },
+
     "control_state": {
         "loopmode": 0,
         "stop": 0,
@@ -61,15 +83,32 @@ class ZenohBridge:
 
     # Maps Zenoh topic → (state section, state key, python type)
     TOPIC_MAP = {
-        "palanuk/anc/obstacle":              ("navigation",    "obstacle",          bool),
-        "palanuk/anc/distance":              ("navigation",    "distance",          float),
-        "palanuk/ec/power/mwatts":           ("energy",        "power_mw",          float),
-        "palanuk/ec/load_current/mamps":     ("energy",        "load_current_ma",   float),
-        "palanuk/ec/shunt_voltage/mvolts":   ("energy",        "shunt_voltage_mv",  float),
-        "palanuk/ec/bus_voltage/mvolts":     ("energy",        "bus_voltage_mv",    float),
-        "palanuk/odd/drivestate":            ("control_state", "drivestate",        int),
-        "palanuk/odd/loopmode":              ("control_state", "loopmode",          int),
-        "palanuk/odd/stop":                  ("control_state", "stop",              int),
+        # ── Navigation ────────────────────────────────────────────────────────
+        "palanuk/anc/obstacle":                    ("navigation",    "obstacle",          bool),
+        "palanuk/anc/distance":                    ("navigation",    "distance",          float),
+
+        # ── 5V system / main board ────────────────────────────────────────────
+        "palanuk/ec/power/mwatts":                 ("energy",        "power_mw",          float),
+        "palanuk/ec/load_current/mamps":           ("energy",        "load_current_ma",   float),
+        "palanuk/ec/shunt_voltage/mvolts":         ("energy",        "shunt_voltage_mv",  float),
+        "palanuk/ec/bus_voltage/mvolts":           ("energy",        "bus_voltage_mv",    float),
+
+        # ── Left motor (lmtr) ── NEW ──────────────────────────────────────────
+        "palanuk/ec/lmtr/power/mwatts":            ("lmtr",          "power_mw",          float),
+        "palanuk/ec/lmtr/load_current/mamps":           ("lmtr",          "current_ma",        float),
+        "palanuk/ec/lmtr/bus_voltage/mvolts":      ("lmtr",          "bus_voltage_mv",    float),
+        "palanuk/ec/lmtr/shunt_voltage/mvolts":    ("lmtr",          "shunt_voltage_mv",  float),
+
+        # ── Right motor (rmtr) ── NEW ─────────────────────────────────────────
+        "palanuk/ec/rmtr/power/mwatts":            ("rmtr",          "power_mw",          float),
+        "palanuk/ec/rmtr/load_current/mamps":           ("rmtr",          "current_ma",        float),
+        "palanuk/ec/rmtr/bus_voltage/mvolts":      ("rmtr",          "bus_voltage_mv",    float),
+        "palanuk/ec/rmtr/shunt_voltage/mvolts":    ("rmtr",          "shunt_voltage_mv",  float),
+
+        # ── Drive control ─────────────────────────────────────────────────────
+        "palanuk/bstn/drivestate":                  ("control_state", "drivestate",        int),
+        "palanuk/bstn/loopmode":                    ("control_state", "loopmode",          int),
+        "palanuk/bstn/stop":                        ("control_state", "stop",              int),
     }
 
     def __init__(self, loop: asyncio.AbstractEventLoop):
@@ -125,18 +164,39 @@ class ZenohBridge:
     @staticmethod
     def _post_update(section: str, key: str, value):
         """Handle derived state and console logging after a state mutation."""
+
+        # ── 5V system derived fields ─────────────────────────────────────────
         if section == "energy":
             if key == "power_mw":
-               dashboard_state["energy"]["power_w"] = value / 1000.0
+                dashboard_state["energy"]["power_w"] = value / 1000.0
 
             elif key == "bus_voltage_mv":
-              dashboard_state["energy"]["voltage_v"] = value / 1000.0
-                # Optional: Simple battery % logic for a 5V system or LiPo
-              dashboard_state["energy"]["battery"] = min(100, max(0, (value / 5000.0) * 100))
-            # 3. Add Current (A) for the dashboard
+                dashboard_state["energy"]["voltage_v"] = value / 1000.0
+                # Battery % estimated from bus voltage (5 V system → 5000 mV = 100 %)
+                dashboard_state["energy"]["battery"] = min(100, max(0, (value / 5000.0) * 100))
+
             elif key == "load_current_ma":
                 dashboard_state["energy"]["current_a"] = value / 1000.0
 
+        # ── Left motor logging ── NEW ─────────────────────────────────────────
+        elif section == "lmtr":
+            print(
+                f"🛞  [LMTR] power={dashboard_state['lmtr']['power_mw']:.1f} mW  "
+                f"current={dashboard_state['lmtr']['current_ma']:.1f} mA  "
+                f"bus={dashboard_state['lmtr']['bus_voltage_mv']:.0f} mV  "
+                f"shunt={dashboard_state['lmtr']['shunt_voltage_mv']:.2f} mV"
+            )
+
+        # ── Right motor logging ── NEW ────────────────────────────────────────
+        elif section == "rmtr":
+            print(
+                f"🛞  [RMTR] power={dashboard_state['rmtr']['power_mw']:.1f} mW  "
+                f"current={dashboard_state['rmtr']['current_ma']:.1f} mA  "
+                f"bus={dashboard_state['rmtr']['bus_voltage_mv']:.0f} mV  "
+                f"shunt={dashboard_state['rmtr']['shunt_voltage_mv']:.2f} mV"
+            )
+
+        # ── Drive control logging ─────────────────────────────────────────────
         elif section == "control_state":
             if key == "drivestate":
                 name = DRIVE_STATE_NAMES.get(value, "unknown")
@@ -146,17 +206,18 @@ class ZenohBridge:
             elif key == "stop" and value == 1:
                 print("🛑  Emergency stop activated")
 
+        # ── Navigation logging ────────────────────────────────────────────────
         elif section == "navigation" and key == "obstacle" and value:
             print("⚠️   Obstacle detected!")
 
     # -- outbound (dashboard command → Zenoh publish) ------------------------
 
     def publish(self, topic_suffix: str, value, *, use_msgpack: bool = True):
-        """Publish a control value onto palanuk/odd/<topic_suffix>."""
+        """Publish a control value onto palanuk/bstn/<topic_suffix>."""
         if not self.session:
             return False
 
-        topic = f"palanuk/odd/{topic_suffix}"
+        topic = f"palanuk/bstn/{topic_suffix}"
         try:
             if use_msgpack:
                 payload = msgpack.packb(value)
@@ -240,7 +301,7 @@ async def ws_handler(ws: websockets.WebSocketServerProtocol, bridge: ZenohBridge
         }))
         await ws.send(json.dumps({
             "type": "initial_data",
-            "data": dashboard_state,
+            "data": dashboard_state,        # now includes lmtr + rmtr sections
             "timestamp": datetime.now().isoformat(),
         }))
 
@@ -327,6 +388,7 @@ async def main():
                 "============================================================\n"
                 "  WebSocket : ws://localhost:8081\n"
                 "  Encoding  : msgpack (sensors) / struct (legacy commands)\n"
+                "  Topics    : 17 subscriptions (inc. lmtr + rmtr motors)\n"
                 "============================================================\n"
             )
             await asyncio.Future()       # run forever
