@@ -148,6 +148,7 @@ class VisionConfig:
     APPROACH_PAN_RIGHT_S: float = 2.0          # stopped, scanning for slot
 
     # Bang-bang correction
+    BANGBANG_STARTUP_S: float = 1.0            # buffer before checking motors — lets AnC start the correction
     BANGBANG_TIMEOUT_S: float = 5.0            # safety timeout if motors never reach 0
     MOTOR_SPEED_ZERO_THRESHOLD: float = 0.01   # consider motor "stopped" below this
 
@@ -605,7 +606,7 @@ class VisionService:
 
         elif self._approach_phase == "bangbang":
             # Wait for AnC bang-bang correction to finish (motors reach 0)
-            if self.motor_monitor.both_stopped() and elapsed > 0.1:
+            if self.motor_monitor.both_stopped() and elapsed > self.vcfg.BANGBANG_STARTUP_S:
                 logger.debug("Approach: bang-bang complete (motors stopped)")
                 self._send_nav(NavCommand(command="STOP"))
                 self._approach_phase = "stopping"
