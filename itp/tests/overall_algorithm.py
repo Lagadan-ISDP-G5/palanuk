@@ -324,13 +324,20 @@ class MotorSpeedMonitor:
         self.threshold = threshold
         self._lock = threading.Lock()
 
+    @staticmethod
+    def _extract_speed(unpacked):
+        """Extract a numeric speed from a msgpack-decoded value (may be a dict or scalar)."""
+        if isinstance(unpacked, dict):
+            return abs(float(next(iter(unpacked.values()))))
+        return abs(float(unpacked))
+
     def on_lmtr_speed(self, sample):
         try:
             import msgpack
             raw = bytes(sample.payload) if not isinstance(sample.payload, bytes) else sample.payload
             speed = msgpack.unpackb(raw)
             with self._lock:
-                self.lmtr_speed = abs(float(speed))
+                self.lmtr_speed = self._extract_speed(speed)
         except Exception as e:
             logger.warning(f"Bad lmtr speed payload: {e}")
 
@@ -340,7 +347,7 @@ class MotorSpeedMonitor:
             raw = bytes(sample.payload) if not isinstance(sample.payload, bytes) else sample.payload
             speed = msgpack.unpackb(raw)
             with self._lock:
-                self.rmtr_speed = abs(float(speed))
+                self.rmtr_speed = self._extract_speed(speed)
         except Exception as e:
             logger.warning(f"Bad rmtr speed payload: {e}")
 
