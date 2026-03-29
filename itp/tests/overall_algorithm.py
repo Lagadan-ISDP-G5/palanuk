@@ -13,10 +13,10 @@ This service does NOT:
 This service DOES:
   - Run YOLO inference on camera frames
   - Detect bumpers → send ACCELERATE_FOR_BUMP to AnC
-  - Detect valid parking slots → trigger state transition internally
-  - Wait for prepare_to_park ACK before panning camera / starting parking SM
-  - Manage the parking state machine (slot detection, alignment)
-  - Send detection events and nav commands to AnC via Zenoh
+  - Detect valid parking slots → trigger approach/parking sequence
+  - Manage approach cycle (scan, lane track, bang-bang correct)
+  - Manage parking sequence (coast, align via shimmy, enter, exit)
+  - Send nav commands to AnC via Zenoh
 
 Zenoh Topics (Core — always active, per zenoh_topics.md):
   palanuk/bstn/stop       — stop / resume (u8: 1=stop, 0=resume)
@@ -537,10 +537,9 @@ class VisionService:
         Vision watches for bumpers and parking slots.
 
         Bumper: sends ACCELERATE_FOR_BUMP once when bumper y2 is near
-                the top of the frame (far away → accelerate early).
-        Parking: sends PARKING_SLOTS_DETECTED once when a valid slot is
-                 confirmed. Waits for prepare_to_park ACK before
-                 transitioning.
+                the bottom of the frame (close to robot).
+        Parking: when any parking slot is detected, stops and pans right
+                 to enter APPROACH_PARKING.
         """
         frame_area = self.vcfg.IMG_SIZE ** 2
         frame_h = self.vcfg.IMG_SIZE
@@ -631,6 +630,7 @@ class VisionService:
                 d for d in detections
                 if d.class_name == self.pcfg.CLASS_PARKING_SLOT
                 and slot_status_map.get(id(d), "UNKNOWN") == "VALID"
+                and d.area / frame_area >= self.vcfg.VALID_PARKING_AREA_THRESHOLD
             ]
 
             status = self.valid_slot_tracker.update(len(valid_slots) > 0)
@@ -948,9 +948,15 @@ class VisionService:
     # Nav Command Publishing
     # ----------------------------------------------------------
 
+    _last_nav_cmd: str = ""
+
     def _send_nav(self, cmd: NavCommand):
         """Send a navigation command to AnC via Zenoh (recipe of topic+value pairs)."""
-        logger.info(f"NAV >> {cmd.command}  {cmd.to_dict()['topics']}")
+        if cmd.command != self._last_nav_cmd:
+            logger.info(f"NAV >> {cmd.command}  {cmd.to_dict()['topics']}")
+            self._last_nav_cmd = cmd.command
+        else:
+            logger.debug(f"NAV >> {cmd.command} (repeat)")
         cmd.publish_all(self.zenoh)
 
     def _publish_detections(self, detections: List[Detection]):
@@ -984,10 +990,10 @@ class VisionService:
         logger.info(f"State: {self.state.name} → {new_state.name}")
         self.state = new_state
         if self.vcfg.DEBUG_PUBLISH:
-            self.zenoh.publish(self.vcfg.ZENOH_TOPIC_STATE, {
-                "state": new_state.name,
-                "timestamp": time.time(),
-            })
+            payload = {"state": new_state.name, "timestamp": time.time()}
+            if new_state == OverallState.APPROACH_PARKING:
+                payload["phase"] = self._approach_phase
+            self.zenoh.publish(self.vcfg.ZENOH_TOPIC_STATE, payload)
 
     # ----------------------------------------------------------
     # Initialization
@@ -1060,6 +1066,7 @@ class VisionService:
             "processed_id": self.processed_count,
             "timestamp": time.time(),
             "state": self.state.name,
+            "phase": self._approach_phase if self.state == OverallState.APPROACH_PARKING else None,
             "detections": [
                 {
                     "class": d.class_name,
