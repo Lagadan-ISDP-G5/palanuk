@@ -144,6 +144,15 @@ NAV_CMD_RECIPES: Dict[str, List[Tuple[str, Union[int, float]]]] = {
         ("palanuk/bstn/steercmd",   0),
     ],
 
+    # ── Bang-bang correction (AnC-side correction, speed=0 + drivestate=1) ──
+    "BANG_BANG_CORRECT": [
+        ("palanuk/bstn/loopmode",   0),
+        ("palanuk/bstn/speed",      0.0),
+        ("palanuk/bstn/forcepan",   0),
+        ("palanuk/bstn/drivestate", 1),
+        ("palanuk/bstn/steercmd",   0),
+    ],
+
     # ── Camera pan ──
     "PAN_CAMERA_RIGHT": [
         ("palanuk/bstn/forcepan",   2),

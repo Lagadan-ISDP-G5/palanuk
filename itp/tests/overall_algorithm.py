@@ -147,6 +147,10 @@ class VisionConfig:
     APPROACH_STOP_S: float = 0.5               # stopped, waiting before panning right
     APPROACH_PAN_RIGHT_S: float = 2.0          # stopped, scanning for slot
 
+    # Bang-bang correction
+    BANGBANG_TIMEOUT_S: float = 5.0            # safety timeout if motors never reach 0
+    MOTOR_SPEED_ZERO_THRESHOLD: float = 0.01   # consider motor "stopped" below this
+
     # Zenoh topics — core (always active)
     # Nav command topics are defined per-command in NAV_CMD_RECIPES (parking_service.py)
 
@@ -298,6 +302,55 @@ class FrameGrabber:
 
 
 # ============================================================
+# Motor Speed Monitor
+# ============================================================
+
+class MotorSpeedMonitor:
+    """
+    Subscribes to actual motor speeds from AnC (encoder feedback).
+    Used to detect when a maneuver has physically completed.
+
+    Zenoh topics:
+      palanuk/anc/lmtr-actual-speed  (f32, normalized RPM)
+      palanuk/anc/rmtr-actual-speed  (f32, normalized RPM)
+    """
+
+    TOPIC_LMTR = "palanuk/anc/lmtr-actual-speed"
+    TOPIC_RMTR = "palanuk/anc/rmtr-actual-speed"
+
+    def __init__(self, threshold: float = 0.01):
+        self.lmtr_speed: float = 0.0
+        self.rmtr_speed: float = 0.0
+        self.threshold = threshold
+        self._lock = threading.Lock()
+
+    def on_lmtr_speed(self, sample):
+        try:
+            import msgpack
+            raw = bytes(sample.payload) if not isinstance(sample.payload, bytes) else sample.payload
+            speed = msgpack.unpackb(raw)
+            with self._lock:
+                self.lmtr_speed = abs(float(speed))
+        except Exception as e:
+            logger.warning(f"Bad lmtr speed payload: {e}")
+
+    def on_rmtr_speed(self, sample):
+        try:
+            import msgpack
+            raw = bytes(sample.payload) if not isinstance(sample.payload, bytes) else sample.payload
+            speed = msgpack.unpackb(raw)
+            with self._lock:
+                self.rmtr_speed = abs(float(speed))
+        except Exception as e:
+            logger.warning(f"Bad rmtr speed payload: {e}")
+
+    def both_stopped(self) -> bool:
+        with self._lock:
+            return (self.lmtr_speed < self.threshold and
+                    self.rmtr_speed < self.threshold)
+
+
+# ============================================================
 # Color Generator
 # ============================================================
 
@@ -348,10 +401,15 @@ class VisionService:
             found_thresh=vcfg.SLOT_DEBOUNCE_FRAMES, lost_thresh=5
         )
 
+        # Motor speed monitor (for bang-bang completion detection)
+        self.motor_monitor = MotorSpeedMonitor(
+            threshold=vcfg.MOTOR_SPEED_ZERO_THRESHOLD
+        )
+
         # Fire-once guards
         self._parked_triggered: bool = False
 
-        # Approach parking — cycle phase: "center", "stopping", "right"
+        # Approach parking — cycle phase: "center", "bangbang", "stopping", "right"
         self._approach_phase: str = "right"
         self._approach_phase_time: float = 0.0
 
@@ -529,11 +587,24 @@ class VisionService:
         now = time.time()
         elapsed = now - self._approach_phase_time
 
-        # --- Three-phase cycle: center (lane track) → stopping → right (scan) → ... ---
+        # --- Cycle: center (lane track) → bangbang (correct) → stopping → right (scan) → ... ---
         if self._approach_phase == "center":
-            # Pi is lane tracking forward. After duration, stop.
+            # Pi is lane tracking forward. After duration, trigger bang-bang correction.
             if elapsed >= self.vcfg.APPROACH_PAN_CENTER_S:
-                logger.debug("Approach: stopping before pan right")
+                logger.debug("Approach: sending bang-bang correction")
+                self._send_nav(NavCommand(command="BANG_BANG_CORRECT"))
+                self._approach_phase = "bangbang"
+                self._approach_phase_time = now
+
+        elif self._approach_phase == "bangbang":
+            # Wait for AnC bang-bang correction to finish (motors reach 0)
+            if self.motor_monitor.both_stopped() and elapsed > 0.1:
+                logger.debug("Approach: bang-bang complete (motors stopped)")
+                self._send_nav(NavCommand(command="STOP"))
+                self._approach_phase = "stopping"
+                self._approach_phase_time = now
+            elif elapsed >= self.vcfg.BANGBANG_TIMEOUT_S:
+                logger.warning("Approach: bang-bang timeout — forcing stop")
                 self._send_nav(NavCommand(command="STOP"))
                 self._approach_phase = "stopping"
                 self._approach_phase_time = now
@@ -701,6 +772,12 @@ class VisionService:
         if self.vcfg.DEBUG_PUBLISH:
             self.zenoh.declare_publisher(self.vcfg.ZENOH_TOPIC_STATE)
             self.zenoh.declare_publisher(self.vcfg.ZENOH_TOPIC_DETECTIONS)
+
+        # Subscribe to motor speed feedback from AnC (for bang-bang completion)
+        self.zenoh.declare_subscriber(
+            MotorSpeedMonitor.TOPIC_LMTR, self.motor_monitor.on_lmtr_speed)
+        self.zenoh.declare_subscriber(
+            MotorSpeedMonitor.TOPIC_RMTR, self.motor_monitor.on_rmtr_speed)
 
         # Initialise all bstn topics to safe state (zenoh_topics.md requirement)
         logger.info("Initialising Zenoh topics to safe state")
