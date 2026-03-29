@@ -36,8 +36,7 @@ Zenoh Topics (Debug — toggle via DEBUG_PUBLISH):
 
 Overall States:
   LANE_FOLLOWING        — Pi handles lane tracking; vision watches for bumpers
-  APPROACH_PARKING      — Scanning for valid slot; initialising parking SM
-  PARKING               — Delegated to ParkingStateMachine
+  APPROACH_PARKING      — Scanning, parking, alignment, exit — all phases
   FINISHED              — Done
   ERROR                 — Something went wrong
 """
@@ -65,9 +64,7 @@ def _auto_device() -> str:
     return "cpu"
 
 from parking_service import (
-    ParkingStateMachine,
     ParkingConfig,
-    ParkingState,
     NavCommand,
     NAV_CMD_TOPICS,
     parse_detections,
@@ -91,7 +88,6 @@ class OverallState(Enum):
     INIT = auto()
     LANE_FOLLOWING = auto()
     APPROACH_PARKING = auto()
-    PARKING = auto()
     FINISHED = auto()
     ERROR = auto()
 
@@ -151,6 +147,24 @@ class VisionConfig:
     BANGBANG_STARTUP_S: float = 1.0            # buffer before checking motors — lets AnC start the correction
     BANGBANG_TIMEOUT_S: float = 5.0            # safety timeout if motors never reach 0
     MOTOR_SPEED_ZERO_THRESHOLD: float = 0.01   # consider motor "stopped" below this
+
+    # Parking trigger thresholds (in "right" phase)
+    PARK_READY_AREA: float = 0.35              # slot area fraction to trigger parking
+    PARK_READY_Y2: float = 0.85                # slot y2 / frame_height to trigger parking
+
+    # Parking phase durations (seconds)
+    PARK_PAN_SETTLE_S: float = 1.5             # wait for camera pan to settle
+    PARK_COAST_S: float = 1.0                  # lane track forward to get alongside slot
+    PARK_STOP_S: float = 0.5                   # settle after stopping
+    PARK_TURN_S: float = 2.0                   # wait for 90° turn to complete
+    PARK_ENTER_S: float = 1.5                  # drive forward into slot
+    PARK_DONE_S: float = 1.0                   # settle after parking
+    PARK_ROTATE_S: float = 2.0                 # wait for 180° rotation
+    PARK_EXIT_FWD_S: float = 1.5               # drive forward out of slot
+
+    # Alignment
+    PARK_ALIGN_TOLERANCE_PX: int = 30          # P_sign.cx vs slot.cx tolerance
+    ADJUST_PX_TO_S: float = 0.005              # pixel offset to drive duration factor
 
     # Zenoh topics — core (always active)
     # Nav command topics are defined per-command in NAV_CMD_RECIPES (parking_service.py)
@@ -395,8 +409,10 @@ class VisionService:
         # Zenoh
         self.zenoh = ZenohBridge()
 
-        # Parking state machine
-        self.parking_sm: Optional[ParkingStateMachine] = None
+        # Parking alignment state (for shimmy adjustment)
+        self._park_offset_px: float = 0.0       # P_sign.cx - slot.cx from last check
+        self._park_offset_dir: int = 0          # +1 = need forward, -1 = need reverse
+        self._adjust_drive_duration: float = 0.0  # computed from offset
 
         # Debounce trackers
         self.bumper_tracker = DebounceTracker(
@@ -414,10 +430,7 @@ class VisionService:
             threshold=vcfg.MOTOR_SPEED_ZERO_THRESHOLD
         )
 
-        # Fire-once guards
-        self._parked_triggered: bool = False
-
-        # Approach parking — cycle phase: "center", "bangbang", "stopping", "right"
+        # Approach parking — phase tracking
         self._approach_phase: str = "right"
         self._approach_phase_time: float = 0.0
 
@@ -517,8 +530,6 @@ class VisionService:
             self._state_lane_following(detections)
         elif self.state == OverallState.APPROACH_PARKING:
             self._state_approach_parking(result)
-        elif self.state == OverallState.PARKING:
-            self._state_parking(result)
 
     def _state_lane_following(self, detections: List[Detection]):
         """
@@ -578,25 +589,90 @@ class VisionService:
                 f"(area={best.area/frame_area:.2%}, "
                 f"cx={best.center_x:.1f}, cy={best.center_y:.1f})"
             )
-            logger.info("Entering APPROACH_PARKING — pan/lane-track cycle")
-            # Start by panning center and lane tracking forward
-            self._send_nav(NavCommand(command="PAN_CAMERA_CENTER"))
-            self._send_nav(NavCommand(command="RESUME_LANE_TRACKING"))
-            self._approach_phase = "center"
+            logger.info("Entering APPROACH_PARKING — pan right and scan immediately")
+            self._send_nav(NavCommand(command="STOP"))
+            self._send_nav(NavCommand(command="PAN_CAMERA_RIGHT"))
+            self._approach_phase = "right"
             self._approach_phase_time = time.time()
             self._set_state(OverallState.APPROACH_PARKING)
 
     def _state_approach_parking(self, result):
         """
-        APPROACH_PARKING: Repeatedly cycle between pan-right (scan for slot)
-        and pan-center (lane tracking). When panned right, check for a valid
-        parking slot. Once confirmed, coast with lane tracking then enter PARKING.
+        APPROACH_PARKING: Full parking sequence.
+
+        Approach cycle (scan for valid slot):
+          right → settling → center → bangbang → stopping → right → ...
+
+        Once valid slot is close enough (area + y2 thresholds):
+          park_pan_centre → park_coast → park_coast_stop → park_coast_bb
+          → park_face_slot → park_check
+          → (aligned) park_enter → park_done → park_rotate
+             → park_exit_fwd → park_exit_turn → park_exit_bb → LANE_FOLLOWING
+          → (not aligned) adjust_back → adjust_bb1 → adjust_drive
+             → adjust_drive_stop → adjust_bb2 → adjust_face_slot → park_check
         """
         now = time.time()
         elapsed = now - self._approach_phase_time
 
-        # --- Cycle: center (lane track) → bangbang (correct) → stopping → right (scan) → ... ---
-        if self._approach_phase == "center":
+        # ══════════════════════════════════════════════════════════
+        # APPROACH CYCLE — scan for valid slot
+        # ══════════════════════════════════════════════════════════
+
+        if self._approach_phase == "right":
+            # Stopped and panned right — scan for valid slot
+            self._send_nav(NavCommand(command="STOP"))
+
+            detections = parse_detections(result, self.class_names, self.vcfg.CONF_THRES)
+            frame_area = self.vcfg.IMG_SIZE ** 2
+            frame_h = self.vcfg.IMG_SIZE
+
+            slot_status_map = classify_all_slots(detections, self.pcfg)
+            valid_slots = [
+                d for d in detections
+                if d.class_name == self.pcfg.CLASS_PARKING_SLOT
+                and slot_status_map.get(id(d), "UNKNOWN") == "VALID"
+            ]
+
+            status = self.valid_slot_tracker.update(len(valid_slots) > 0)
+            if status in ("CONFIRMED_FOUND", "STILL_FOUND") and valid_slots:
+                best = max(valid_slots, key=lambda s: s.area)
+                area_frac = best.area / frame_area
+                y2_frac = best.y2 / frame_h
+
+                if area_frac >= self.vcfg.PARK_READY_AREA and y2_frac >= self.vcfg.PARK_READY_Y2:
+                    # Close enough — trigger parking
+                    logger.info(
+                        f"Parking triggered! slot area={area_frac:.2%}, "
+                        f"y2={y2_frac:.2%}, cx={best.center_x:.1f}"
+                    )
+                    logger.info("Panning centre to coast forward alongside slot")
+                    self._send_nav(NavCommand(command="PAN_CAMERA_CENTER"))
+                    self._approach_phase = "park_pan_centre"
+                    self._approach_phase_time = now
+                    return
+                else:
+                    logger.debug(
+                        f"Valid slot seen but not close enough "
+                        f"(area={area_frac:.2%}, y2={y2_frac:.2%})"
+                    )
+
+            # Time to go back to lane tracking
+            if elapsed >= self.vcfg.APPROACH_PAN_RIGHT_S:
+                logger.debug("Approach: panning center — waiting for camera to settle")
+                self._send_nav(NavCommand(command="PAN_CAMERA_CENTER"))
+                self._approach_phase = "settling"
+                self._approach_phase_time = now
+
+        elif self._approach_phase == "settling":
+            # Camera commanded to center — stay stopped until settled
+            self._send_nav(NavCommand(command="STOP"))
+            if elapsed >= self.vcfg.APPROACH_PAN_CENTER_SETTLE_S:
+                logger.debug("Approach: camera settled — resuming lane tracking")
+                self._send_nav(NavCommand(command="RESUME_LANE_TRACKING"))
+                self._approach_phase = "center"
+                self._approach_phase_time = now
+
+        elif self._approach_phase == "center":
             # Pi is lane tracking forward. After duration, trigger bang-bang correction.
             if elapsed >= self.vcfg.APPROACH_PAN_CENTER_S:
                 logger.debug("Approach: sending bang-bang correction")
@@ -605,7 +681,7 @@ class VisionService:
                 self._approach_phase_time = now
 
         elif self._approach_phase == "bangbang":
-            # Wait for AnC bang-bang correction to finish (motors reach 0)
+            # Wait for AnC bang-bang correction to finish
             if self.motor_monitor.both_stopped() and elapsed > self.vcfg.BANGBANG_STARTUP_S:
                 logger.debug("Approach: bang-bang complete (motors stopped)")
                 self._send_nav(NavCommand(command="STOP"))
@@ -618,7 +694,7 @@ class VisionService:
                 self._approach_phase_time = now
 
         elif self._approach_phase == "stopping":
-            # Keep sending stop until settled, then pan right
+            # Settled — pan right to scan again
             self._send_nav(NavCommand(command="STOP"))
             if elapsed >= self.vcfg.APPROACH_STOP_S:
                 logger.debug("Approach: panning right to scan for slot")
@@ -626,77 +702,247 @@ class VisionService:
                 self._approach_phase = "right"
                 self._approach_phase_time = now
 
-        elif self._approach_phase == "right":
-            # Stopped and panned right — keep motors stopped, scan for slot
+        # ══════════════════════════════════════════════════════════
+        # PARKING — coast forward to get alongside
+        # ══════════════════════════════════════════════════════════
+
+        elif self._approach_phase == "park_pan_centre":
+            # Wait for camera to settle at centre before driving
+            self._send_nav(NavCommand(command="STOP"))
+            if elapsed >= self.vcfg.PARK_PAN_SETTLE_S:
+                logger.info("Park: camera centred — lane tracking forward to get alongside")
+                self._send_nav(NavCommand(command="RESUME_LANE_TRACKING"))
+                self._approach_phase = "park_coast"
+                self._approach_phase_time = now
+
+        elif self._approach_phase == "park_coast":
+            # Lane tracking forward for fixed duration
+            if elapsed >= self.vcfg.PARK_COAST_S:
+                logger.info("Park: coast complete — stopping")
+                self._send_nav(NavCommand(command="STOP"))
+                self._approach_phase = "park_coast_stop"
+                self._approach_phase_time = now
+
+        elif self._approach_phase == "park_coast_stop":
+            # Wait for robot to settle
+            self._send_nav(NavCommand(command="STOP"))
+            if elapsed >= self.vcfg.PARK_STOP_S:
+                logger.info("Park: sending bang-bang correction after coast")
+                self._send_nav(NavCommand(command="BANG_BANG_CORRECT"))
+                self._approach_phase = "park_coast_bb"
+                self._approach_phase_time = now
+
+        elif self._approach_phase == "park_coast_bb":
+            # Wait for bang-bang to finish
+            if self.motor_monitor.both_stopped() and elapsed > self.vcfg.BANGBANG_STARTUP_S:
+                logger.info("Park: bang-bang complete — turning right to face slot")
+                self._send_nav(NavCommand(command="STOP"))
+                self._send_nav(NavCommand(command="TURN_RIGHT_90"))
+                self._approach_phase = "park_face_slot"
+                self._approach_phase_time = now
+            elif elapsed >= self.vcfg.BANGBANG_TIMEOUT_S:
+                logger.warning("Park: bang-bang timeout — turning anyway")
+                self._send_nav(NavCommand(command="STOP"))
+                self._send_nav(NavCommand(command="TURN_RIGHT_90"))
+                self._approach_phase = "park_face_slot"
+                self._approach_phase_time = now
+
+        elif self._approach_phase == "park_face_slot":
+            # Wait for turn to complete
+            if elapsed >= self.vcfg.PARK_TURN_S:
+                logger.info("Park: facing slot — checking alignment")
+                self._send_nav(NavCommand(command="STOP"))
+                self._approach_phase = "park_check"
+                self._approach_phase_time = now
+
+        # ══════════════════════════════════════════════════════════
+        # PARKING — alignment check
+        # ══════════════════════════════════════════════════════════
+
+        elif self._approach_phase == "park_check":
+            # Camera is centre, robot faces slot. Measure P_sign vs slot offset.
             self._send_nav(NavCommand(command="STOP"))
 
             detections = parse_detections(result, self.class_names, self.vcfg.CONF_THRES)
-            frame_area = self.vcfg.IMG_SIZE ** 2
+            slots = [d for d in detections if d.class_name == self.pcfg.CLASS_PARKING_SLOT]
+            p_signs = [d for d in detections if d.class_name == self.pcfg.CLASS_P_SIGN]
 
-            slot_status_map = classify_all_slots(detections, self.pcfg)
-            valid_slots = [
-                d for d in detections
-                if d.class_name == self.pcfg.CLASS_PARKING_SLOT
-                and slot_status_map.get(id(d), "UNKNOWN") == "VALID"
-                and d.area / frame_area >= self.vcfg.VALID_PARKING_AREA_THRESHOLD
-            ]
+            if slots and p_signs:
+                slot = max(slots, key=lambda s: s.area)
+                sign = min(p_signs, key=lambda s: abs(s.center_x - slot.center_x))
+                offset_px = sign.center_x - slot.center_x
 
-            status = self.valid_slot_tracker.update(len(valid_slots) > 0)
-            if status == "CONFIRMED_FOUND":
-                best = max(valid_slots, key=lambda s: s.area)
                 logger.info(
-                    f"Valid parking slot confirmed "
-                    f"(area={best.area/frame_area:.2%}, "
-                    f"cx={best.center_x:.1f}, cy={best.center_y:.1f})"
+                    f"Park check: slot.cx={slot.center_x:.1f}, "
+                    f"sign.cx={sign.center_x:.1f}, offset={offset_px:.1f}px"
                 )
-                logger.info("Panning center — lane tracking while coasting to slot")
-                self._send_nav(NavCommand(command="PAN_CAMERA_CENTER"))
-                self._send_nav(NavCommand(command="RESUME_LANE_TRACKING"))
 
-                logger.info("Initializing parking state machine")
-                self.parking_sm = ParkingStateMachine(
-                    self.pcfg,
-                    on_command=self._parking_command_handler,
+                if abs(offset_px) <= self.vcfg.PARK_ALIGN_TOLERANCE_PX:
+                    # Aligned — drive into slot
+                    logger.info("Park: ALIGNED — driving into slot")
+                    self._send_nav(NavCommand(command="DRIVE_FORWARD"))
+                    self._approach_phase = "park_enter"
+                    self._approach_phase_time = now
+                else:
+                    # Not aligned — need shimmy adjustment
+                    # Positive offset = sign is right of slot = robot needs to move forward
+                    # Negative offset = sign is left of slot = robot needs to move backward
+                    self._park_offset_px = offset_px
+                    self._park_offset_dir = 1 if offset_px > 0 else -1
+                    logger.info(
+                        f"Park: NOT aligned (offset={offset_px:.1f}px) — "
+                        f"adjusting {'forward' if self._park_offset_dir > 0 else 'reverse'}"
+                    )
+                    self._send_nav(NavCommand(command="TURN_LEFT_90"))
+                    self._approach_phase = "adjust_back"
+                    self._approach_phase_time = now
+            else:
+                # Can't see both slot and sign — wait for next frame
+                logger.debug(
+                    f"Park check: waiting for detections "
+                    f"(slots={len(slots)}, signs={len(p_signs)})"
                 )
-                self._parked_triggered = False
-                self._set_state(OverallState.PARKING)
-                return
 
-            # Time to go back to lane tracking
-            if elapsed >= self.vcfg.APPROACH_PAN_RIGHT_S:
-                logger.debug("Approach: panning center — waiting for camera to settle")
-                self._send_nav(NavCommand(command="PAN_CAMERA_CENTER"))
-                self._approach_phase = "settling"
+        # ══════════════════════════════════════════════════════════
+        # PARKING — aligned, enter slot
+        # ══════════════════════════════════════════════════════════
+
+        elif self._approach_phase == "park_enter":
+            # Driving forward into slot
+            if elapsed >= self.vcfg.PARK_ENTER_S:
+                logger.info("Park: in slot — stopping")
+                self._send_nav(NavCommand(command="STOP"))
+                self._approach_phase = "park_done"
                 self._approach_phase_time = now
 
-        elif self._approach_phase == "settling":
-            # Camera commanded to center but not there yet — stay stopped
+        elif self._approach_phase == "park_done":
+            # Parked, settle before rotating
             self._send_nav(NavCommand(command="STOP"))
-            if elapsed >= self.vcfg.APPROACH_PAN_CENTER_SETTLE_S:
-                logger.debug("Approach: camera settled — resuming lane tracking")
-                self._send_nav(NavCommand(command="RESUME_LANE_TRACKING"))
-                self._approach_phase = "center"
+            if elapsed >= self.vcfg.PARK_DONE_S:
+                logger.info("Park: PARKED — rotating 180°")
+                self._send_nav(NavCommand(command="ROTATE_180"))
+                self._approach_phase = "park_rotate"
                 self._approach_phase_time = now
 
-    def _state_parking(self, result):
-        """
-        PARKING: Delegate all frame processing to ParkingStateMachine.
-        """
-        parking_state = self.parking_sm.process_frame(result, self.class_names)
+        elif self._approach_phase == "park_rotate":
+            # Wait for 180° rotation
+            if elapsed >= self.vcfg.PARK_ROTATE_S:
+                logger.info("Park: rotation complete — driving out of slot")
+                self._send_nav(NavCommand(command="STOP"))
+                self._send_nav(NavCommand(command="DRIVE_FORWARD"))
+                self._approach_phase = "park_exit_fwd"
+                self._approach_phase_time = now
 
-        if parking_state == ParkingState.PARKED and not self._parked_triggered:
-            self._parked_triggered = True
-            logger.info("Robot is PARKED — triggering exit after 1s")
-            time.sleep(1.0)
-            self.parking_sm.trigger_exit()
+        elif self._approach_phase == "park_exit_fwd":
+            # Driving forward out of slot
+            if elapsed >= self.vcfg.PARK_EXIT_FWD_S:
+                logger.info("Park: out of slot — turning right into lane")
+                self._send_nav(NavCommand(command="STOP"))
+                self._send_nav(NavCommand(command="TURN_RIGHT_90"))
+                self._approach_phase = "park_exit_turn"
+                self._approach_phase_time = now
 
-        elif parking_state == ParkingState.COMPLETE:
-            logger.info("Parking complete")
-            self._set_state(OverallState.FINISHED)
+        elif self._approach_phase == "park_exit_turn":
+            # Wait for turn into lane
+            if elapsed >= self.vcfg.PARK_TURN_S:
+                logger.info("Park: in lane — bang-bang correction")
+                self._send_nav(NavCommand(command="STOP"))
+                self._send_nav(NavCommand(command="BANG_BANG_CORRECT"))
+                self._approach_phase = "park_exit_bb"
+                self._approach_phase_time = now
 
-        elif parking_state == ParkingState.FAILED:
-            logger.error("Parking FAILED")
-            self._set_state(OverallState.ERROR)
+        elif self._approach_phase == "park_exit_bb":
+            # Wait for bang-bang to finish, then resume lane following
+            if self.motor_monitor.both_stopped() and elapsed > self.vcfg.BANGBANG_STARTUP_S:
+                logger.info("Park: bang-bang complete — resuming lane following")
+                self._send_nav(NavCommand(command="STOP"))
+                self._send_nav(NavCommand(command="RESUME_LANE_TRACKING"))
+                self._set_state(OverallState.LANE_FOLLOWING)
+            elif elapsed >= self.vcfg.BANGBANG_TIMEOUT_S:
+                logger.warning("Park: exit bang-bang timeout — resuming lane following anyway")
+                self._send_nav(NavCommand(command="STOP"))
+                self._send_nav(NavCommand(command="RESUME_LANE_TRACKING"))
+                self._set_state(OverallState.LANE_FOLLOWING)
+
+        # ══════════════════════════════════════════════════════════
+        # SHIMMY ADJUSTMENT — not aligned, correct position
+        # ══════════════════════════════════════════════════════════
+
+        elif self._approach_phase == "adjust_back":
+            # Turning left 90° back to lane
+            if elapsed >= self.vcfg.PARK_TURN_S:
+                logger.info("Adjust: back in lane — bang-bang correction")
+                self._send_nav(NavCommand(command="STOP"))
+                self._send_nav(NavCommand(command="BANG_BANG_CORRECT"))
+                self._approach_phase = "adjust_bb1"
+                self._approach_phase_time = now
+
+        elif self._approach_phase == "adjust_bb1":
+            # Wait for bang-bang after rotating back to lane
+            if self.motor_monitor.both_stopped() and elapsed > self.vcfg.BANGBANG_STARTUP_S:
+                logger.info("Adjust: bang-bang complete — driving to correct offset")
+                self._send_nav(NavCommand(command="STOP"))
+                drive_duration = abs(self._park_offset_px) * self.vcfg.ADJUST_PX_TO_S
+                self._adjust_drive_duration = max(0.3, min(drive_duration, 3.0))  # clamp
+                if self._park_offset_dir > 0:
+                    logger.info(f"Adjust: driving FORWARD for {self._adjust_drive_duration:.2f}s")
+                    self._send_nav(NavCommand(command="RESUME_LANE_TRACKING"))
+                else:
+                    logger.info(f"Adjust: driving REVERSE for {self._adjust_drive_duration:.2f}s")
+                    self._send_nav(NavCommand(command="DRIVE_REVERSE"))
+                self._approach_phase = "adjust_drive"
+                self._approach_phase_time = now
+            elif elapsed >= self.vcfg.BANGBANG_TIMEOUT_S:
+                logger.warning("Adjust: bb1 timeout — driving anyway")
+                self._send_nav(NavCommand(command="STOP"))
+                drive_duration = abs(self._park_offset_px) * self.vcfg.ADJUST_PX_TO_S
+                self._adjust_drive_duration = max(0.3, min(drive_duration, 3.0))
+                if self._park_offset_dir > 0:
+                    self._send_nav(NavCommand(command="RESUME_LANE_TRACKING"))
+                else:
+                    self._send_nav(NavCommand(command="DRIVE_REVERSE"))
+                self._approach_phase = "adjust_drive"
+                self._approach_phase_time = now
+
+        elif self._approach_phase == "adjust_drive":
+            # Driving forward or reverse to correct lateral offset
+            if elapsed >= self._adjust_drive_duration:
+                logger.info("Adjust: drive complete — stopping")
+                self._send_nav(NavCommand(command="STOP"))
+                self._approach_phase = "adjust_drive_stop"
+                self._approach_phase_time = now
+
+        elif self._approach_phase == "adjust_drive_stop":
+            # Settle after adjustment drive
+            self._send_nav(NavCommand(command="STOP"))
+            if elapsed >= self.vcfg.PARK_STOP_S:
+                logger.info("Adjust: bang-bang correction after drive")
+                self._send_nav(NavCommand(command="BANG_BANG_CORRECT"))
+                self._approach_phase = "adjust_bb2"
+                self._approach_phase_time = now
+
+        elif self._approach_phase == "adjust_bb2":
+            # Wait for bang-bang after adjustment drive
+            if self.motor_monitor.both_stopped() and elapsed > self.vcfg.BANGBANG_STARTUP_S:
+                logger.info("Adjust: bang-bang complete — turning right to face slot")
+                self._send_nav(NavCommand(command="STOP"))
+                self._send_nav(NavCommand(command="TURN_RIGHT_90"))
+                self._approach_phase = "adjust_face_slot"
+                self._approach_phase_time = now
+            elif elapsed >= self.vcfg.BANGBANG_TIMEOUT_S:
+                logger.warning("Adjust: bb2 timeout — turning anyway")
+                self._send_nav(NavCommand(command="STOP"))
+                self._send_nav(NavCommand(command="TURN_RIGHT_90"))
+                self._approach_phase = "adjust_face_slot"
+                self._approach_phase_time = now
+
+        elif self._approach_phase == "adjust_face_slot":
+            # Wait for turn to complete, then re-check alignment
+            if elapsed >= self.vcfg.PARK_TURN_S:
+                logger.info("Adjust: facing slot again — re-checking alignment")
+                self._send_nav(NavCommand(command="STOP"))
+                self._approach_phase = "park_check"
+                self._approach_phase_time = now
 
     # ----------------------------------------------------------
     # Nav Command Publishing
@@ -706,10 +952,6 @@ class VisionService:
         """Send a navigation command to AnC via Zenoh (recipe of topic+value pairs)."""
         logger.info(f"NAV >> {cmd.command}  {cmd.to_dict()['topics']}")
         cmd.publish_all(self.zenoh)
-
-    def _parking_command_handler(self, cmd: NavCommand):
-        """Callback from ParkingStateMachine — forward to AnC."""
-        self._send_nav(cmd)
 
     def _publish_detections(self, detections: List[Detection]):
         """Publish detection summary to AnC."""
@@ -905,8 +1147,8 @@ class VisionService:
 
         # State info — left side
         state_text = f"STATE: {self.state.name}"
-        if self.state == OverallState.PARKING and self.parking_sm:
-            state_text += f" | PARK: {self.parking_sm.state.name}"
+        if self.state == OverallState.APPROACH_PARKING:
+            state_text += f" | PHASE: {self._approach_phase}"
         cv2.putText(annotated, state_text, (10, 25),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 200, 255), 2)
 
