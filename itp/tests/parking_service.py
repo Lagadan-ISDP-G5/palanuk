@@ -62,7 +62,7 @@ NAV_CMD_RECIPES: Dict[str, List[Tuple[str, Union[int, float]]]] = {
     # ── Resume lane tracking (release control to Pi) ──
     "RESUME_LANE_TRACKING": [
         ("palanuk/bstn/loopmode",       1),
-        ("palanuk/bstn/speed",      0.015),
+        ("palanuk/bstn/speed",      0.02),
         ("palanuk/bstn/drivestate",     1)
     ],
 
@@ -123,7 +123,7 @@ NAV_CMD_RECIPES: Dict[str, List[Tuple[str, Union[int, float]]]] = {
     # ── Drive forward ──
     "DRIVE_FORWARD": [
         ("palanuk/bstn/loopmode",   0),
-        ("palanuk/bstn/speed",      0.01),
+        ("palanuk/bstn/speed",      0.02),
         ("palanuk/bstn/drivestate", 1),
         ("palanuk/bstn/steercmd",   0),
     ],

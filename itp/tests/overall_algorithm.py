@@ -142,10 +142,10 @@ class VisionConfig:
     SLOT_DEBOUNCE_FRAMES: int = 3
 
     # Approach parking — phase durations (seconds)
-    APPROACH_PAN_CENTER_SETTLE_S: float = 4.0  # wait for camera to reach center before moving
-    APPROACH_PAN_CENTER_S: float = 1.5         # drive forward with lane tracking
+    APPROACH_PAN_CENTER_SETTLE_S: float = 2.0  # wait for camera to reach center before moving
+    APPROACH_PAN_CENTER_S: float = 0.5         # drive forward with lane tracking
     APPROACH_STOP_S: float = 0.5               # stopped, waiting before panning right
-    APPROACH_PAN_RIGHT_S: float = 4.0          # stopped, scanning for slot
+    APPROACH_PAN_RIGHT_S: float = 2.0          # stopped, scanning for slot
 
     # Zenoh topics — core (always active)
     # Nav command topics are defined per-command in NAV_CMD_RECIPES (parking_service.py)
