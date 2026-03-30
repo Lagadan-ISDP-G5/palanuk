@@ -42,9 +42,8 @@ cv::Mat threshold_white_line(const cv::Mat& img, const PipelineConfig& config) {
 
         bool is_long = longer > config.min_contour_length;
         bool is_elongated = aspect_ratio > config.min_aspect_ratio;
-        bool is_narrow = shorter < config.max_contour_width;
 
-        if ((is_long || is_elongated)) {
+        if (is_elongated && is_long) {
             cv::drawContours(thresh, std::vector<std::vector<cv::Point>>{contour}, 0, 255, cv::FILLED);
         }
     }

@@ -3,6 +3,7 @@
 #include "line_detection.h"
 #include "corner_detection.h"
 #include <opencv2/core.hpp>
+#include <opencv2/imgproc.hpp>
 
 namespace nsm {
 
@@ -31,9 +32,13 @@ const FrameResult& Pipeline::process(const cv::Mat& frame) {
         cv::bitwise_not(result_.thresholded, result_.thresholded);
     }
 
-    // Subtract yellow mask from threshold to kill any blur bleed-through
+    // Subtract dilated yellow mask from threshold to kill blur bleed-through and specular reflections on tape
     if (config_.mask_yellow) {
-        cv::bitwise_and(result_.thresholded, ~yellow_mask_scratch_, result_.thresholded);
+        cv::Mat dilated_yellow;
+        cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE,
+            cv::Size(config_.yellow_mask_dilate_size, config_.yellow_mask_dilate_size));
+        cv::dilate(yellow_mask_scratch_, dilated_yellow, kernel);
+        cv::bitwise_and(result_.thresholded, ~dilated_yellow, result_.thresholded);
     }
 
     // Stage 2: Line detection
