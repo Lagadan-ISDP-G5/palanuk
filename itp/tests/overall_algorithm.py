@@ -433,6 +433,7 @@ class VisionService:
         # Approach parking — phase tracking
         self._approach_phase: str = "right"
         self._approach_phase_time: float = 0.0
+        self._bangbang_motor_seen: bool = False  # two-phase: True once motors move
 
         # Logging
         self.log_file = None
@@ -677,17 +678,19 @@ class VisionService:
             if elapsed >= self.vcfg.APPROACH_PAN_CENTER_S:
                 logger.debug("Approach: sending bang-bang correction")
                 self._send_nav(NavCommand(command="BANG_BANG_CORRECT"))
+                self._bangbang_motor_seen = False
                 self._approach_phase = "bangbang"
                 self._approach_phase_time = now
 
         elif self._approach_phase == "bangbang":
-            # Wait for AnC bang-bang correction to finish
-            if self.motor_monitor.both_stopped() and elapsed > self.vcfg.BANGBANG_STARTUP_S:
+            # Wait for AnC bang-bang correction to finish (two-phase)
+            bb = self._bangbang_done(elapsed)
+            if bb == "complete":
                 logger.debug("Approach: bang-bang complete (motors stopped)")
                 self._send_nav(NavCommand(command="STOP"))
                 self._approach_phase = "stopping"
                 self._approach_phase_time = now
-            elif elapsed >= self.vcfg.BANGBANG_TIMEOUT_S:
+            elif bb == "timeout":
                 logger.warning("Approach: bang-bang timeout — forcing stop")
                 self._send_nav(NavCommand(command="STOP"))
                 self._approach_phase = "stopping"
@@ -729,18 +732,20 @@ class VisionService:
             if elapsed >= self.vcfg.PARK_STOP_S:
                 logger.info("Park: sending bang-bang correction after coast")
                 self._send_nav(NavCommand(command="BANG_BANG_CORRECT"))
+                self._bangbang_motor_seen = False
                 self._approach_phase = "park_coast_bb"
                 self._approach_phase_time = now
 
         elif self._approach_phase == "park_coast_bb":
-            # Wait for bang-bang to finish
-            if self.motor_monitor.both_stopped() and elapsed > self.vcfg.BANGBANG_STARTUP_S:
+            # Wait for bang-bang to finish (two-phase)
+            bb = self._bangbang_done(elapsed)
+            if bb == "complete":
                 logger.info("Park: bang-bang complete — turning right to face slot")
                 self._send_nav(NavCommand(command="STOP"))
                 self._send_nav(NavCommand(command="TURN_RIGHT_90"))
                 self._approach_phase = "park_face_slot"
                 self._approach_phase_time = now
-            elif elapsed >= self.vcfg.BANGBANG_TIMEOUT_S:
+            elif bb == "timeout":
                 logger.warning("Park: bang-bang timeout — turning anyway")
                 self._send_nav(NavCommand(command="STOP"))
                 self._send_nav(NavCommand(command="TURN_RIGHT_90"))
@@ -848,17 +853,19 @@ class VisionService:
                 logger.info("Park: in lane — bang-bang correction")
                 self._send_nav(NavCommand(command="STOP"))
                 self._send_nav(NavCommand(command="BANG_BANG_CORRECT"))
+                self._bangbang_motor_seen = False
                 self._approach_phase = "park_exit_bb"
                 self._approach_phase_time = now
 
         elif self._approach_phase == "park_exit_bb":
-            # Wait for bang-bang to finish, then resume lane following
-            if self.motor_monitor.both_stopped() and elapsed > self.vcfg.BANGBANG_STARTUP_S:
+            # Wait for bang-bang to finish, then resume lane following (two-phase)
+            bb = self._bangbang_done(elapsed)
+            if bb == "complete":
                 logger.info("Park: bang-bang complete — resuming lane following")
                 self._send_nav(NavCommand(command="STOP"))
                 self._send_nav(NavCommand(command="RESUME_LANE_TRACKING"))
                 self._set_state(OverallState.LANE_FOLLOWING)
-            elif elapsed >= self.vcfg.BANGBANG_TIMEOUT_S:
+            elif bb == "timeout":
                 logger.warning("Park: exit bang-bang timeout — resuming lane following anyway")
                 self._send_nav(NavCommand(command="STOP"))
                 self._send_nav(NavCommand(command="RESUME_LANE_TRACKING"))
@@ -874,32 +881,26 @@ class VisionService:
                 logger.info("Adjust: back in lane — bang-bang correction")
                 self._send_nav(NavCommand(command="STOP"))
                 self._send_nav(NavCommand(command="BANG_BANG_CORRECT"))
+                self._bangbang_motor_seen = False
                 self._approach_phase = "adjust_bb1"
                 self._approach_phase_time = now
 
         elif self._approach_phase == "adjust_bb1":
-            # Wait for bang-bang after rotating back to lane
-            if self.motor_monitor.both_stopped() and elapsed > self.vcfg.BANGBANG_STARTUP_S:
-                logger.info("Adjust: bang-bang complete — driving to correct offset")
+            # Wait for bang-bang after rotating back to lane (two-phase)
+            bb = self._bangbang_done(elapsed)
+            if bb in ("complete", "timeout"):
+                if bb == "timeout":
+                    logger.warning("Adjust: bb1 timeout — driving anyway")
+                else:
+                    logger.info("Adjust: bang-bang complete — driving to correct offset")
                 self._send_nav(NavCommand(command="STOP"))
                 drive_duration = abs(self._park_offset_px) * self.vcfg.ADJUST_PX_TO_S
-                self._adjust_drive_duration = max(0.3, min(drive_duration, 3.0))  # clamp
+                self._adjust_drive_duration = max(0.3, min(drive_duration, 3.0))
                 if self._park_offset_dir > 0:
                     logger.info(f"Adjust: driving FORWARD for {self._adjust_drive_duration:.2f}s")
                     self._send_nav(NavCommand(command="RESUME_LANE_TRACKING"))
                 else:
                     logger.info(f"Adjust: driving REVERSE for {self._adjust_drive_duration:.2f}s")
-                    self._send_nav(NavCommand(command="DRIVE_REVERSE"))
-                self._approach_phase = "adjust_drive"
-                self._approach_phase_time = now
-            elif elapsed >= self.vcfg.BANGBANG_TIMEOUT_S:
-                logger.warning("Adjust: bb1 timeout — driving anyway")
-                self._send_nav(NavCommand(command="STOP"))
-                drive_duration = abs(self._park_offset_px) * self.vcfg.ADJUST_PX_TO_S
-                self._adjust_drive_duration = max(0.3, min(drive_duration, 3.0))
-                if self._park_offset_dir > 0:
-                    self._send_nav(NavCommand(command="RESUME_LANE_TRACKING"))
-                else:
                     self._send_nav(NavCommand(command="DRIVE_REVERSE"))
                 self._approach_phase = "adjust_drive"
                 self._approach_phase_time = now
@@ -918,18 +919,20 @@ class VisionService:
             if elapsed >= self.vcfg.PARK_STOP_S:
                 logger.info("Adjust: bang-bang correction after drive")
                 self._send_nav(NavCommand(command="BANG_BANG_CORRECT"))
+                self._bangbang_motor_seen = False
                 self._approach_phase = "adjust_bb2"
                 self._approach_phase_time = now
 
         elif self._approach_phase == "adjust_bb2":
-            # Wait for bang-bang after adjustment drive
-            if self.motor_monitor.both_stopped() and elapsed > self.vcfg.BANGBANG_STARTUP_S:
+            # Wait for bang-bang after adjustment drive (two-phase)
+            bb = self._bangbang_done(elapsed)
+            if bb == "complete":
                 logger.info("Adjust: bang-bang complete — turning right to face slot")
                 self._send_nav(NavCommand(command="STOP"))
                 self._send_nav(NavCommand(command="TURN_RIGHT_90"))
                 self._approach_phase = "adjust_face_slot"
                 self._approach_phase_time = now
-            elif elapsed >= self.vcfg.BANGBANG_TIMEOUT_S:
+            elif bb == "timeout":
                 logger.warning("Adjust: bb2 timeout — turning anyway")
                 self._send_nav(NavCommand(command="STOP"))
                 self._send_nav(NavCommand(command="TURN_RIGHT_90"))
@@ -943,6 +946,34 @@ class VisionService:
                 self._send_nav(NavCommand(command="STOP"))
                 self._approach_phase = "park_check"
                 self._approach_phase_time = now
+
+    # ----------------------------------------------------------
+    # Bang-bang two-phase completion
+    # ----------------------------------------------------------
+
+    def _bangbang_done(self, elapsed: float):
+        """
+        Two-phase check: wait for motors to START moving, then wait for
+        them to STOP.  Returns "complete", "timeout", or None.
+        """
+        if elapsed < self.vcfg.BANGBANG_STARTUP_S:
+            return None                          # startup buffer
+
+        if not self._bangbang_motor_seen:
+            if not self.motor_monitor.both_stopped():
+                self._bangbang_motor_seen = True  # correction started
+                return None
+            # Motors still at zero — haven't started yet
+            if elapsed >= self.vcfg.BANGBANG_TIMEOUT_S:
+                return "timeout"
+            return None
+
+        # Correction started — wait for motors to return to zero
+        if self.motor_monitor.both_stopped():
+            return "complete"
+        if elapsed >= self.vcfg.BANGBANG_TIMEOUT_S:
+            return "timeout"
+        return None
 
     # ----------------------------------------------------------
     # Nav Command Publishing
