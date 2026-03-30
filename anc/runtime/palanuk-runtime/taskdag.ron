@@ -20,7 +20,7 @@
             id: "opencv-iox2",
             type: "opencv_iox2::OpenCViox2",
             config: {
-                "heading_error_offset": 0.034,
+                "heading_error_offset": -0.03,
             },
         ),
 
@@ -382,9 +382,9 @@
             id: "lmtr-speed-ctrlr",
             type: "speed_ctrlrs::LmtrSpeedCtrlr",
             config: {
-                "kp": 0.008,
+                "kp": 0.01,
                 "kd": 0.0,
-                "ki": 0.000000002,
+                "ki": 0.0000000025,
                 "setpoint": 0.0,
                 "cutoff": 10.0,
             }
@@ -407,8 +407,9 @@
             type: "speed_correction_summer::SpeedCorrectionSummer",
             // config optional for k_ff_lmtr and k_ff_rmtr
             config: {
-                "k_ff_lmtr": 0.395,
-                "k_ff_rmtr": 0.375,
+                "k_ff_lmtr": 0.6, // 0.395,
+                "k_ff_rmtr": 0.275, // 0.375,
+                "max_pid_correction": 0.25,
                 "speed_correction": "enable", // "enable" or "disable"
             },
             logging: (enabled: true)

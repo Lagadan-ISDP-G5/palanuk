@@ -21,7 +21,7 @@ const FrameResult& Pipeline::process(const cv::Mat& frame) {
 
     // Stage 0.5: Mask out yellow regions (e.g. yellow-taped bumps)
     if (config_.mask_yellow) {
-        mask_out_yellow(after_warp, config_, yellow_masked_scratch_);
+        mask_out_yellow(after_warp, config_, yellow_masked_scratch_, yellow_mask_scratch_);
     }
     const cv::Mat& input = config_.mask_yellow ? yellow_masked_scratch_ : after_warp;
 
@@ -29,6 +29,11 @@ const FrameResult& Pipeline::process(const cv::Mat& frame) {
     result_.thresholded = threshold_white_line(input, config_);
     if (config_.invert_threshold) {
         cv::bitwise_not(result_.thresholded, result_.thresholded);
+    }
+
+    // Subtract yellow mask from threshold to kill any blur bleed-through
+    if (config_.mask_yellow) {
+        cv::bitwise_and(result_.thresholded, ~yellow_mask_scratch_, result_.thresholded);
     }
 
     // Stage 2: Line detection

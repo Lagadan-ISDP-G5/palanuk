@@ -46,7 +46,7 @@ void detect_line_sliding_window(const cv::Mat& thresh, const PipelineConfig& con
     }
 }
 
-void detect_horizontal_line(const cv::Mat& thresh, int start_y, const PipelineConfig& config, LineDetectionResult& out) {
+void detect_horizontal_line(const cv::Mat& thresh, int start_x, int start_y, const PipelineConfig& config, LineDetectionResult& out) {
     out.reset();
 
     int height = thresh.rows;
@@ -61,8 +61,9 @@ void detect_horizontal_line(const cv::Mat& thresh, int start_y, const PipelineCo
 
     int current_y = start_y;
 
+    // Scan rightward from the center line endpoint
     for (int i = 0; i < config.horiz_num_windows; i++) {
-        int x_left = i * window_width;
+        int x_left = start_x + i * window_width;
         int x_center = x_left + window_width / 2;
 
         int y_top = std::max(0, current_y - config.horiz_window_height / 2);
@@ -79,6 +80,9 @@ void detect_horizontal_line(const cv::Mat& thresh, int start_y, const PipelineCo
             int local_y = static_cast<int>(wm.m01 / wm.m00);
             current_y = y_top + local_y;
             out.points.emplace_back(x_center, current_y);
+        } else {
+            // Stop at the first gap — the horizontal line must be continuous from the endpoint
+            break;
         }
     }
 
@@ -87,7 +91,7 @@ void detect_horizontal_line(const cv::Mat& thresh, int start_y, const PipelineCo
 
         float vx = std::abs(out.fitted_line[0]);
         float vy = std::abs(out.fitted_line[1]);
-        bool is_horizontal = vx > vy * 2; // fitted line twice as long as it is wide ~= it's horizontal
+        bool is_horizontal = vx > vy * 2;
 
         float min_x = out.points.front().x;
         float max_x = out.points.back().x;

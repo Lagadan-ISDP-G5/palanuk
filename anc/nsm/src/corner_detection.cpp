@@ -49,7 +49,7 @@ void detect_L_corner(const cv::Mat& thresh, const LineDetectionResult& center_li
     }
 
     cv::Point2f endpoint = center_line.points.back();
-    detect_horizontal_line(thresh, static_cast<int>(endpoint.y), config, horiz_scratch);
+    detect_horizontal_line(thresh, static_cast<int>(endpoint.x), static_cast<int>(endpoint.y), config, horiz_scratch);
     detect_harris_corners(thresh, config, harris_scratch);
 
     cv::Point2f best_corner = endpoint;

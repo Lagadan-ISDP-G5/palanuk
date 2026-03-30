@@ -17,6 +17,7 @@ pub struct SpeedCorrectionSummer {
     last_output: Option<PropulsionPayload>,
     k_ff_lmtr: f32,
     k_ff_rmtr: f32,
+    max_pid_correction: f32,
     speed_correction_enabled: bool,
     #[reflect(ignore)]
     accelerating: bool,
@@ -30,6 +31,7 @@ impl Default for SpeedCorrectionSummer {
             last_output: None,
             k_ff_lmtr: 1.0,
             k_ff_rmtr: 1.0,
+            max_pid_correction: MAX_PID_CORRECTION,
             speed_correction_enabled: true,
             accelerating: false,
             accelerate_started: CuInstant::now(),
@@ -78,6 +80,11 @@ impl CuTask for SpeedCorrectionSummer {
                     "disable" => false,
                     _ => panic!("Invalid speed_correction value: \"{speed_correction}\". Valid values: \"enable\", \"disable\""),
                 };
+
+                if let Some(v) = kv.get("max_pid_correction") {
+                    let f: f64 = v.clone().into();
+                    inst.max_pid_correction = f as f32;
+                }
             },
             None => ()
         }
@@ -105,9 +112,9 @@ impl CuTask for SpeedCorrectionSummer {
                 eprintln!("ACCEL: overriding L=1.0 R=1.0");
             } else if self.speed_correction_enabled {
                 let lmtr_pid = lmtr_speed_ctrlr_outpload.map(|p| p.output).unwrap_or(0.0)
-                    .clamp(-MAX_PID_CORRECTION, MAX_PID_CORRECTION);
+                    .clamp(-self.max_pid_correction, self.max_pid_correction);
                 let rmtr_pid = rmtr_speed_ctrlr_outpload.map(|p| p.output).unwrap_or(0.0)
-                    .clamp(-MAX_PID_CORRECTION, MAX_PID_CORRECTION);
+                    .clamp(-self.max_pid_correction, self.max_pid_correction);
 
                 let lmtr_ff = ff.left_speed;
                 let rmtr_ff = ff.right_speed;

@@ -3,8 +3,8 @@
 
 namespace nsm {
 
-void mask_out_yellow(const cv::Mat& img, const PipelineConfig& config, cv::Mat& out) {
-    cv::Mat hsv, yellow_mask;
+void mask_out_yellow(const cv::Mat& img, const PipelineConfig& config, cv::Mat& out, cv::Mat& yellow_mask) {
+    cv::Mat hsv;
     cv::cvtColor(img, hsv, cv::COLOR_BGR2HSV);
     cv::inRange(hsv,
         cv::Scalar(config.yellow_h_low, config.yellow_s_low, config.yellow_v_low),
@@ -42,8 +42,9 @@ cv::Mat threshold_white_line(const cv::Mat& img, const PipelineConfig& config) {
 
         bool is_long = longer > config.min_contour_length;
         bool is_elongated = aspect_ratio > config.min_aspect_ratio;
+        bool is_narrow = shorter < config.max_contour_width;
 
-        if (is_long || is_elongated) {
+        if ((is_long || is_elongated)) {
             cv::drawContours(thresh, std::vector<std::vector<cv::Point>>{contour}, 0, 255, cv::FILLED);
         }
     }

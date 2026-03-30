@@ -63,6 +63,7 @@ struct PipelineConfig {
     // Contour filtering
     float min_contour_length = 50.0f;
     float min_aspect_ratio = 2.5f;
+    float max_contour_width = 60.0f;
 
     // Sliding window (vertical line)
     int num_windows = 10;
