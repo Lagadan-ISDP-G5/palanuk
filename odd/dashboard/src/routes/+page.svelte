@@ -61,7 +61,7 @@
     return '0h 0m';
   }
 
-  let carControls = { forward: false, backward: false, left: false, right: false };
+  let carControls = { forward: false, backward: false, left: false, right: false, corner_left: false, corner_right: false };
   let isStreaming = true;
   let controlMode = 'open';
   let isManualControlEnabled = true;
@@ -80,7 +80,7 @@
     carControls[direction] = true;
     if (wsClient) wsClient.send({ type: 'command', payload: direction });
     // Update drivestate for trail map integration
-    const dsMap = { forward: 1, backward: 2, left: 1, right: 1 };
+    const dsMap = { forward: 1, backward: 2, left: 1, right: 1, corner_left: 1, corner_right: 1 };
     if (dsMap[direction]) telemetryData.update(c => ({ ...c, drivestate: dsMap[direction] }));
   }
 
@@ -363,16 +363,27 @@
                 disabled={!isManualControlEnabled}
                 class="w-20 h-20 bg-gradient-to-br from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white rounded-xl flex items-center justify-center text-3xl font-bold shadow-lg transform hover:scale-110 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 {carControls.forward ? 'scale-105 shadow-2xl' : ''}">↑</button>
               <div class="flex space-x-8">
-                <button on:mousedown={() => startMovement('left')} on:mouseup={() => stopMovement('left')} on:mouseleave={() => stopMovement('left')}
+                <button on:mousedown={() => startMovement('corner_left')} on:mouseup={() => stopMovement('corner_left')} on:mouseleave={() => stopMovement('corner_left')}
                   disabled={!isManualControlEnabled}
-                  class="w-20 h-20 bg-gradient-to-br from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white rounded-xl flex items-center justify-center text-3xl font-bold shadow-lg transform hover:scale-110 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 {carControls.left ? 'scale-105 shadow-2xl' : ''}">←</button>
-                <button on:mousedown={() => startMovement('right')} on:mouseup={() => stopMovement('right')} on:mouseleave={() => stopMovement('right')}
+                  class="w-20 h-20 bg-gradient-to-br from-amber-600 to-yellow-700 hover:from-amber-700 hover:to-yellow-800 text-white rounded-xl flex items-center justify-center text-2xl font-bold shadow-lg transform hover:scale-110 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 {carControls.corner_left ? 'scale-105 shadow-2xl' : ''}">↺</button>
+                <button on:mousedown={() => startMovement('corner_right')} on:mouseup={() => stopMovement('corner_right')} on:mouseleave={() => stopMovement('corner_right')}
                   disabled={!isManualControlEnabled}
-                  class="w-20 h-20 bg-gradient-to-br from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white rounded-xl flex items-center justify-center text-3xl font-bold shadow-lg transform hover:scale-110 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 {carControls.right ? 'scale-105 shadow-2xl' : ''}">→</button>
+                  class="w-20 h-20 bg-gradient-to-br from-amber-600 to-yellow-700 hover:from-amber-700 hover:to-yellow-800 text-white rounded-xl flex items-center justify-center text-2xl font-bold shadow-lg transform hover:scale-110 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 {carControls.corner_right ? 'scale-105 shadow-2xl' : ''}">↻</button>
               </div>
               <button on:mousedown={() => startMovement('backward')} on:mouseup={() => stopMovement('backward')} on:mouseleave={() => stopMovement('backward')}
                 disabled={!isManualControlEnabled}
                 class="w-20 h-20 bg-gradient-to-br from-red-600 to-pink-700 hover:from-red-700 hover:to-pink-800 text-white rounded-xl flex items-center justify-center text-3xl font-bold shadow-lg transform hover:scale-110 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 {carControls.backward ? 'scale-105 shadow-2xl' : ''}">↓</button>
+              <div class="flex space-x-4 mt-4 items-center">
+                <button on:mousedown={() => startMovement('left')} on:mouseup={() => stopMovement('left')} on:mouseleave={() => stopMovement('left')}
+                  disabled={!isManualControlEnabled}
+                  class="w-20 h-20 bg-gradient-to-br from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white rounded-xl flex items-center justify-center text-xl font-bold shadow-lg transform hover:scale-110 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 {carControls.left ? 'scale-105 shadow-2xl' : ''}">📷←</button>
+                <button on:click={() => { if (wsClient) wsClient.send({ type: 'command', payload: 'pan_center' }); }}
+                  disabled={!isManualControlEnabled}
+                  class="w-20 h-20 bg-gradient-to-br from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white rounded-xl flex items-center justify-center text-xl font-bold shadow-lg transform hover:scale-110 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100">📷</button>
+                <button on:mousedown={() => startMovement('right')} on:mouseup={() => stopMovement('right')} on:mouseleave={() => stopMovement('right')}
+                  disabled={!isManualControlEnabled}
+                  class="w-20 h-20 bg-gradient-to-br from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white rounded-xl flex items-center justify-center text-xl font-bold shadow-lg transform hover:scale-110 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 {carControls.right ? 'scale-105 shadow-2xl' : ''}">→📷</button>
+              </div>
             </div>
             <div class="mt-6 text-center">
               <p class="text-red-200 font-medium">{isManualControlEnabled ? 'Manual Control' : 'Autonomous Mode'}</p>
