@@ -150,7 +150,6 @@
           <!-- Left Motor -->
           <div class="bg-gradient-to-br from-blue-900/50 to-cyan-900/50 rounded-2xl p-6 border border-blue-500/30 shadow-lg">
             <h2 class="text-xl font-bold text-white mb-4 flex items-center space-x-2">
-              <span>⬅️</span>
               <span class="bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">Left Motor (lmtr)</span>
             </h2>
             <div class="space-y-3">
@@ -183,7 +182,6 @@
           <!-- Right Motor -->
           <div class="bg-gradient-to-br from-purple-900/50 to-pink-900/50 rounded-2xl p-6 border border-purple-500/30 shadow-lg">
             <h2 class="text-xl font-bold text-white mb-4 flex items-center space-x-2">
-              <span>➡️</span>
               <span class="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">Right Motor (rmtr)</span>
             </h2>
             <div class="space-y-3">
@@ -219,7 +217,7 @@
         <div class="bg-gradient-to-br from-gray-800/80 to-gray-900/80 rounded-2xl p-5 border border-gray-500/40 shadow-lg">
           <h2 class="text-lg font-bold text-white mb-3">
             <span class="bg-gradient-to-r from-yellow-400 to-amber-400 bg-clip-text text-transparent">
-              ⚡ Combined Motor Totals
+              Combined Motor Totals
             </span>
           </h2>
           <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -247,7 +245,7 @@
         </div>
 
         <!-- Message Log -->
-        <div class="bg-gradient-to-br from-red-900/50 to-amber-900/50 rounded-2xl p-6 border border-red-500/30 shadow-lg">
+        <!-- <div class="bg-gradient-to-br from-red-900/50 to-amber-900/50 rounded-2xl p-6 border border-red-500/30 shadow-lg">
           <h2 class="text-2xl font-bold text-white mb-4">
             <span class="bg-gradient-to-r from-red-400 to-amber-400 bg-clip-text text-transparent">Message log</span>
           </h2>
@@ -266,7 +264,7 @@
               {/each}
             </div>
           </div>
-        </div>
+        </div> -->
       </div><!-- end left column -->
 
 

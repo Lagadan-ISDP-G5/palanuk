@@ -273,7 +273,7 @@ async def broadcast(component: str, data: dict):
 
 # Each command is a sequence of (topic_suffix, value) publishes.
 COMMAND_TABLE = {
-    "forward":  [("drivestate", 1), ("speed", 1.0), ("stop", 0)],
+    "forward":  [("drivestate", 1), ("speed", 0.012), ("stop", 0)],
     "backward": [("drivestate", 2), ("speed", 1.0), ("stop", 0)],
     "left":     [("steer/left", 0.8), ("steer/right", 0.2), ("forcepan", 1)],
     "right":    [("steer/left", 0.2), ("steer/right", 0.8), ("forcepan", 2)],
@@ -345,7 +345,7 @@ async def _handle_ws_message(
                 "type": "command_response",
                 "command": command,
                 "success": success,
-                "message": f'✅ "{command}" sent' if success else "❌ Failed",
+                "message": f'"{command}" sent' if success else "Failed",
                 "timestamp": datetime.now().isoformat(),
             }))
 

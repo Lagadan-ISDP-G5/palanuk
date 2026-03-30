@@ -72,8 +72,6 @@ class WebSocketClient {
       };
 
       this.ws.onmessage = (event) => {
-        console.log('Received:', event.data);
-
         try {
           const data = JSON.parse(event.data);
 
@@ -81,7 +79,6 @@ class WebSocketClient {
             console.log('Welcome:', data.message);
           }
           else if (data.type === 'initial_data') {
-            console.log('Received initial dashboard data');
             this.handleInitialData(data.data);
           }
           else if (data.type === 'component_update') {
@@ -121,14 +118,16 @@ class WebSocketClient {
             this.handleZenohTopic(data.key, data.value);
           }
 
-          // Update message log for all messages
-          messageLog.update(logs => {
-            const newLogs = [...logs, {
-              time: new Date().toLocaleTimeString(),
-              data: data
-            }];
-            return newLogs.slice(-50);
-          });
+          // Only log infrequent messages — skip high-frequency telemetry
+          if (data.type !== 'component_update' && data.type !== 'zenoh_topic') {
+            messageLog.update(logs => {
+              const newLogs = [...logs, {
+                time: new Date().toLocaleTimeString(),
+                data: data
+              }];
+              return newLogs.slice(-50);
+            });
+          }
 
         } catch (error) {
           console.error('Error processing message:', error);
@@ -158,7 +157,6 @@ class WebSocketClient {
   // INITIAL DATA SNAPSHOT (called once on first connect)
   // ─────────────────────────────────────────────────────────────────────────
   private handleInitialData(data: any) {
-    console.log('Processing initial dashboard data');
 
     // 5V system energy — bridge sends both raw and derived fields
     if (data.energy) {
@@ -227,7 +225,6 @@ class WebSocketClient {
   // REAL-TIME COMPONENT UPDATES
   // ─────────────────────────────────────────────────────────────────────────
   private handleComponentUpdate(component: string, data: any) {
-    console.log(`Component update: ${component}`, data);
 
     switch (component) {
 
@@ -262,7 +259,6 @@ class WebSocketClient {
           lmtr_shunt_voltage_mv: data.shunt_voltage_mv   ?? data.shunt_voltage_mvolts ?? current.lmtr_shunt_voltage_mv,
           lmtr_actual_speed:     data.actual_speed       ?? current.lmtr_actual_speed,
         }));
-        console.log('Left motor update:', data);
         break;
 
       case 'rmtr':
@@ -274,7 +270,6 @@ class WebSocketClient {
           rmtr_shunt_voltage_mv: data.shunt_voltage_mv   ?? data.shunt_voltage_mvolts ?? current.rmtr_shunt_voltage_mv,
           rmtr_actual_speed:     data.actual_speed       ?? current.rmtr_actual_speed,
         }));
-        console.log('Right motor update:', data);
         break;
 
       // ── Drive control state ──
@@ -303,7 +298,6 @@ class WebSocketClient {
         break;
 
       default:
-        console.log(`Unhandled component: ${component}`);
     }
   }
 
@@ -313,7 +307,6 @@ class WebSocketClient {
   // { type: "zenoh_topic", key: "palanuk/ec/lmtr/power/mwatts", value: 1234 }
   // ─────────────────────────────────────────────────────────────────────────
   private handleZenohTopic(key: string, value: number) {
-    console.log(`Zenoh topic [${key}]:`, value);
 
     const topicMap: Record<string, (v: number) => void> = {
       // ── Left Motor ──
@@ -332,15 +325,12 @@ class WebSocketClient {
     const handler = topicMap[key];
     if (handler) {
       handler(value);
-    } else {
-      console.log(`No handler for Zenoh topic: ${key}`);
     }
   }
 
   send(data: any) {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(data));
-      console.log('Sent:', data);
     } else {
       console.warn('WebSocket is not connected');
     }
