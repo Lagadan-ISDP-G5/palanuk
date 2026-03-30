@@ -99,6 +99,15 @@ palanuk/bstn/drivestate: 2
 palanuk/bstn/steercmd: 0
 ```
 
+## How to trigger stationery bang-bang center lane alignment
+
+```
+palanuk/bstn/loopmode 0,
+palanuk/bstn/speed 0.0,
+palanuk/bstn/forcepan 0,
+palanuk/bstn/drivestate 1,
+palanuk/bstn/steercmd 0,
+```
 
 Data under `/palanuk/itp/**`:
 
