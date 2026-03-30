@@ -22,6 +22,15 @@ cv::Mat threshold_white_line(const cv::Mat& img, const PipelineConfig& config) {
 
     // cv::adaptiveThreshold(blurred, thresh_raw, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY, 15, 0);
 
+    // Reject floor reflections: bright but not pure white (higher saturation than real lane)
+    if (config.max_white_saturation > 0) {
+        cv::Mat hsv, sat_channel, sat_mask;
+        cv::cvtColor(img, hsv, cv::COLOR_BGR2HSV);
+        cv::extractChannel(hsv, sat_channel, 1);
+        cv::threshold(sat_channel, sat_mask, config.max_white_saturation, 255, cv::THRESH_BINARY);
+        thresh_raw.setTo(0, sat_mask);
+    }
+
     // Mask out the top portion of the frame
     int roi_top = static_cast<int>(img.rows * config.roi_ignore_top_percent);
     thresh_raw(cv::Rect(0, 0, img.cols, roi_top)) = 0;

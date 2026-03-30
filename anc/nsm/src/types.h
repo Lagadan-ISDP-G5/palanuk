@@ -62,6 +62,9 @@ struct PipelineConfig {
 
     int yellow_mask_dilate_size = 15;  // dilate yellow mask to cover specular reflections on tape
 
+    // Floor reflection filter (saturation ceiling — true white has very low saturation)
+    int max_white_saturation = 20;  // 0-255 scale; pixels with S above this are rejected from threshold
+
     // Contour filtering
     float min_contour_length = 50.0f;
     float min_aspect_ratio = 2.7f;
