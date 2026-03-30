@@ -66,8 +66,28 @@
   let controlMode = 'open';
   let isManualControlEnabled = true;
 
-  onMount(() => { wsClient = initWebSocket('ws://localhost:8081'); });
-  onDestroy(() => { if (wsClient) wsClient.disconnect(); });
+  const keyMap = { w: 'forward', s: 'backward', a: 'corner_left', d: 'corner_right' };
+
+  function handleKeyDown(e) {
+    const direction = keyMap[e.key.toLowerCase()];
+    if (direction && !carControls[direction]) startMovement(direction);
+  }
+
+  function handleKeyUp(e) {
+    const direction = keyMap[e.key.toLowerCase()];
+    if (direction) stopMovement(direction);
+  }
+
+  onMount(() => {
+    wsClient = initWebSocket('ws://localhost:8081');
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+  });
+  onDestroy(() => {
+    if (wsClient) wsClient.disconnect();
+    window.removeEventListener('keydown', handleKeyDown);
+    window.removeEventListener('keyup', handleKeyUp);
+  });
 
   function setControlMode(mode) {
     controlMode = mode;
