@@ -21,8 +21,8 @@ to this indexing here: https://vilros.com/pages/raspberry-pi-5-pinout
 | 02 | 5Vref | 5Vref | Auxiliary |
 | 39 | GND | Logic and power GND ref | Auxiliary |
 | 32 | GPIO12, PWM output | SG-90 position command | Camera Panning Servo |
-| 11 | GPIO17, Left Motor RPM Feedback |  | Propulsion (Left Motor) |
-| 13 | GPIO27, Right Motor RPM Feedback |  | Propulsion (Right Motor) |
+| 11 | GPIO17, DI | Left Motor RPM Feedback | Propulsion (Left Motor) |
+| 13 | GPIO27, DI | Right Motor RPM Feedback  | Propulsion (Right Motor) |
 
 
 ## Auxiliary
