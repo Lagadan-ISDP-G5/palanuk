@@ -150,19 +150,22 @@ class VisionConfig:
 
     # Parking trigger thresholds (in "right" phase)
     PARK_READY_AREA: float = 0.12              # slot area fraction to trigger parking
-    PARK_READY_Y2: float = 0.85                # slot y2 / frame_height to trigger parking
+    PARK_READY_Y2: float = 0.9                # slot y2 / frame_height to trigger parking
 
     # Parking phase durations (seconds)
     PARK_PAN_SETTLE_S: float = 1.5             # wait for camera pan to settle
-    PARK_COAST_S: float = 0.8                  # lane track forward to get alongside slot
+    PARK_COAST_PULSE_S: float = 0.4             # each coast pulse duration
+    PARK_COAST_PULSES: int = 2                 # number of coast pulses
+    PARK_COAST_PAUSE_S: float = 0.3            # pause between coast pulses
     PARK_STOP_S: float = 0.5                   # settle after stopping
     PARK_TURN_S: float = 2.0                   # wait for 90° turn to complete
-    PARK_ENTER_S: float = 0.8                  # drive forward into slot (with P-sign guidance)
+    PARK_ENTER_PULSE_S: float = 0.4             # each enter pulse duration
+    PARK_ENTER_PULSES: int = 2                 # number of enter pulses
+    PARK_ENTER_PAUSE_S: float = 0.3            # pause between enter pulses
     PARK_ENTER_DEADBAND_PX: float = 20.0       # P sign centre tolerance for driving straight
     PARK_ENTER_CLOSE_Y: float = 0.85           # P sign y2/frame_h to consider "in slot"
-    PARK_ENTER_MIN_S: float = 0.5              # minimum drive time before checking if in slot
     PARK_DONE_S: float = 4.0                   # settle after parking
-    PARK_EXIT_FWD_S: float = 1.5               # drive forward out of slot
+    PARK_EXIT_FWD_S: float = 1.0               # drive forward out of slot
 
     # Alignment
     PARK_CHECK_TIMEOUT_S: float = 2.0           # wait this long before reversing to reframe
@@ -439,6 +442,7 @@ class VisionService:
         self._approach_phase_time: float = 0.0
         self._bangbang_motor_seen: bool = False  # two-phase: True once motors move
         self._park_check_reversed: bool = False  # True after one reverse attempt
+        self._pulse_count: int = 0               # pulse counter for coast/enter phases
 
         # Logging
         self.log_file = None
@@ -751,17 +755,32 @@ class VisionService:
             # Wait for camera to settle at centre before driving
             self._send_nav(NavCommand(command="STOP"))
             if elapsed >= self.vcfg.PARK_PAN_SETTLE_S:
-                logger.info("Park: camera centred — lane tracking forward to get alongside")
+                logger.info("Park: camera centred — coast pulse 1")
+                self._pulse_count = 1
                 self._send_nav(NavCommand(command="RESUME_LANE_TRACKING"))
                 self._approach_phase = "park_coast"
                 self._approach_phase_time = now
 
         elif self._approach_phase == "park_coast":
-            # Lane tracking forward for fixed duration
-            if elapsed >= self.vcfg.PARK_COAST_S:
-                logger.info("Park: coast complete — stopping")
+            # Lane tracking forward pulse
+            if elapsed >= self.vcfg.PARK_COAST_PULSE_S:
                 self._send_nav(NavCommand(command="STOP"))
-                self._approach_phase = "park_coast_stop"
+                if self._pulse_count < self.vcfg.PARK_COAST_PULSES:
+                    logger.info(f"Park: coast pulse {self._pulse_count} done — pausing")
+                    self._approach_phase = "park_coast_pause"
+                else:
+                    logger.info("Park: coast complete — stopping")
+                    self._approach_phase = "park_coast_stop"
+                self._approach_phase_time = now
+
+        elif self._approach_phase == "park_coast_pause":
+            # Brief pause between coast pulses
+            self._send_nav(NavCommand(command="STOP"))
+            if elapsed >= self.vcfg.PARK_COAST_PAUSE_S:
+                self._pulse_count += 1
+                logger.info(f"Park: coast pulse {self._pulse_count}")
+                self._send_nav(NavCommand(command="RESUME_LANE_TRACKING"))
+                self._approach_phase = "park_coast"
                 self._approach_phase_time = now
 
         elif self._approach_phase == "park_coast_stop":
@@ -822,7 +841,8 @@ class VisionService:
 
                 if abs(offset_px) <= self.vcfg.PARK_ALIGN_TOLERANCE_PX:
                     # Aligned — drive into slot
-                    logger.info("Park: ALIGNED — driving into slot")
+                    logger.info("Park: ALIGNED — enter pulse 1")
+                    self._pulse_count = 1
                     self._send_nav(NavCommand(command="DRIVE_FORWARD"))
                     self._approach_phase = "park_enter"
                     self._approach_phase_time = now
@@ -849,7 +869,8 @@ class VisionService:
                     self._approach_phase_time = now
                 else:
                     # Already reversed once — drive in blind
-                    logger.warning("Park check: still no P sign after reverse — driving in")
+                    logger.warning("Park check: still no P sign after reverse — enter pulse 1")
+                    self._pulse_count = 1
                     self._send_nav(NavCommand(command="DRIVE_FORWARD"))
                     self._approach_phase = "park_enter"
                     self._approach_phase_time = now
@@ -871,7 +892,7 @@ class VisionService:
         # ══════════════════════════════════════════════════════════
 
         elif self._approach_phase == "park_enter":
-            # Drive into slot guided by P sign position
+            # Drive into slot pulse — guided by P sign position
             detections = parse_detections(result, self.class_names, self.vcfg.CONF_THRES)
             p_signs = [d for d in detections if d.class_name == self.pcfg.CLASS_P_SIGN]
             frame_mid_x = self.vcfg.IMG_SIZE / 2
@@ -882,13 +903,14 @@ class VisionService:
                 offset_x = sign.center_x - frame_mid_x
 
                 # Check if P sign is close enough (robot is in the slot)
-                if elapsed >= self.vcfg.PARK_ENTER_MIN_S and sign.y2 / frame_h >= self.vcfg.PARK_ENTER_CLOSE_Y:
+                if sign.y2 / frame_h >= self.vcfg.PARK_ENTER_CLOSE_Y:
                     logger.info(
                         f"Park: P sign close (y2={sign.y2/frame_h:.2%}) — in slot"
                     )
                     self._send_nav(NavCommand(command="STOP"))
                     self._approach_phase = "park_done"
                     self._approach_phase_time = now
+                    return
                 elif offset_x > self.vcfg.PARK_ENTER_DEADBAND_PX:
                     logger.debug(f"Park enter: P sign right of centre ({offset_x:+.0f}px) — steering right")
                     self._send_nav(NavCommand(command="ALIGN_RIGHT"))
@@ -899,14 +921,27 @@ class VisionService:
                     logger.debug(f"Park enter: P sign centred ({offset_x:+.0f}px) — driving straight")
                     self._send_nav(NavCommand(command="DRIVE_FORWARD"))
             else:
-                # No P sign visible — keep driving straight, rely on timeout
                 logger.debug("Park enter: no P sign — driving straight")
                 self._send_nav(NavCommand(command="DRIVE_FORWARD"))
 
-            if elapsed >= self.vcfg.PARK_ENTER_S:
-                logger.warning("Park: enter timeout — stopping")
+            if elapsed >= self.vcfg.PARK_ENTER_PULSE_S:
                 self._send_nav(NavCommand(command="STOP"))
-                self._approach_phase = "park_done"
+                if self._pulse_count < self.vcfg.PARK_ENTER_PULSES:
+                    logger.info(f"Park: enter pulse {self._pulse_count} done — pausing")
+                    self._approach_phase = "park_enter_pause"
+                else:
+                    logger.info("Park: enter pulses complete — in slot")
+                    self._approach_phase = "park_done"
+                self._approach_phase_time = now
+
+        elif self._approach_phase == "park_enter_pause":
+            # Brief pause between enter pulses — re-evaluate P sign
+            self._send_nav(NavCommand(command="STOP"))
+            if elapsed >= self.vcfg.PARK_ENTER_PAUSE_S:
+                self._pulse_count += 1
+                logger.info(f"Park: enter pulse {self._pulse_count}")
+                self._send_nav(NavCommand(command="DRIVE_FORWARD"))
+                self._approach_phase = "park_enter"
                 self._approach_phase_time = now
 
         elif self._approach_phase == "park_done":
