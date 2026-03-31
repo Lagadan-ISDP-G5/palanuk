@@ -90,7 +90,7 @@
                 "alignment_pulse_ms": 47,
                 "alignment_cooldown_ms": 200,
                 "accelerate_speed": 1.0,
-                "accelerate_duration_ms": 3000,
+                "accelerate_duration_ms": 2200,
             }
         ),
 
