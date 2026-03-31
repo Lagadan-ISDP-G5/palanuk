@@ -131,7 +131,7 @@ class VisionConfig:
     BUMPER_Y2_THRESHOLD: float = 0.95  # bumper base in bottom 5% of frame
 
     # Parking slot detection — minimum area as fraction of frame
-    VALID_PARKING_AREA_THRESHOLD: float = 0.20  # 10% of frame
+    VALID_PARKING_AREA_THRESHOLD: float = 0.12  # 10% of frame
 
     # Debounce frame counts
     BUMPER_DEBOUNCE_FRAMES: int = 3
@@ -145,24 +145,28 @@ class VisionConfig:
 
     # Bang-bang correction
     BANGBANG_STARTUP_S: float = 1.0            # buffer before checking motors — lets AnC start the correction
-    BANGBANG_TIMEOUT_S: float = 5.0            # safety timeout if motors never reach 0
+    BANGBANG_TIMEOUT_S: float = 3.0            # safety timeout if motors never reach 0
     MOTOR_SPEED_ZERO_THRESHOLD: float = 0.01   # consider motor "stopped" below this
 
     # Parking trigger thresholds (in "right" phase)
-    PARK_READY_AREA: float = 0.35              # slot area fraction to trigger parking
+    PARK_READY_AREA: float = 0.12              # slot area fraction to trigger parking
     PARK_READY_Y2: float = 0.85                # slot y2 / frame_height to trigger parking
 
     # Parking phase durations (seconds)
     PARK_PAN_SETTLE_S: float = 1.5             # wait for camera pan to settle
-    PARK_COAST_S: float = 1.0                  # lane track forward to get alongside slot
+    PARK_COAST_S: float = 0.8                  # lane track forward to get alongside slot
     PARK_STOP_S: float = 0.5                   # settle after stopping
     PARK_TURN_S: float = 2.0                   # wait for 90° turn to complete
-    PARK_ENTER_S: float = 1.5                  # drive forward into slot
-    PARK_DONE_S: float = 1.0                   # settle after parking
-    PARK_ROTATE_S: float = 2.0                 # wait for 180° rotation
+    PARK_ENTER_S: float = 0.8                  # drive forward into slot (with P-sign guidance)
+    PARK_ENTER_DEADBAND_PX: float = 20.0       # P sign centre tolerance for driving straight
+    PARK_ENTER_CLOSE_Y: float = 0.85           # P sign y2/frame_h to consider "in slot"
+    PARK_ENTER_MIN_S: float = 0.5              # minimum drive time before checking if in slot
+    PARK_DONE_S: float = 4.0                   # settle after parking
     PARK_EXIT_FWD_S: float = 1.5               # drive forward out of slot
 
     # Alignment
+    PARK_CHECK_TIMEOUT_S: float = 2.0           # wait this long before reversing to reframe
+    PARK_CHECK_REVERSE_S: float = 0.2          # reverse duration to bring slot back into view
     PARK_ALIGN_TOLERANCE_PX: int = 30          # P_sign.cx vs slot.cx tolerance
     ADJUST_PX_TO_S: float = 0.005              # pixel offset to drive duration factor
 
@@ -434,6 +438,7 @@ class VisionService:
         self._approach_phase: str = "right"
         self._approach_phase_time: float = 0.0
         self._bangbang_motor_seen: bool = False  # two-phase: True once motors move
+        self._park_check_reversed: bool = False  # True after one reverse attempt
 
         # Logging
         self.log_file = None
@@ -606,7 +611,7 @@ class VisionService:
         Once valid slot is close enough (area + y2 thresholds):
           park_pan_centre → park_coast → park_coast_stop → park_coast_bb
           → park_face_slot → park_check
-          → (aligned) park_enter → park_done → park_rotate
+          → (aligned) park_enter → park_done → park_rotate_1 → park_rotate_2
              → park_exit_fwd → park_exit_turn → park_exit_bb → LANE_FOLLOWING
           → (not aligned) adjust_back → adjust_bb1 → adjust_drive
              → adjust_drive_stop → adjust_bb2 → adjust_face_slot → park_check
@@ -627,11 +632,40 @@ class VisionService:
             frame_h = self.vcfg.IMG_SIZE
 
             slot_status_map = classify_all_slots(detections, self.pcfg)
+            frame_mid_x = self.vcfg.IMG_SIZE / 2
+
+            # ── Slot validation logging ──
+            all_slots = [d for d in detections if d.class_name == self.pcfg.CLASS_PARKING_SLOT]
+            if all_slots:
+                for i, s in enumerate(all_slots):
+                    area_pct = s.area / frame_area
+                    y2_pct = s.y2 / frame_h
+                    status_str = slot_status_map.get(id(s), "UNKNOWN")
+                    side = "RIGHT" if s.center_x >= frame_mid_x else "LEFT"
+                    area_ok = area_pct >= self.vcfg.VALID_PARKING_AREA_THRESHOLD
+                    reasons = []
+                    if status_str != "VALID":
+                        reasons.append(f"status={status_str}")
+                    if not area_ok:
+                        reasons.append(
+                            f"area={area_pct:.1%}<{self.vcfg.VALID_PARKING_AREA_THRESHOLD:.0%}")
+                    if side == "LEFT":
+                        reasons.append("left-of-centre")
+                    reject = f" REJECTED({', '.join(reasons)})" if reasons else " OK"
+                    logger.info(
+                        f"Slot[{i}]: status={status_str} side={side} "
+                        f"area={area_pct:.1%} y2={y2_pct:.1%} "
+                        f"bbox=({s.x1:.0f},{s.y1:.0f},{s.x2:.0f},{s.y2:.0f}){reject}"
+                    )
+            else:
+                logger.debug("Right scan: no slots detected")
+
             valid_slots = [
                 d for d in detections
                 if d.class_name == self.pcfg.CLASS_PARKING_SLOT
                 and slot_status_map.get(id(d), "UNKNOWN") == "VALID"
                 and d.area / frame_area >= self.vcfg.VALID_PARKING_AREA_THRESHOLD
+                and d.center_x >= frame_mid_x  # slot is on the right side
             ]
 
             status = self.valid_slot_tracker.update(len(valid_slots) > 0)
@@ -640,7 +674,16 @@ class VisionService:
                 area_frac = best.area / frame_area
                 y2_frac = best.y2 / frame_h
 
-                if area_frac >= self.vcfg.PARK_READY_AREA and y2_frac >= self.vcfg.PARK_READY_Y2:
+                ready_area = area_frac >= self.vcfg.PARK_READY_AREA
+                ready_y2 = y2_frac >= self.vcfg.PARK_READY_Y2
+                logger.info(
+                    f"Valid slot: area={area_frac:.1%} "
+                    f"(>={self.vcfg.PARK_READY_AREA:.0%}? {'YES' if ready_area else 'NO'}) "
+                    f"y2={y2_frac:.1%} "
+                    f"(>={self.vcfg.PARK_READY_Y2:.0%}? {'YES' if ready_y2 else 'NO'})"
+                )
+
+                if ready_area or ready_y2:
                     # Close enough — trigger parking
                     logger.info(
                         f"Parking triggered! slot area={area_frac:.2%}, "
@@ -651,11 +694,6 @@ class VisionService:
                     self._approach_phase = "park_pan_centre"
                     self._approach_phase_time = now
                     return
-                else:
-                    logger.debug(
-                        f"Valid slot seen but not close enough "
-                        f"(area={area_frac:.2%}, y2={y2_frac:.2%})"
-                    )
 
             # Time to go back to lane tracking
             if elapsed >= self.vcfg.APPROACH_PAN_RIGHT_S:
@@ -757,6 +795,7 @@ class VisionService:
             if elapsed >= self.vcfg.PARK_TURN_S:
                 logger.info("Park: facing slot — checking alignment")
                 self._send_nav(NavCommand(command="STOP"))
+                self._park_check_reversed = False
                 self._approach_phase = "park_check"
                 self._approach_phase_time = now
 
@@ -765,21 +804,20 @@ class VisionService:
         # ══════════════════════════════════════════════════════════
 
         elif self._approach_phase == "park_check":
-            # Camera is centre, robot faces slot. Measure P_sign vs slot offset.
+            # Camera is centre, robot faces slot. Check P sign vs frame centre.
             self._send_nav(NavCommand(command="STOP"))
 
             detections = parse_detections(result, self.class_names, self.vcfg.CONF_THRES)
-            slots = [d for d in detections if d.class_name == self.pcfg.CLASS_PARKING_SLOT]
+            frame_mid_x = self.vcfg.IMG_SIZE / 2
             p_signs = [d for d in detections if d.class_name == self.pcfg.CLASS_P_SIGN]
 
-            if slots and p_signs:
-                slot = max(slots, key=lambda s: s.area)
-                sign = min(p_signs, key=lambda s: abs(s.center_x - slot.center_x))
-                offset_px = sign.center_x - slot.center_x
+            if p_signs:
+                sign = max(p_signs, key=lambda s: s.area)
+                offset_px = sign.center_x - frame_mid_x
 
                 logger.info(
-                    f"Park check: slot.cx={slot.center_x:.1f}, "
-                    f"sign.cx={sign.center_x:.1f}, offset={offset_px:.1f}px"
+                    f"Park check: sign.cx={sign.center_x:.1f}, "
+                    f"frame_mid={frame_mid_x:.1f}, offset={offset_px:.1f}px"
                 )
 
                 if abs(offset_px) <= self.vcfg.PARK_ALIGN_TOLERANCE_PX:
@@ -790,8 +828,8 @@ class VisionService:
                     self._approach_phase_time = now
                 else:
                     # Not aligned — need shimmy adjustment
-                    # Positive offset = sign is right of slot = robot needs to move forward
-                    # Negative offset = sign is left of slot = robot needs to move backward
+                    # Positive offset = sign right of centre = robot needs to move forward
+                    # Negative offset = sign left of centre = robot needs to move backward
                     self._park_offset_px = offset_px
                     self._park_offset_dir = 1 if offset_px > 0 else -1
                     logger.info(
@@ -801,21 +839,72 @@ class VisionService:
                     self._send_nav(NavCommand(command="TURN_LEFT_90"))
                     self._approach_phase = "adjust_back"
                     self._approach_phase_time = now
+            elif elapsed >= self.vcfg.PARK_CHECK_TIMEOUT_S:
+                if not self._park_check_reversed:
+                    # First timeout — reverse briefly to bring P sign into frame
+                    logger.warning("Park check: P sign not visible — reversing to reframe")
+                    self._park_check_reversed = True
+                    self._send_nav(NavCommand(command="DRIVE_REVERSE"))
+                    self._approach_phase = "park_check_reverse"
+                    self._approach_phase_time = now
+                else:
+                    # Already reversed once — drive in blind
+                    logger.warning("Park check: still no P sign after reverse — driving in")
+                    self._send_nav(NavCommand(command="DRIVE_FORWARD"))
+                    self._approach_phase = "park_enter"
+                    self._approach_phase_time = now
             else:
-                # Can't see both slot and sign — wait for next frame
                 logger.debug(
-                    f"Park check: waiting for detections "
-                    f"(slots={len(slots)}, signs={len(p_signs)})"
+                    f"Park check: waiting for P sign"
                 )
+
+        elif self._approach_phase == "park_check_reverse":
+            # Reversing briefly to bring slot back into frame
+            if elapsed >= self.vcfg.PARK_CHECK_REVERSE_S:
+                logger.info("Park check: reverse done — re-checking alignment")
+                self._send_nav(NavCommand(command="STOP"))
+                self._approach_phase = "park_check"
+                self._approach_phase_time = now
 
         # ══════════════════════════════════════════════════════════
         # PARKING — aligned, enter slot
         # ══════════════════════════════════════════════════════════
 
         elif self._approach_phase == "park_enter":
-            # Driving forward into slot
+            # Drive into slot guided by P sign position
+            detections = parse_detections(result, self.class_names, self.vcfg.CONF_THRES)
+            p_signs = [d for d in detections if d.class_name == self.pcfg.CLASS_P_SIGN]
+            frame_mid_x = self.vcfg.IMG_SIZE / 2
+            frame_h = self.vcfg.IMG_SIZE
+
+            if p_signs:
+                sign = max(p_signs, key=lambda s: s.area)
+                offset_x = sign.center_x - frame_mid_x
+
+                # Check if P sign is close enough (robot is in the slot)
+                if elapsed >= self.vcfg.PARK_ENTER_MIN_S and sign.y2 / frame_h >= self.vcfg.PARK_ENTER_CLOSE_Y:
+                    logger.info(
+                        f"Park: P sign close (y2={sign.y2/frame_h:.2%}) — in slot"
+                    )
+                    self._send_nav(NavCommand(command="STOP"))
+                    self._approach_phase = "park_done"
+                    self._approach_phase_time = now
+                elif offset_x > self.vcfg.PARK_ENTER_DEADBAND_PX:
+                    logger.debug(f"Park enter: P sign right of centre ({offset_x:+.0f}px) — steering right")
+                    self._send_nav(NavCommand(command="ALIGN_RIGHT"))
+                elif offset_x < -self.vcfg.PARK_ENTER_DEADBAND_PX:
+                    logger.debug(f"Park enter: P sign left of centre ({offset_x:+.0f}px) — steering left")
+                    self._send_nav(NavCommand(command="ALIGN_LEFT"))
+                else:
+                    logger.debug(f"Park enter: P sign centred ({offset_x:+.0f}px) — driving straight")
+                    self._send_nav(NavCommand(command="DRIVE_FORWARD"))
+            else:
+                # No P sign visible — keep driving straight, rely on timeout
+                logger.debug("Park enter: no P sign — driving straight")
+                self._send_nav(NavCommand(command="DRIVE_FORWARD"))
+
             if elapsed >= self.vcfg.PARK_ENTER_S:
-                logger.info("Park: in slot — stopping")
+                logger.warning("Park: enter timeout — stopping")
                 self._send_nav(NavCommand(command="STOP"))
                 self._approach_phase = "park_done"
                 self._approach_phase_time = now
@@ -824,15 +913,24 @@ class VisionService:
             # Parked, settle before rotating
             self._send_nav(NavCommand(command="STOP"))
             if elapsed >= self.vcfg.PARK_DONE_S:
-                logger.info("Park: PARKED — rotating 180°")
-                self._send_nav(NavCommand(command="ROTATE_180"))
-                self._approach_phase = "park_rotate"
+                logger.info("Park: PARKED — first 90° turn")
+                self._send_nav(NavCommand(command="TURN_RIGHT_90"))
+                self._approach_phase = "park_rotate_1"
                 self._approach_phase_time = now
 
-        elif self._approach_phase == "park_rotate":
-            # Wait for 180° rotation
-            if elapsed >= self.vcfg.PARK_ROTATE_S:
-                logger.info("Park: rotation complete — driving out of slot")
+        elif self._approach_phase == "park_rotate_1":
+            # Wait for first 90° turn
+            if elapsed >= self.vcfg.PARK_TURN_S:
+                logger.info("Park: first 90° done — second 90° turn")
+                self._send_nav(NavCommand(command="STOP"))
+                self._send_nav(NavCommand(command="TURN_RIGHT_90"))
+                self._approach_phase = "park_rotate_2"
+                self._approach_phase_time = now
+
+        elif self._approach_phase == "park_rotate_2":
+            # Wait for second 90° turn
+            if elapsed >= self.vcfg.PARK_TURN_S:
+                logger.info("Park: 180° rotation complete — driving out of slot")
                 self._send_nav(NavCommand(command="STOP"))
                 self._send_nav(NavCommand(command="DRIVE_FORWARD"))
                 self._approach_phase = "park_exit_fwd"
@@ -895,7 +993,7 @@ class VisionService:
                     logger.info("Adjust: bang-bang complete — driving to correct offset")
                 self._send_nav(NavCommand(command="STOP"))
                 drive_duration = abs(self._park_offset_px) * self.vcfg.ADJUST_PX_TO_S
-                self._adjust_drive_duration = max(0.3, min(drive_duration, 3.0))
+                self._adjust_drive_duration = max(0.1, min(drive_duration, 0.5))
                 if self._park_offset_dir > 0:
                     logger.info(f"Adjust: driving FORWARD for {self._adjust_drive_duration:.2f}s")
                     self._send_nav(NavCommand(command="RESUME_LANE_TRACKING"))
@@ -944,6 +1042,7 @@ class VisionService:
             if elapsed >= self.vcfg.PARK_TURN_S:
                 logger.info("Adjust: facing slot again — re-checking alignment")
                 self._send_nav(NavCommand(command="STOP"))
+                self._park_check_reversed = False
                 self._approach_phase = "park_check"
                 self._approach_phase_time = now
 

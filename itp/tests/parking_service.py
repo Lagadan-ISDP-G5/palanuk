@@ -104,16 +104,15 @@ NAV_CMD_RECIPES: Dict[str, List[Tuple[str, Union[int, float]]]] = {
         ("palanuk/bstn/loopmode",   0),
         ("palanuk/bstn/speed",      0.04),
         ("palanuk/bstn/steercmd",   1),
-        ("palanuk/bstn/drivestate", 2),
+        ("palanuk/bstn/drivestate", 1),
     ],
 
     # ── Turn left 90° (forward + steer; from AnC CORNER_LEFT) ──
     "TURN_LEFT_90": [
         ("palanuk/bstn/loopmode",   0),
         ("palanuk/bstn/speed",      0.04),
-        ("palanuk/bstn/forcepan",   0),
         ("palanuk/bstn/drivestate", 1),
-        ("palanuk/bstn/steercmd",   1),
+        ("palanuk/bstn/steercmd",   2),
     ],
 
     # ── Rotate 180° (same steer-right recipe; AnC measures angle) ──
