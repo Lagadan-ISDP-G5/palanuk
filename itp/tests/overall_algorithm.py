@@ -172,7 +172,7 @@ class VisionConfig:
     # Alignment
     PARK_CHECK_TIMEOUT_S: float = 2.0           # wait this long before reversing to reframe
     PARK_CHECK_REVERSE_S: float = 0.2          # reverse duration to bring slot back into view
-    PARK_ALIGN_TOLERANCE_PX: int = 80          # P_sign.cx vs slot.cx tolerance
+    PARK_ALIGN_TOLERANCE_PX: int = 40          # P_sign.cx vs slot.cx tolerance
     ADJUST_PX_TO_S: float = 0.005              # pixel offset to drive duration factor
 
     # Zenoh topics — core (always active)
@@ -1023,16 +1023,7 @@ class VisionService:
                 sign = max(p_signs, key=lambda s: s.area)
                 offset_x = sign.center_x - frame_mid_x
 
-                # Check if P sign is close enough (robot is in the slot)
-                if sign.y2 / frame_h >= self.vcfg.PARK_ENTER_CLOSE_Y:
-                    logger.info(
-                        f"Park: P sign close (y2={sign.y2/frame_h:.2%}) — in slot"
-                    )
-                    self._send_nav(NavCommand(command="STOP"))
-                    self._approach_phase = "park_done"
-                    self._approach_phase_time = now
-                    return
-                elif offset_x > self.vcfg.PARK_ENTER_DEADBAND_PX:
+                if offset_x > self.vcfg.PARK_ENTER_DEADBAND_PX:
                     logger.debug(f"Park enter: P sign right of centre ({offset_x:+.0f}px) — steering right")
                     self._send_nav(NavCommand(command="ALIGN_RIGHT"))
                 elif offset_x < -self.vcfg.PARK_ENTER_DEADBAND_PX:
