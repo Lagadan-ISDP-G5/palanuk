@@ -112,7 +112,9 @@ class VisionConfig:
     TENSORRT_ENGINE_PATH: str = "tests/best.engine"
 
     # Stream
+    USE_WEBRTC: bool = True
     STREAM_URL: str = "rtsp://raspberrypi.local:8554/camera"
+    WEBRTC_URL: str = "http://raspberrypi.local:8889/camera/"
     MAX_RETRIES: int = 5
 
     # Processing
@@ -170,7 +172,7 @@ class VisionConfig:
     # Alignment
     PARK_CHECK_TIMEOUT_S: float = 2.0           # wait this long before reversing to reframe
     PARK_CHECK_REVERSE_S: float = 0.2          # reverse duration to bring slot back into view
-    PARK_ALIGN_TOLERANCE_PX: int = 30          # P_sign.cx vs slot.cx tolerance
+    PARK_ALIGN_TOLERANCE_PX: int = 80          # P_sign.cx vs slot.cx tolerance
     ADJUST_PX_TO_S: float = 0.005              # pixel offset to drive duration factor
 
     # Zenoh topics — core (always active)
@@ -321,6 +323,125 @@ class FrameGrabber:
         self._running = True
         self._thread = threading.Thread(target=self._run, daemon=True)
         self._thread.start()
+
+
+# ============================================================
+# WebRTC Frame Grabber (WHEP)
+# ============================================================
+
+class WebRTCFrameGrabber:
+    """Grabs frames from a MediaMTX WebRTC/WHEP endpoint via aiortc.
+    Same interface as FrameGrabber so it's a drop-in replacement."""
+
+    def __init__(self, url: str):
+        import asyncio
+        # Derive the WHEP signaling endpoint from the browser URL
+        self.url = url.rstrip("/") + "/whep"
+        self._frame = None
+        self._lock = threading.Lock()
+        self._opened = False
+        self._running = True
+
+        # Suppress noisy H264 decode warnings (pre-keyframe packets)
+        logging.getLogger("aiortc.codecs.h264").setLevel(logging.ERROR)
+
+        # Run the async event loop in a background thread
+        self._loop = asyncio.new_event_loop()
+        self._thread = threading.Thread(target=self._run_loop, daemon=True)
+        self._thread.start()
+
+        # Wait until first frame is decoded (up to 10s)
+        deadline = time.time() + 10
+        while not self._opened and time.time() < deadline:
+            time.sleep(0.1)
+
+    def _run_loop(self):
+        import asyncio
+        asyncio.set_event_loop(self._loop)
+        self._loop.run_until_complete(self._connect())
+
+    async def _connect(self):
+        import asyncio
+        import aiohttp
+        from aiortc import RTCPeerConnection, RTCSessionDescription
+        from aiortc.mediastreams import MediaStreamError
+
+        self._pc = RTCPeerConnection()
+        self._pc.addTransceiver("video", direction="recvonly")
+
+        @self._pc.on("track")
+        async def on_track(track):
+            if track.kind == "video":
+                try:
+                    while self._running:
+                        frame = await track.recv()
+                        try:
+                            img = frame.to_ndarray(format="bgr24")
+                        except Exception:
+                            continue  # skip undecoded frames
+                        with self._lock:
+                            self._frame = img
+                            if not self._opened:
+                                self._opened = True
+                                logger.info("WebRTC: first frame decoded")
+                except MediaStreamError:
+                    logger.warning("WebRTC track ended")
+                finally:
+                    with self._lock:
+                        self._opened = False
+
+        # WHEP signaling
+        offer = await self._pc.createOffer()
+        await self._pc.setLocalDescription(offer)
+        logger.info(f"WebRTC: POST {self.url}")
+
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                self.url,
+                data=self._pc.localDescription.sdp,
+                headers={"Content-Type": "application/sdp"},
+            ) as resp:
+                if resp.status != 201:
+                    logger.error(f"WHEP failed: {resp.status} {await resp.text()}")
+                    return
+                answer_sdp = await resp.text()
+                self._resource_url = resp.headers.get("Location")
+
+        answer = RTCSessionDescription(sdp=answer_sdp, type="answer")
+        await self._pc.setRemoteDescription(answer)
+        logger.info("WebRTC connected via WHEP")
+
+        # Keep the loop alive until released
+        while self._running:
+            await asyncio.sleep(0.1)
+
+        await self._pc.close()
+
+    def read(self):
+        with self._lock:
+            if self._frame is None:
+                return False, None
+            return True, self._frame.copy()
+
+    def isOpened(self) -> bool:
+        return self._opened
+
+    def release(self):
+        self._running = False
+        self._thread.join(timeout=5)
+
+    def reconnect(self):
+        self.release()
+        self._frame = None
+        self._opened = False
+        self._running = True
+        import asyncio
+        self._loop = asyncio.new_event_loop()
+        self._thread = threading.Thread(target=self._run_loop, daemon=True)
+        self._thread.start()
+        deadline = time.time() + 10
+        while not self._opened and time.time() < deadline:
+            time.sleep(0.1)
 
 
 # ============================================================
@@ -848,10 +969,10 @@ class VisionService:
                     self._approach_phase_time = now
                 else:
                     # Not aligned — need shimmy adjustment
-                    # Positive offset = sign right of centre = robot needs to move forward
-                    # Negative offset = sign left of centre = robot needs to move backward
+                    # Negative offset = sign left of centre = robot too far forward = drive forward in lane
+                    # Positive offset = sign right of centre = robot too far back = drive reverse in lane
                     self._park_offset_px = offset_px
-                    self._park_offset_dir = 1 if offset_px > 0 else -1
+                    self._park_offset_dir = -1 if offset_px > 0 else 1
                     logger.info(
                         f"Park: NOT aligned (offset={offset_px:.1f}px) — "
                         f"adjusting {'forward' if self._park_offset_dir > 0 else 'reverse'}"
@@ -1028,7 +1149,7 @@ class VisionService:
                     logger.info("Adjust: bang-bang complete — driving to correct offset")
                 self._send_nav(NavCommand(command="STOP"))
                 drive_duration = abs(self._park_offset_px) * self.vcfg.ADJUST_PX_TO_S
-                self._adjust_drive_duration = max(0.1, min(drive_duration, 0.5))
+                self._adjust_drive_duration = max(0.1, min(drive_duration, 0.3))
                 if self._park_offset_dir > 0:
                     logger.info(f"Adjust: driving FORWARD for {self._adjust_drive_duration:.2f}s")
                     self._send_nav(NavCommand(command="RESUME_LANE_TRACKING"))
@@ -1174,16 +1295,28 @@ class VisionService:
         logger.info(f"Model loaded — {len(self.class_names)} classes, device={self.vcfg.DEVICE}")
 
     def _connect_camera(self):
-        logger.info(f"Connecting to: {self.vcfg.STREAM_URL}")
-        for attempt in range(1, self.vcfg.MAX_RETRIES + 1):
-            self.grabber = FrameGrabber(self.vcfg.STREAM_URL)
-            if self.grabber.isOpened():
-                logger.info(f"Camera connected via threaded grabber (attempt {attempt})")
-                return
-            self.grabber.release()
-            logger.warning(f"Attempt {attempt}/{self.vcfg.MAX_RETRIES} failed")
-            time.sleep(2)
-        raise ConnectionError("Camera connection failed after all retries")
+        if self.vcfg.USE_WEBRTC:
+            logger.info(f"Connecting via WebRTC: {self.vcfg.WEBRTC_URL}")
+            for attempt in range(1, self.vcfg.MAX_RETRIES + 1):
+                self.grabber = WebRTCFrameGrabber(self.vcfg.WEBRTC_URL)
+                if self.grabber.isOpened():
+                    logger.info(f"Camera connected via WebRTC (attempt {attempt})")
+                    return
+                self.grabber.release()
+                logger.warning(f"WebRTC attempt {attempt}/{self.vcfg.MAX_RETRIES} failed")
+                time.sleep(2)
+            raise ConnectionError("WebRTC camera connection failed after all retries")
+        else:
+            logger.info(f"Connecting via RTSP: {self.vcfg.STREAM_URL}")
+            for attempt in range(1, self.vcfg.MAX_RETRIES + 1):
+                self.grabber = FrameGrabber(self.vcfg.STREAM_URL)
+                if self.grabber.isOpened():
+                    logger.info(f"Camera connected via RTSP (attempt {attempt})")
+                    return
+                self.grabber.release()
+                logger.warning(f"RTSP attempt {attempt}/{self.vcfg.MAX_RETRIES} failed")
+                time.sleep(2)
+            raise ConnectionError("RTSP camera connection failed after all retries")
 
     def _setup_zenoh(self):
         self.zenoh.open()
