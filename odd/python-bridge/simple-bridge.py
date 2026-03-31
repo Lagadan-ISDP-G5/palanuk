@@ -279,8 +279,10 @@ COMMAND_TABLE = {
     "right":        [("steer/left", 0.2), ("steer/right", 0.8), ("forcepan", 2)],
     "corner_left":  [("loopmode", 0), ("speed", 0.04), ("forcepan", 0), ("drivestate", 1), ("steercmd", 2)],
     "corner_right": [("loopmode", 0), ("speed", 0.04), ("forcepan", 0), ("drivestate", 1), ("steercmd", 1)],
+    "closed_loop_transition": [("loopmode", 0), ("speed", 0.02), ("forcepan", 0), ("drivestate", 1), ("steercmd", 0)],
+    "closed_loop":  [("loopmode", 1), ("speed", 0.02), ("forcepan", 0), ("drivestate", 1), ("steercmd", 0)],
     "pan_center":   [("forcepan", 0)],
-    "stop":         [("stop", 1), ("drivestate", 0), ("speed", 0.0), ("steercmd", 0)],
+    "stop":         [("loopmode", 0), ("drivestate", 0), ("speed", 0.0), ("steercmd", 0)],
 }
 
 

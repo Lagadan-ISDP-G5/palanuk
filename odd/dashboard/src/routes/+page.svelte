@@ -92,7 +92,14 @@
   function setControlMode(mode) {
     controlMode = mode;
     isManualControlEnabled = (mode === 'open');
-    if (wsClient) wsClient.send({ type: 'control_mode', payload: mode === 'open' ? 0 : 1 });
+    if (mode === 'closed') {
+      if (wsClient) {
+        wsClient.send({ type: 'command', payload: 'closed_loop_transition' });
+        wsClient.send({ type: 'command', payload: 'closed_loop' });
+      }
+    } else {
+      if (wsClient) wsClient.send({ type: 'command', payload: 'stop' });
+    }
   }
 
   function startMovement(direction) {
