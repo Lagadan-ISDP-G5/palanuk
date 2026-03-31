@@ -20,7 +20,7 @@
             id: "opencv-iox2",
             type: "opencv_iox2::OpenCViox2",
             config: {
-                "heading_error_offset": -0.03,
+                "heading_error_offset": 0.00, // -.03
             },
         ),
 
@@ -87,7 +87,7 @@
                 "max_rpm": 600.0,
                 "alignment_speed": 0.011,
                 "alignment_deadband": 0.045,
-                "alignment_pulse_ms": 50,
+                "alignment_pulse_ms": 47,
                 "alignment_cooldown_ms": 200,
             }
         ),
@@ -382,9 +382,9 @@
             id: "lmtr-speed-ctrlr",
             type: "speed_ctrlrs::LmtrSpeedCtrlr",
             config: {
-                "kp": 0.01,
+                "kp": 0.015, // .01
                 "kd": 0.0,
-                "ki": 0.0000000025,
+                "ki": 0.0000000031, // 0.0000000025
                 "setpoint": 0.0,
                 "cutoff": 10.0,
             }
@@ -394,9 +394,9 @@
             id: "rmtr-speed-ctrlr",
             type: "speed_ctrlrs::RmtrSpeedCtrlr",
             config: {
-                "kp": 0.008,
+                "kp": 0.009, // .008
                 "kd": 0.0,
-                "ki": 0.000000002,
+                "ki": 0.0000000020, // 0.000000002
                 "setpoint": 0.0,
                 "cutoff": 10.0,
             }
@@ -407,9 +407,9 @@
             type: "speed_correction_summer::SpeedCorrectionSummer",
             // config optional for k_ff_lmtr and k_ff_rmtr
             config: {
-                "k_ff_lmtr": 0.6, // 0.395,
-                "k_ff_rmtr": 0.275, // 0.375,
-                "max_pid_correction": 0.25,
+                "k_ff_lmtr": 0.395, // 0.395,
+                "k_ff_rmtr": 0.395, // 0.375,
+                "max_pid_correction": 0.5, // 0.24
                 "speed_correction": "enable", // "enable" or "disable"
             },
             logging: (enabled: true)
