@@ -69,6 +69,14 @@
   const keyMap = { w: 'forward', s: 'backward', a: 'corner_left', d: 'corner_right' };
 
   function handleKeyDown(e) {
+    if (e.code === 'Space') {
+      e.preventDefault();
+      if (wsClient) wsClient.send({ type: 'command', payload: 'stop' });
+      return;
+    }
+    if (e.key === '[') { setControlMode('open'); return; }
+    if (e.key === ']') { setControlMode('closed'); return; }
+    if (e.key.toLowerCase() === 'b') { accelerate(); return; }
     const direction = keyMap[e.key.toLowerCase()];
     if (direction && !carControls[direction]) startMovement(direction);
   }
@@ -109,6 +117,10 @@
     // Update drivestate for trail map integration
     const dsMap = { forward: 1, backward: 2, left: 1, right: 1, corner_left: 1, corner_right: 1 };
     if (dsMap[direction]) telemetryData.update(c => ({ ...c, drivestate: dsMap[direction] }));
+  }
+
+  function accelerate() {
+    if (wsClient) wsClient.send({ type: 'accelerate' });
   }
 
   function stopMovement(direction) {
@@ -298,6 +310,23 @@
       <!-- ══ RIGHT COLUMN ══ -->
       <div class="space-y-8">
 
+        <!-- Obstacle Detection -->
+        <div class="rounded-2xl p-4 border shadow-lg {$telemetryData.obstacle
+          ? 'bg-gradient-to-br from-red-900/70 to-red-800/70 border-red-500/50'
+          : 'bg-gradient-to-br from-green-900/40 to-emerald-900/40 border-green-500/30'}">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+              <div class="w-4 h-4 rounded-full {$telemetryData.obstacle ? 'bg-red-500' : 'bg-green-500'}"></div>
+              <span class="text-white font-bold text-sm">
+                {$telemetryData.obstacle ? 'Obstacle Detected' : 'Path Clear'}
+              </span>
+            </div>
+            <span class="text-xs font-mono {$telemetryData.obstacle ? 'text-red-300' : 'text-green-400'}">
+              palanuk/anc/obstacle
+            </span>
+          </div>
+        </div>
+
         <!-- Robot Energy Data (5V system) -->
         <div class="bg-gradient-to-br from-red-900/50 to-amber-900/50 rounded-2xl p-6 border border-red-500/30 shadow-lg">
           <h2 class="text-2xl font-bold text-white mb-1">
@@ -366,6 +395,22 @@
               </p>
             </div>
           </div>
+        </div>
+
+        <!-- Reset + Accelerate -->
+        <div class="grid grid-cols-2 gap-3">
+          <button
+            on:click={() => { if (wsClient) wsClient.send({ type: 'command', payload: 'stop' }); }}
+            class="py-4 bg-gradient-to-r from-red-700 to-red-600 hover:from-red-800 hover:to-red-700 text-white font-bold text-lg rounded-2xl border border-red-500/50 shadow-lg transition-all duration-200 transform hover:scale-[1.02] active:scale-95"
+          >
+            RESET<span class="block text-xs font-normal opacity-75">Space</span>
+          </button>
+          <button
+            on:click={accelerate}
+            class="py-4 bg-gradient-to-r from-emerald-700 to-green-600 hover:from-emerald-800 hover:to-green-700 text-white font-bold text-lg rounded-2xl border border-green-500/50 shadow-lg transition-all duration-200 transform hover:scale-[1.02] active:scale-95"
+          >
+            ACCEL<span class="block text-xs font-normal opacity-75">B</span>
+          </button>
         </div>
 
         <!-- D-Pad Controls -->

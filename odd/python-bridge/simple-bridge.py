@@ -220,6 +220,19 @@ class ZenohBridge:
 
     # -- outbound (dashboard command → Zenoh publish) ------------------------
 
+    def publish_topic(self, topic: str, value, *, use_msgpack: bool = True):
+        """Publish a msgpack value to an arbitrary Zenoh topic."""
+        if not self.session:
+            return False
+        try:
+            payload = msgpack.packb(value) if use_msgpack else str(value).encode()
+            self.session.put(topic, payload)
+            print(f"📤  {topic} = {value}")
+            return True
+        except Exception as exc:
+            print(f"❌  publish {topic}: {exc}")
+            return False
+
     def publish(self, topic_suffix: str, value, *, use_msgpack: bool = True):
         """Publish a control value onto palanuk/bstn/<topic_suffix>."""
         if not self.session:
@@ -274,7 +287,7 @@ async def broadcast(component: str, data: dict):
 # Each command is a sequence of (topic_suffix, value) publishes.
 COMMAND_TABLE = {
     "forward":      [("drivestate", 1), ("speed", 0.012), ("stop", 0)],
-    "backward":     [("drivestate", 2), ("speed", 1.0), ("stop", 0)],
+    "backward":     [("drivestate", 2), ("speed", 0.012), ("stop", 0)],
     "left":         [("steer/left", 0.8), ("steer/right", 0.2), ("forcepan", 1)],
     "right":        [("steer/left", 0.2), ("steer/right", 0.8), ("forcepan", 2)],
     "corner_left":  [("loopmode", 0), ("speed", 0.04), ("forcepan", 0), ("drivestate", 1), ("steercmd", 2)],
@@ -363,6 +376,22 @@ async def _handle_ws_message(
                 "type": "control_mode_response",
                 "success": success,
                 "message": f"🎛️  Switched to {label}",
+                "timestamp": datetime.now().isoformat(),
+            }))
+
+        elif msg_type == "accelerate":
+            ACCEL_TOPIC = "palanuk/itp/accelerate"
+            # execute_command(bridge, "forward")
+            bridge.publish_topic(ACCEL_TOPIC, 1)
+            async def _reset_accel():
+                await asyncio.sleep(0.2)
+                bridge.publish_topic(ACCEL_TOPIC, 0)
+            asyncio.create_task(_reset_accel())
+            await ws.send(json.dumps({
+                "type": "command_response",
+                "command": "accelerate",
+                "success": True,
+                "message": '"accelerate" sent',
                 "timestamp": datetime.now().isoformat(),
             }))
 
