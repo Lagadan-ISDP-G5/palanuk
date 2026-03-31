@@ -12,4 +12,3 @@ cu29 = { workspace = true }
 cu-pid = { workspace = true }
 cu-propulsion = { workspace = true }
 cu-irencoder = { workspace = true }
-itp-merger = { workspace = true }

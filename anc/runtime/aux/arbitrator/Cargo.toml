@@ -19,3 +19,4 @@ opencv-splitter = { workspace = true }
 dual-mtr-ctrlr = { workspace = true }
 opencv-iox2 = { workspace = true }
 cu-irencoder = { workspace = true }
+itp-merger = { workspace = true }

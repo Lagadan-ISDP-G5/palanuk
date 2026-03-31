@@ -20,7 +20,7 @@
             id: "opencv-iox2",
             type: "opencv_iox2::OpenCViox2",
             config: {
-                "heading_error_offset": 0.00, // -.03
+                "heading_error_offset": 0.035, // -.03
             },
         ),
 
@@ -55,11 +55,11 @@
             id: "dual-mtr-ctrlr",
             type: "dual_mtr_ctrlr::DualMtrCtrlr",
             config: {
-                "kp": 0.007122,
-                "kd": 0.0,
-                "ki": 0.00000008,
+                "kp": 0.0243,
+                "kd": 0.000000000075,
+                "ki": 0.000000781,
                 "setpoint": 0.0,
-                "cutoff": 2.0,
+                "cutoff": 3.0,
             }
         ),
 
@@ -76,12 +76,12 @@
                 "inner_wheel_steering_speed": 0.0,
                 "on_axis_rotation_duration_ms_left": 265, // 295
                 "on_axis_rotation_duration_ms_right": 320,
-                "steering_min_hold_ms": 70,
-                "steering_delay_ms": 200,
+                "steering_min_hold_ms": 60,
+                "steering_delay_ms": 400,
                 "steering_cooldown_ms": 400,
                 "steering_max_hold_ms": 2000,
                 "post_steering_boost_ms": 100,
-                "target_yaw_degrees": 84.0,
+                "target_yaw_degrees": 83.0,
                 "wheelbase_cm": 13.0,
                 "wheel_radius_cm": 3.0,
                 "max_rpm": 600.0,
@@ -89,6 +89,8 @@
                 "alignment_deadband": 0.045,
                 "alignment_pulse_ms": 47,
                 "alignment_cooldown_ms": 200,
+                "accelerate_speed": 1.0,
+                "accelerate_duration_ms": 3000,
             }
         ),
 
@@ -382,9 +384,9 @@
             id: "lmtr-speed-ctrlr",
             type: "speed_ctrlrs::LmtrSpeedCtrlr",
             config: {
-                "kp": 0.015, // .01
+                "kp": 0.025, // .01
                 "kd": 0.0,
-                "ki": 0.0000000031, // 0.0000000025
+                "ki": 0.0000000045, // 0.0000000025
                 "setpoint": 0.0,
                 "cutoff": 10.0,
             }
@@ -394,9 +396,9 @@
             id: "rmtr-speed-ctrlr",
             type: "speed_ctrlrs::RmtrSpeedCtrlr",
             config: {
-                "kp": 0.009, // .008
+                "kp": 0.0089, // .008
                 "kd": 0.0,
-                "ki": 0.0000000020, // 0.000000002
+                "ki": 0.0000000005, // 0.000000002
                 "setpoint": 0.0,
                 "cutoff": 10.0,
             }
@@ -407,9 +409,9 @@
             type: "speed_correction_summer::SpeedCorrectionSummer",
             // config optional for k_ff_lmtr and k_ff_rmtr
             config: {
-                "k_ff_lmtr": 0.395, // 0.395,
-                "k_ff_rmtr": 0.395, // 0.375,
-                "max_pid_correction": 0.5, // 0.24
+                "k_ff_lmtr": 0.43, // 0.395,
+                "k_ff_rmtr": 0.37, // 0.375,
+                "max_pid_correction": 0.25, // 0.24
                 "speed_correction": "enable", // "enable" or "disable"
             },
             logging: (enabled: true)
@@ -481,6 +483,7 @@
         (src: "dual-mtr-ctrlr", dst: "arbitrator", msg: "cu_pid::PIDControlOutputPayload"),
         (src: "opencv-splitter", dst: "arbitrator", msg: "opencv_splitter::NsmPayload"),
         (src: "encoder-pair", dst: "arbitrator", msg: "cu_irencoder::IrEncoderPayload"),
+        (src: "itp-merger", dst: "arbitrator", msg: "itp_merger::ItpTopicsOutputPayload"),
 
         (src: "encoder-pair", dst: "speed-err-adapter", msg: "cu_irencoder::IrEncoderPayload"),
 
@@ -503,8 +506,6 @@
         (src: "arbitrator", dst: "speed-correction-summer", msg: "cu_propulsion::PropulsionPayload"),
         // encoder feedback for stall detection
         (src: "encoder-pair", dst: "speed-correction-summer", msg: "cu_irencoder::IrEncoderPayload"),
-        // itp accelerate command
-        (src: "itp-merger", dst: "speed-correction-summer", msg: "itp_merger::ItpTopicsOutputPayload"),
 
         // speed-correction-summer tail
         (src: "speed-correction-summer", dst: "propulsion", msg: "cu_propulsion::PropulsionPayload"),

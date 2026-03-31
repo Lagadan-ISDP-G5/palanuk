@@ -3,12 +3,8 @@ use cu29::prelude::*;
 use cu_propulsion::PropulsionPayload;
 use cu_pid::PIDControlOutputPayload;
 use cu_irencoder::IrEncoderPayload;
-use itp_merger::ItpTopicsOutputPayload;
 
 pub const MAX_PID_CORRECTION: f32 = 0.25;
-
-pub const ACCELERATE_MIN_DURATION_MS: u64 = 6000;
-pub const ACCELERATE_MAX_DURATION_MS: u64 = 9000;
 
 #[derive(Reflect)]
 #[reflect(no_field_bounds, from_reflect = false)]
@@ -19,10 +15,6 @@ pub struct SpeedCorrectionSummer {
     k_ff_rmtr: f32,
     max_pid_correction: f32,
     speed_correction_enabled: bool,
-    #[reflect(ignore)]
-    accelerating: bool,
-    #[reflect(ignore)]
-    accelerate_started: CuInstant,
 }
 
 impl Default for SpeedCorrectionSummer {
@@ -33,8 +25,6 @@ impl Default for SpeedCorrectionSummer {
             k_ff_rmtr: 1.0,
             max_pid_correction: MAX_PID_CORRECTION,
             speed_correction_enabled: true,
-            accelerating: false,
-            accelerate_started: CuInstant::now(),
         }
     }
 }
@@ -42,7 +32,7 @@ impl Default for SpeedCorrectionSummer {
 impl Freezable for SpeedCorrectionSummer {}
 
 impl CuTask for SpeedCorrectionSummer {
-    type Input<'m> = input_msg!('m, PIDControlOutputPayload, PIDControlOutputPayload, PropulsionPayload, IrEncoderPayload, ItpTopicsOutputPayload);
+    type Input<'m> = input_msg!('m, PIDControlOutputPayload, PIDControlOutputPayload, PropulsionPayload, IrEncoderPayload);
     type Output<'m> = output_msg!(PropulsionPayload);
     type Resources<'r> = ();
 
@@ -98,19 +88,12 @@ impl CuTask for SpeedCorrectionSummer {
         let lmtr_speed_ctrlr_outpload = input.0.payload();
         let rmtr_speed_ctrlr_outpload = input.1.payload();
         let feedforward = input.2.payload();
-        let encoder = input.3.payload();
-        let itp = input.4.payload();
-
-        let accelerate = self.accelerate_handler(itp);
+        let _encoder = input.3.payload();
 
         if let Some(ff) = feedforward {
             let mut output_msg = ff.clone();
 
-            if accelerate {
-                output_msg.left_speed = 1.0;
-                output_msg.right_speed = 1.0;
-                eprintln!("ACCEL: overriding L=1.0 R=1.0");
-            } else if self.speed_correction_enabled {
+            if self.speed_correction_enabled {
                 let lmtr_pid = lmtr_speed_ctrlr_outpload.map(|p| p.output).unwrap_or(0.0)
                     .clamp(-self.max_pid_correction, self.max_pid_correction);
                 let rmtr_pid = rmtr_speed_ctrlr_outpload.map(|p| p.output).unwrap_or(0.0)
@@ -137,29 +120,3 @@ impl CuTask for SpeedCorrectionSummer {
 
 }
 
-impl SpeedCorrectionSummer {
-    fn accelerate_handler(&mut self, itp: Option<&ItpTopicsOutputPayload>) -> bool {
-        if let Some(itp_pload) = itp {
-            if itp_pload.accelerate_cmd {
-                self.accelerating = true;
-                self.accelerate_started = CuInstant::now();
-                eprintln!("ACCEL: started");
-            }
-        }
-
-        if self.accelerating {
-            let elapsed_ns = CuInstant::now().as_nanos()
-                .checked_sub(self.accelerate_started.as_nanos())
-                .unwrap_or(0);
-            let elapsed = CuDuration::from_nanos(elapsed_ns);
-            if elapsed >= CuDuration::from_millis(ACCELERATE_MAX_DURATION_MS) {
-                self.accelerating = false;
-                eprintln!("ACCEL: timed out after {}ms", ACCELERATE_MAX_DURATION_MS);
-            } else if elapsed < CuDuration::from_millis(ACCELERATE_MIN_DURATION_MS) {
-                // keep accelerating regardless of cmd state
-            }
-        }
-
-        self.accelerating
-    }
-}

@@ -15,6 +15,7 @@ use anc_pub::AncPubPayload;
 use opencv_splitter::NsmPayload;
 use opencv_iox2::{CornerDirection};
 use cu_irencoder::IrEncoderPayload;
+use itp_merger::ItpTopicsOutputPayload;
 use core::default::*;
 
 pub const R_WIND_COMP_LMTR: f32 = 1.0; // 1.17
@@ -29,6 +30,9 @@ pub const DEFAULT_ALIGNMENT_SPEED: f32 = 0.2;
 pub const DEFAULT_ALIGNMENT_DEADBAND: f32 = 0.03;
 pub const DEFAULT_ALIGNMENT_PULSE_MS: u64 = 100;
 pub const DEFAULT_ALIGNMENT_COOLDOWN_MS: u64 = 200;
+
+pub const DEFAULT_ACCELERATE_SPEED: f32 = 1.0;
+pub const DEFAULT_ACCELERATE_DURATION_MS: u64 = 6000;
 
 pub const DEFAULT_ON_AXIS_ROTATION_DURATION_MILLISEC_90_DEG: u64 = 400;
 pub const DEFAULT_STEERING_MIN_HOLD_MS: u64 = 300;
@@ -95,6 +99,12 @@ pub struct Arbitrator {
     alignment_cooldown_ms: u64,
     #[reflect(ignore)]
     alignment_pulse_started: CuInstant,
+    #[reflect(ignore)]
+    accelerating: bool,
+    #[reflect(ignore)]
+    accelerate_started: CuInstant,
+    accelerate_speed: f32,
+    accelerate_duration_ms: u64,
 }
 
 pub struct OnAxisRotator {
@@ -249,6 +259,10 @@ impl Default for Arbitrator {
             alignment_pulse_ms: DEFAULT_ALIGNMENT_PULSE_MS,
             alignment_cooldown_ms: DEFAULT_ALIGNMENT_COOLDOWN_MS,
             alignment_pulse_started: CuInstant::now(),
+            accelerating: false,
+            accelerate_started: CuInstant::now(),
+            accelerate_speed: DEFAULT_ACCELERATE_SPEED,
+            accelerate_duration_ms: DEFAULT_ACCELERATE_DURATION_MS,
         }
     }
 }
@@ -266,7 +280,7 @@ impl Freezable for Arbitrator {
 }
 
 impl CuTask for Arbitrator {
-    type Input<'m> = input_msg!('m, PropulsionAdapterOutputPayload, PIDControlOutputPayload, NsmPayload, IrEncoderPayload);
+    type Input<'m> = input_msg!('m, PropulsionAdapterOutputPayload, PIDControlOutputPayload, NsmPayload, IrEncoderPayload, ItpTopicsOutputPayload);
     type Output<'m> = output_msg!(PropulsionPayload, AncPubPayload);
     type Resources<'r> = ();
 
@@ -377,6 +391,14 @@ impl CuTask for Arbitrator {
             .map(|v| { let f: f64 = v.clone().into(); f as u64 })
             .unwrap_or(DEFAULT_ALIGNMENT_COOLDOWN_MS);
 
+        let accelerate_speed: f32 = kv.get("accelerate_speed")
+            .map(|v| { let f: f64 = v.clone().into(); f as f32 })
+            .unwrap_or(DEFAULT_ACCELERATE_SPEED);
+
+        let accelerate_duration_ms: u64 = kv.get("accelerate_duration_ms")
+            .map(|v| { let f: f64 = v.clone().into(); f as u64 })
+            .unwrap_or(DEFAULT_ACCELERATE_DURATION_MS);
+
         let mut inst = Self::default();
         inst.r_wind_comp_lmtr = r_wind_comp_lmtr as f32;
         inst.r_wind_comp_rmtr = r_wind_comp_rmtr as f32;
@@ -401,13 +423,15 @@ impl CuTask for Arbitrator {
         inst.alignment_deadband = alignment_deadband;
         inst.alignment_pulse_ms = alignment_pulse_ms;
         inst.alignment_cooldown_ms = alignment_cooldown_ms;
+        inst.accelerate_speed = accelerate_speed;
+        inst.accelerate_duration_ms = accelerate_duration_ms;
         Ok(inst)
     }
 
     fn process(&mut self, _clock: &RobotClock, input: &Self::Input<'_>, output: &mut Self::Output<'_>)
     -> CuResult<()>
     {
-        let (prop_adap, mtr_pid, nsm, encoder) = *input;
+        let (prop_adap, mtr_pid, nsm, encoder, itp) = *input;
 
         // PropulsionAdapterOutputPayload is required - can't do anything without it
         let Some(prop_adap_pload) = prop_adap.payload() else {
@@ -520,13 +544,48 @@ impl CuTask for Arbitrator {
             _ => ()
         }
 
-        let prop_payload: PropulsionPayload = match loop_state {
-            LoopState::Open => {
-                // Open-loop: just pass through propulsion payload, no PID needed
-                self.open_loop_handler(prop_adap_pload)?
-            },
-            LoopState::Closed => {
-                closed_loop_prop_payload
+        // Accelerate: rising edge from ITP triggers timed full-speed override
+        // Only e-stop (obstacle) cancels acceleration
+        if prop_adap_pload.is_e_stop_triggered && self.accelerating {
+            self.accelerating = false;
+            eprintln!("ACCEL: cancelled by e-stop");
+        }
+
+        if let Some(itp_pload) = itp.payload() {
+            if itp_pload.accelerate_cmd && !self.accelerating && !prop_adap_pload.is_e_stop_triggered {
+                self.accelerating = true;
+                self.accelerate_started = CuInstant::now();
+                eprintln!("ACCEL: started ({}ms @ {:.2})", self.accelerate_duration_ms, self.accelerate_speed);
+            }
+        }
+
+        if self.accelerating {
+            let elapsed_ns = CuInstant::now().as_nanos()
+                .checked_sub(self.accelerate_started.as_nanos())
+                .unwrap_or(0);
+            if CuDuration::from_nanos(elapsed_ns) >= CuDuration::from_millis(self.accelerate_duration_ms) {
+                self.accelerating = false;
+                eprintln!("ACCEL: done after {}ms", self.accelerate_duration_ms);
+            }
+        }
+
+        let prop_payload: PropulsionPayload = if self.accelerating {
+            PropulsionPayload {
+                left_enable: true,
+                right_enable: true,
+                left_speed: self.accelerate_speed,
+                right_speed: self.accelerate_speed,
+                left_direction: WheelDirection::Forward,
+                right_direction: WheelDirection::Forward,
+            }
+        } else {
+            match loop_state {
+                LoopState::Open => {
+                    self.open_loop_handler(prop_adap_pload)?
+                },
+                LoopState::Closed => {
+                    closed_loop_prop_payload
+                }
             }
         };
 
