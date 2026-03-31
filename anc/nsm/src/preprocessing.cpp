@@ -15,21 +15,13 @@ void mask_out_yellow(const cv::Mat& img, const PipelineConfig& config, cv::Mat& 
 }
 
 cv::Mat threshold_white_line(const cv::Mat& img, const PipelineConfig& config) {
-    cv::Mat gray, blurred, thresh_raw;
-    cv::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
-    cv::GaussianBlur(gray, blurred, cv::Size(config.blur_kernel_size, config.blur_kernel_size), 0);
-    cv::threshold(blurred, thresh_raw, config.brightness_threshold, 255, cv::THRESH_BINARY);
-
-    // cv::adaptiveThreshold(blurred, thresh_raw, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY, 15, 0);
-
-    // Reject floor reflections: bright but not pure white (higher saturation than real lane)
-    if (config.max_white_saturation > 0) {
-        cv::Mat hsv, sat_channel, sat_mask;
-        cv::cvtColor(img, hsv, cv::COLOR_BGR2HSV);
-        cv::extractChannel(hsv, sat_channel, 1);
-        cv::threshold(sat_channel, sat_mask, config.max_white_saturation, 255, cv::THRESH_BINARY);
-        thresh_raw.setTo(0, sat_mask);
-    }
+    cv::Mat blurred, hsv, thresh_raw;
+    cv::GaussianBlur(img, blurred, cv::Size(config.blur_kernel_size, config.blur_kernel_size), 0);
+    cv::cvtColor(blurred, hsv, cv::COLOR_BGR2HSV);
+    cv::inRange(hsv,
+        cv::Scalar(0, 0, config.brightness_threshold),
+        cv::Scalar(180, config.max_white_saturation, 255),
+        thresh_raw);
 
     // Mask out the top portion of the frame
     int roi_top = static_cast<int>(img.rows * config.roi_ignore_top_percent);

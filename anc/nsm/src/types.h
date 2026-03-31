@@ -48,8 +48,8 @@ struct PipelineConfig {
     // ROI settings
     float roi_ignore_top_percent = 0.53f;
 
-    // Thresholding
-    int brightness_threshold = 200;
+    // White line HSV thresholding (brightness_threshold = min V, max_white_saturation = max S)
+    int brightness_threshold = 215;
     int blur_kernel_size = 5;
     bool invert_threshold = false;  // invert for black-lane-on-white tracks
 
