@@ -1013,28 +1013,8 @@ class VisionService:
         # ══════════════════════════════════════════════════════════
 
         elif self._approach_phase == "park_enter":
-            # Drive into slot pulse — guided by P sign position
-            detections = parse_detections(result, self.class_names, self.vcfg.CONF_THRES)
-            p_signs = [d for d in detections if d.class_name == self.pcfg.CLASS_P_SIGN]
-            frame_mid_x = self.vcfg.IMG_SIZE / 2
-            frame_h = self.vcfg.IMG_SIZE
-
-            if p_signs:
-                sign = max(p_signs, key=lambda s: s.area)
-                offset_x = sign.center_x - frame_mid_x
-
-                if offset_x > self.vcfg.PARK_ENTER_DEADBAND_PX:
-                    logger.debug(f"Park enter: P sign right of centre ({offset_x:+.0f}px) — steering right")
-                    self._send_nav(NavCommand(command="ALIGN_RIGHT"))
-                elif offset_x < -self.vcfg.PARK_ENTER_DEADBAND_PX:
-                    logger.debug(f"Park enter: P sign left of centre ({offset_x:+.0f}px) — steering left")
-                    self._send_nav(NavCommand(command="ALIGN_LEFT"))
-                else:
-                    logger.debug(f"Park enter: P sign centred ({offset_x:+.0f}px) — driving straight")
-                    self._send_nav(NavCommand(command="DRIVE_FORWARD"))
-            else:
-                logger.debug("Park enter: no P sign — driving straight")
-                self._send_nav(NavCommand(command="DRIVE_FORWARD"))
+            # Drive straight into slot — no steering adjustments
+            self._send_nav(NavCommand(command="DRIVE_FORWARD"))
 
             if elapsed >= self.vcfg.PARK_ENTER_PULSE_S:
                 self._send_nav(NavCommand(command="STOP"))
@@ -1047,7 +1027,7 @@ class VisionService:
                 self._approach_phase_time = now
 
         elif self._approach_phase == "park_enter_pause":
-            # Brief pause between enter pulses — re-evaluate P sign
+            # Brief pause between enter pulses
             self._send_nav(NavCommand(command="STOP"))
             if elapsed >= self.vcfg.PARK_ENTER_PAUSE_S:
                 self._pulse_count += 1

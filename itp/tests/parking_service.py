@@ -99,7 +99,7 @@ NAV_CMD_RECIPES: Dict[str, List[Tuple[str, Union[int, float]]]] = {
         ("palanuk/bstn/drivestate", 2),
     ],
 
-    # ── Turn right 90° (reverse + steer; AnC measures angle) ──
+    # ── Turn right 90°  ──
     "TURN_RIGHT_90": [
         ("palanuk/bstn/loopmode",   0),
         ("palanuk/bstn/speed",      0.04),
